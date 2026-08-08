@@ -74,10 +74,10 @@ export default function Home() {
 
     setStatus("loading");
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, rememberMe }),
+        body: JSON.stringify({ email, password }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -85,7 +85,7 @@ export default function Home() {
         setErrors({ email: "", password: result.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         return;
       }
-      setStatus("authenticated");
+      window.location.href = result.role === "teacher" ? "/teacher" : "/student";
     } catch {
       setStatus("error");
       setErrors({ email: "", password: "ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง" });
