@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import styles from "./page.module.css";
 
 type Status = "idle" | "error" | "loading" | "demo" | "google" | "forgot";
@@ -87,7 +88,9 @@ export default function Home() {
       <section className={styles.newsPanel} aria-labelledby="news-title">
         <div className={styles.newsInner}>
           <div className={styles.brandBlock}>
-            <div className={styles.brandMark} aria-hidden="true">S</div>
+            <div className={styles.brandMark}>
+              <Image className={styles.brandLogo} src="/school-logo.jpg" alt="ตราสัญลักษณ์โรงเรียน" width={800} height={445} priority />
+            </div>
             <div>
               <p className={styles.brandName}>School OS</p>
               <p className={styles.brandCaption}>ศูนย์บัญชาการโรงเรียน</p>
@@ -122,7 +125,6 @@ export default function Home() {
       <section className={styles.loginPanel} aria-labelledby="login-title">
         <div className={styles.loginCard}>
           <div className={styles.intro}>
-            <p className={styles.eyebrow}>พื้นที่ทำงานของคุณ</p>
             <h2 id="login-title">เข้าสู่ระบบ</h2>
             <p>จัดการข้อมูลโรงเรียนของคุณได้จากที่เดียว</p>
           </div>
