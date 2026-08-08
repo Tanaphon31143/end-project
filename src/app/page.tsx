@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import styles from "./page.module.css";
 
-type Status = "idle" | "error" | "loading" | "demo" | "google" | "forgot";
+type Status = "idle" | "error" | "loading" | "authenticated" | "google" | "forgot";
 
 const sampleNews = [
   { number: "01", type: "Announcements", title: "ข่าวสารจากโรงเรียน", summary: "ประกาศสำคัญและการสื่อสารภายในโรงเรียน" },
@@ -56,7 +56,7 @@ export default function Home() {
     };
   }, []);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "").trim();
@@ -73,10 +73,26 @@ export default function Home() {
     }
 
     setStatus("loading");
-    window.setTimeout(() => setStatus("demo"), 700);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, rememberMe }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setStatus("error");
+        setErrors({ email: "", password: result.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
+        return;
+      }
+      setStatus("authenticated");
+    } catch {
+      setStatus("error");
+      setErrors({ email: "", password: "ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง" });
+    }
   }
 
-  function announceAction(nextStatus: Exclude<Status, "idle" | "error" | "demo">) {
+  function announceAction(nextStatus: Exclude<Status, "idle" | "error" | "loading" | "authenticated">) {
     setErrors({ email: "", password: "" });
     setStatus(nextStatus);
   }
@@ -162,7 +178,7 @@ export default function Home() {
             {status !== "idle" && <p className={`${styles.notice} ${status === "error" ? styles.noticeError : ""}`} role="status" aria-live="polite">
               {status === "error" && "กรุณาตรวจสอบข้อมูลที่กรอกแล้วลองอีกครั้ง"}
               {status === "loading" && "กำลังเตรียมการเชื่อมต่อระบบ"}
-              {status === "demo" && "พร้อมใช้งาน · โครงสร้างพร้อมเชื่อมต่อระบบจริง"}
+              {status === "authenticated" && "เข้าสู่ระบบสำเร็จ · เชื่อมต่อข้อมูลโรงเรียนแล้ว"}
               {status === "forgot" && "การกู้คืนรหัสผ่านจะเชื่อมต่อในขั้นตอนถัดไป"}
               {status === "google" && "การเข้าสู่ระบบด้วย Google จะเชื่อมต่อในขั้นตอนถัดไป"}
             </p>}
