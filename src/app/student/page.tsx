@@ -1,6 +1,7 @@
 'use client';
 
 import Image from "next/image";
+import { useState } from "react";
 import styles from "./student.module.css";
 
 const schedule = [
@@ -17,6 +18,13 @@ const notices = [
 ];
 
 export default function StudentPage() {
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  async function handleLogout() {
+    await fetch("/api/logout", { method: "POST" });
+    window.location.href = "/";
+  }
+
   return (
     <main className={styles.appShell}>
       <header className={styles.header}>
@@ -26,7 +34,15 @@ export default function StudentPage() {
         </div>
         <div className={styles.headerRight}>
           <button className={styles.iconButton} aria-label="การแจ้งเตือน">♧<i /></button>
-          <div className={styles.avatar}>น</div>
+          <div className={styles.profileMenuWrap}>
+            <button className={styles.avatarButton} onClick={() => setProfileOpen((open) => !open)} aria-label="เปิดเมนูโปรไฟล์" aria-expanded={profileOpen}>
+              <span className={styles.avatar}>น</span>
+            </button>
+            {profileOpen && <div className={styles.profileDropdown} role="menu">
+              <button onClick={() => setProfileOpen(false)} role="menuitem"><span>♙</span> โปรไฟล์</button>
+              <button onClick={handleLogout} role="menuitem"><span>↪</span> Logout / ออกจากระบบ</button>
+            </div>}
+          </div>
         </div>
       </header>
 
@@ -55,7 +71,7 @@ export default function StudentPage() {
         <section className={`${styles.card} ${styles.noticeCard}`}><div className={styles.sectionHeading}><div><span className={styles.eyebrow}>อัปเดตล่าสุด</span><h2>ประกาศจากโรงเรียน</h2></div><button className={styles.moreButton}>ดูทั้งหมด →</button></div><div className={styles.noticeList}>{notices.map(([icon, title, meta]) => <article key={title}><span className={styles.noticeIcon}>{icon}</span><div><strong>{title}</strong><p>{meta}</p></div><span>›</span></article>)}</div></section>
       </div>
 
-      <nav className={styles.bottomNav}>{[["⌂", "หน้าแรก"], ["⌾", "สแกนเช็คชื่อ"], ["◷", "ประวัติ"], ["▦", "ตารางเรียน"], ["♙", "โปรไฟล์"]].map(([icon, label], i) => <a className={i === 0 ? styles.active : ""} href="#" key={label}><span>{icon}</span>{label}</a>)}</nav>
+      <nav className={styles.bottomNav}>{[["⌂", "หน้าแรก"], ["⌾", "สแกนเช็คชื่อ"], ["◷", "ประวัติ"], ["▦", "ตารางเรียน"]].map(([icon, label], i) => <a className={i === 0 ? styles.active : ""} href="#" key={label}><span>{icon}</span>{label}</a>)}</nav>
     </main>
   );
 }
