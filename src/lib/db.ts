@@ -21,7 +21,7 @@ export const db =
     user: decodeURIComponent(parsedUrl.username),
     password: decodeURIComponent(parsedUrl.password),
     database: parsedUrl.pathname.replace(/^\//, ""),
-    ssl: { rejectUnauthorized: true },
+    ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" },
     connectionLimit: 10,
     enableKeepAlive: true,
   });
