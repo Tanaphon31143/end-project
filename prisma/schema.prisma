@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+model User {
+  id          Int                 @id @default(autoincrement()) @map("user_id")
+  username    String              @unique @db.VarChar(100)
+  password    String              @db.VarChar(255)
+  role        Role
+  status      UserStatus          @default(ACTIVE)
+  lastLoginAt DateTime?           @map("last_login_at")
+  teacher     Teacher?
+  auditLogs   AuditLog[]
+  sessions    AttendanceSession[] @relation("SessionCreator")
+
+  @@map("users")
+}
+
+model Teacher {
+  id          Int      @id @default(autoincrement()) @map("teacher_id")
+  userId      Int      @unique @map("user_id")
+  teacherCode String   @unique @map("teacher_code") @db.VarChar(30)
+  firstName   String   @map("first_name") @db.VarChar(100)
+  lastName    String   @map("last_name") @db.VarChar(100)
+  email       String   @unique @db.VarChar(255)
+  phone       String?  @db.VarChar(30)
+  user        User     @relation(fields: [userId], references: [id])
+  courses     Course[]
+
+  @@map("teachers")
+}
+
+model Student {
+  id          Int             @id @default(autoincrement()) @map("student_id")
+  studentCode String          @unique @map("student_code") @db.VarChar(30)
+  firstName   String          @map("first_name") @db.VarChar(100)
+  lastName    String          @map("last_name") @db.VarChar(100)
+  classId     Int?            @map("class_id")
+  courses     CourseStudent[]
+  attendance  Attendance[]
+
+  @@map("students")
+}
+
+model Course {
+  id        Int                 @id @default(autoincrement()) @map("course_id")
+  code      String              @unique @map("course_code") @db.VarChar(30)
+  name      String              @map("course_name") @db.VarChar(200)
+  teacherId Int                 @map("teacher_id")
+  createdAt DateTime            @default(now()) @map("created_at")
+  teacher   Teacher             @relation(fields: [teacherId], references: [id])
+  students  CourseStudent[]
+  schedules Schedule[]
+  sessions  AttendanceSession[]
+
+  @@index([teacherId])
+  @@map("courses")
+}
+
+model CourseStudent {
+  id        Int     @id @default(autoincrement())
+  courseId  Int     @map("course_id")
+  studentId Int     @map("student_id")
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@map("course_students")
+}
+
+model Schedule {
+  id          Int                 @id @default(autoincrement()) @map("schedule_id")
+  courseId    Int                 @map("course_id")
+  classroomId Int?                @map("classroom_id")
+  dayOfWeek   Int                 @map("day_of_week")
+  startTime   String              @map("start_time") @db.VarChar(5)
+  endTime     String              @map("end_time") @db.VarChar(5)
+  course      Course              @relation(fields: [courseId], references: [id])
+  sessions    AttendanceSession[]
+
+  @@map("schedules")
+}
+
+model AttendanceSession {
+  id          Int           @id @default(autoincrement()) @map("session_id")
+  courseId    Int           @map("course_id")
+  scheduleId  Int           @map("schedule_id")
+  sessionDate DateTime      @map("session_date") @db.Date
+  startTime   String        @map("start_time") @db.VarChar(5)
+  endTime     String        @map("end_time") @db.VarChar(5)
+  lateMinutes Int           @default(15) @map("late_minutes")
+  status      SessionStatus @default(ACTIVE)
+  createdBy   Int           @map("created_by")
+  course      Course        @relation(fields: [courseId], references: [id])
+  schedule    Schedule      @relation(fields: [scheduleId], references: [id])
+  creator     User          @relation("SessionCreator", fields: [createdBy], references: [id])
+  attendance  Attendance[]
+
+  @@index([courseId, sessionDate])
+  @@map("attendance_sessions")
+}
+
+model Attendance {
+  id             Int               @id @default(autoincrement()) @map("attendance_id")
+  sessionId      Int               @map("session_id")
+  studentId      Int               @map("student_id")
+  attendanceDate DateTime          @map("attendance_date") @db.Date
+  checkInTime    DateTime?         @map("check_in_time")
+  status         AttendanceStatus
+  confidence     Decimal?          @db.Decimal(5, 2)
+  session        AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student        Student           @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@map("attendance")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement()) @map("log_id")
+  userId      Int      @map("user_id")
+  action      String   @db.VarChar(50)
+  entity      String   @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.VarChar(50)
+  description String?  @db.Text
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}

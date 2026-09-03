@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { Camera, ChevronRight, Database, ScanFace } from "lucide-react";
+const systems = [["กล้องตรวจจับใบหน้า", Camera], ["ฐานข้อมูล", Database], ["ระบบ AI ตรวจจับใบหน้า", ScanFace]] as const;
+export function SystemStatus() { return <section className="dashboard-card status-card"><div className="card-head"><div><h2>สถานะระบบ</h2><p>ตรวจสอบล่าสุดเมื่อ 09:25 น.</p></div></div><div className="system-list">{systems.map(([label, Icon]) => <button key={label}><span className="system-icon"><Icon size={19}/></span><span className="system-name"><b>{label}</b><small>ทำงานตามปกติ</small></span><span className="normal"><i/>ปกติ</span><ChevronRight size={17}/></button>)}</div><Link className="view-all" href="/admin/settings">ดูสถานะทั้งหมด <span>→</span></Link></section>; }

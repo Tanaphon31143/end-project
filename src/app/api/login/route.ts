@@ -1,29 +1,26 @@
 import { NextResponse } from "next/server";
+import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { createSignedSession, homeForRole, type AppRole } from "@/lib/auth";
 
-export async function POST(request: Request) {
-  const { email, password } = await request.json();
-  if (typeof email !== "string" || typeof password !== "string") {
-    return NextResponse.json({ error: "ข้อมูลไม่ครบถ้วน" }, { status: 400 });
-  }
+type Account = RowDataPacket & { id:number; email:string; full_name:string; password_hash:string; role:AppRole; status:string };
 
-  const [rows] = await db.execute(
-    `SELECT id, email, full_name, password_hash, 'teacher' AS role FROM teachers WHERE email = ?
-     UNION ALL
-     SELECT id, email, full_name, password_hash, 'student' AS role FROM students WHERE email = ?
-     LIMIT 1`,
-    [email.trim().toLowerCase(), email.trim().toLowerCase()],
-  );
-  const user = (rows as Array<{ id: number; email: string; full_name: string; password_hash: string; role: "teacher" | "student" }>)[0];
-
-  if (!user || !verifyPassword(password, user.password_hash)) {
-    return NextResponse.json({ error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" }, { status: 401 });
-  }
-
-  const response = NextResponse.json({ ok: true, role: user.role, name: user.full_name });
-  response.cookies.set("school_user", JSON.stringify({ id: user.id, role: user.role, name: user.full_name }), {
-    httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 8, path: "/",
-  });
+export async function POST(request:Request){
+  const body=await request.json();
+  const email=typeof body.email==="string"?body.email.trim().toLowerCase():"";
+  const password=typeof body.password==="string"?body.password:"";
+  if(!email||!password)return NextResponse.json({message:"กรุณากรอกอีเมลและรหัสผ่าน"},{status:400});
+  const [result]=await db.execute<Account[]>(`
+    SELECT id,email,full_name,password_hash,'admin' role,status FROM admins WHERE email=?
+    UNION ALL SELECT id,email,full_name,password_hash,'teacher','ACTIVE' FROM teachers WHERE email=?
+    UNION ALL SELECT id,email,full_name,password_hash,'student','ACTIVE' FROM students WHERE email=? LIMIT 1
+  `,[email,email,email]);
+  const account=result[0];
+  if(!account||account.status!=="ACTIVE"||!verifyPassword(password,account.password_hash))return NextResponse.json({message:"อีเมลหรือรหัสผ่านไม่ถูกต้อง"},{status:401});
+  const maxAge=body.rememberMe===true?7*86400:8*3600;
+  const response=NextResponse.json({ok:true,role:account.role,redirectTo:homeForRole(account.role)});
+  response.cookies.set("school_os_session",createSignedSession({id:account.id,role:account.role,name:account.full_name,email:account.email},maxAge*1000),{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge});
+  response.cookies.set("school_user","",{httpOnly:true,expires:new Date(0),path:"/"});
   return response;
 }

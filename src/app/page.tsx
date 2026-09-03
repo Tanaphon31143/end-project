@@ -85,7 +85,7 @@ export default function Home() {
         setErrors({ email: "", password: result.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         return;
       }
-      window.location.href = result.role === "teacher" ? "/teacher" : "/student";
+      window.location.href = result.redirectTo;
     } catch {
       setStatus("error");
       setErrors({ email: "", password: "ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง" });
