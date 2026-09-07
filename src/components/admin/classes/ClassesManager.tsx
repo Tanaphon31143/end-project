@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,6 +39,7 @@ export default function ClassesManager({
   academicYear,
   semester,
 }: Props) {
+  const router = useRouter();
   const [classes, setClasses] = useState(initialClasses),
     [students, setStudents] = useState(initialStudents),
     [selected, setSelected] = useState(initialClasses[0]?.id || 0),
@@ -76,10 +78,7 @@ export default function ClassesManager({
   const roomStudents = students[selected] || [],
     size = 5,
     totalPages = Math.max(1, Math.ceil(roomStudents.length / size)),
-    shown = useMemo(
-      () => roomStudents.slice((page - 1) * size, page * size),
-      [roomStudents, page],
-    );
+    shown = roomStudents.slice((page - 1) * size, page * size);
   function notify(m: string) {
     setToast(m);
     setTimeout(() => setToast(""), 3000);
@@ -359,10 +358,10 @@ export default function ClassesManager({
                     </td>
                     <td>
                       <div className="student-icon-actions">
-                        <button title="ดูรายละเอียด" onClick={() => window.location.assign(`/admin/students?student=${s.id}&mode=view`)}>
+                        <button title="ดูรายละเอียด" onClick={() => router.push(`/admin/students?student=${s.id}&mode=view`)}>
                           <Eye size={15} />
                         </button>
-                        <button title="แก้ไข" onClick={() => window.location.assign(`/admin/students?student=${s.id}&mode=edit`)}>
+                        <button title="แก้ไข" onClick={() => router.push(`/admin/students?student=${s.id}&mode=edit`)}>
                           <Pencil size={15} />
                         </button>
                         <button title="ลบ" className="danger" disabled={busy} onClick={() => void removeStudent(s)}>

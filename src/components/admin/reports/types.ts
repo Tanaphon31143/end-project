@@ -1,2 +1,25 @@
-export type ReportRecord={date:string;studentCode:string;studentName:string;className:string;subjectCode:string;subjectName:string;time:string;status:"PRESENT"|"LATE"|"ABSENT"|"LEAVE"};
-export type ReportData={summary:{students:number;total:number;present:number;late:number;absent:number;leave:number;rate:number};daily:{day:string;students:number;rate:number}[];records:ReportRecord[];classrooms:{id:number;name:string}[];subjects:{id:number;code:string;name:string}[]};
+export type ReportRecord = {
+  date: string;
+  studentCode: string;
+  studentName: string;
+  className: string;
+  subjectCode: string;
+  subjectName: string;
+  time: string;
+  status: "PRESENT" | "LATE" | "ABSENT" | "LEAVE";
+};
+export type ReportData = {
+  summary: {
+    students: number;
+    total: number;
+    present: number;
+    late: number;
+    absent: number;
+    leave: number;
+    rate: number;
+  };
+  daily: { day: string; students: number; rate: number }[];
+  records: ReportRecord[];
+  classrooms: { id: number; name: string }[];
+  subjects: { id: number; code: string; name: string }[];
+};

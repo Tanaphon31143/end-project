@@ -46,7 +46,9 @@ export function Sidebar({
         className={`sidebar-backdrop ${open ? "show" : ""}`}
         onClick={onClose}
       />
-      <aside className={`sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+      <aside
+        className={`sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}
+      >
         <button
           className="sidebar-close"
           onClick={onClose}
@@ -56,7 +58,13 @@ export function Sidebar({
         </button>
         <div className="brand">
           <div className="brand-mark">
-            <Image src="/school-logo.jpg" alt="ตราโรงเรียนขุขันธ์" width={43} height={43} priority />
+            <Image
+              src="/school-logo.jpg"
+              alt="ตราโรงเรียนขุขันธ์"
+              width={43}
+              height={43}
+              priority
+            />
           </div>
           <div className="brand-copy">
             <b>ระบบเช็คชื่อ</b>
@@ -86,15 +94,26 @@ export function Sidebar({
           <div className="teacher-profile">
             <div className="mini-avatar">สม</div>
             <div className="teacher-profile-copy">
-            <b>สมชาย ใจดี</b>
-            <span>ครูผู้สอน</span>
+              <b>สมชาย ใจดี</b>
+              <span>ครูผู้สอน</span>
             </div>
           </div>
-          <button className="teacher-logout" onClick={logout} title="ออกจากระบบ">
+          <button
+            className="teacher-logout"
+            onClick={logout}
+            title="ออกจากระบบ"
+          >
             <LogOut size={19} />
             <span>ออกจากระบบ</span>
           </button>
-          <button className="sidebar-collapse" onClick={onCollapse} aria-label={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"} title={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}><ChevronsLeft size={19} /></button>
+          <button
+            className="sidebar-collapse"
+            onClick={onCollapse}
+            aria-label={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
+            title={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
+          >
+            <ChevronsLeft size={19} />
+          </button>
         </div>
       </aside>
     </>

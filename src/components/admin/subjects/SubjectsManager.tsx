@@ -4,10 +4,149 @@ import { Plus, Search } from "lucide-react";
 import SubjectModal from "./SubjectModal";
 import SubjectTable from "./SubjectTable";
 import type { ClassroomOption, SubjectOption, SubjectRecord } from "./types";
-type Props={initialSubjects:SubjectRecord[];teachers:SubjectOption[];classrooms:ClassroomOption[];academicYear:string};
-export default function SubjectsManager({initialSubjects,teachers,classrooms,academicYear}:Props){const [subjects,setSubjects]=useState(initialSubjects);const [query,setQuery]=useState("");const [room,setRoom]=useState("");const [modal,setModal]=useState(false);const [editing,setEditing]=useState<SubjectRecord|null>(null);const [busyId,setBusyId]=useState<number|null>(null);const [toast,setToast]=useState<{message:string;tone:"success"|"error"}|null>(null);
-  const filtered=useMemo(()=>subjects.filter(s=>(!query||`${s.subjectCode} ${s.subjectName}`.toLowerCase().includes(query.toLowerCase()))&&(!room||String(s.classId)===room)),[subjects,query,room]);
-  function notify(message:string,tone:"success"|"error"){setToast({message,tone});window.setTimeout(()=>setToast(null),3000)}
-  async function reload(){const response=await fetch("/api/subjects",{cache:"no-store"});if(!response.ok)throw new Error("โหลดข้อมูลล่าสุดไม่สำเร็จ");const data=await response.json() as {subjects:SubjectRecord[]};setSubjects(data.subjects)}
-  async function remove(subject:SubjectRecord){if(!window.confirm(`ยืนยันการลบวิชา ${subject.subjectCode} ${subject.subjectName}?`))return;setBusyId(subject.databaseId);try{const response=await fetch(`/api/subjects?id=${subject.databaseId}`,{method:"DELETE"});const data=await response.json() as {message?:string};if(!response.ok)throw new Error(data.message||"ลบไม่สำเร็จ");setSubjects(current=>current.filter(s=>s.databaseId!==subject.databaseId));notify(data.message||"ลบรายวิชาสำเร็จ","success")}catch(error){notify(error instanceof Error?error.message:"เกิดข้อผิดพลาด","error")}finally{setBusyId(null)}}
-  return <main className="admin-content"><div className="page-intro"><div><h2>รายวิชาทั้งหมด</h2><p>รายวิชาที่เปิดสอนในภาคเรียนปัจจุบัน</p></div><button className="admin-button primary" onClick={()=>{setEditing(null);setModal(true)}}><Plus size={18}/>เพิ่มรายวิชา</button></div><div className="admin-filters"><label><Search size={18}/><input aria-label="ค้นหารหัสหรือชื่อรายวิชา" placeholder="ค้นหารหัสหรือชื่อรายวิชา" value={query} onChange={e=>setQuery(e.target.value)}/></label><select aria-label="ชั้นเรียน" value={room} onChange={e=>setRoom(e.target.value)}><option value="">ชั้นเรียนทั้งหมด</option>{classrooms.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button className="admin-button secondary" onClick={()=>{setQuery("");setRoom("")}}>ล้างตัวกรอง</button></div><SubjectTable subjects={filtered} onEdit={subject=>{setEditing(subject);setModal(true)}} onDelete={remove} busyId={busyId}/><SubjectModal open={modal} subject={editing} teachers={teachers} classrooms={classrooms} academicYear={academicYear} onClose={()=>setModal(false)} onSaved={reload} onToast={notify}/>{toast&&<div className={`subject-toast ${toast.tone}`}>{toast.message}</div>}</main>}
+type Props = {
+  initialSubjects: SubjectRecord[];
+  teachers: SubjectOption[];
+  classrooms: ClassroomOption[];
+  academicYear: string;
+};
+export default function SubjectsManager({
+  initialSubjects,
+  teachers,
+  classrooms,
+  academicYear,
+}: Props) {
+  const [subjects, setSubjects] = useState(initialSubjects);
+  const [query, setQuery] = useState("");
+  const [room, setRoom] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<SubjectRecord | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
+  const filtered = useMemo(
+    () =>
+      subjects.filter(
+        (s) =>
+          (!query ||
+            `${s.subjectCode} ${s.subjectName}`
+              .toLowerCase()
+              .includes(query.toLowerCase())) &&
+          (!room || String(s.classId) === room),
+      ),
+    [subjects, query, room],
+  );
+  function notify(message: string, tone: "success" | "error") {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast(null), 3000);
+  }
+  async function reload() {
+    const response = await fetch("/api/subjects", { cache: "no-store" });
+    if (!response.ok) throw new Error("โหลดข้อมูลล่าสุดไม่สำเร็จ");
+    const data = (await response.json()) as { subjects: SubjectRecord[] };
+    setSubjects(data.subjects);
+  }
+  async function remove(subject: SubjectRecord) {
+    if (
+      !window.confirm(
+        `ยืนยันการลบวิชา ${subject.subjectCode} ${subject.subjectName}?`,
+      )
+    )
+      return;
+    setBusyId(subject.databaseId);
+    try {
+      const response = await fetch(`/api/subjects?id=${subject.databaseId}`, {
+        method: "DELETE",
+      });
+      const data = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(data.message || "ลบไม่สำเร็จ");
+      setSubjects((current) =>
+        current.filter((s) => s.databaseId !== subject.databaseId),
+      );
+      notify(data.message || "ลบรายวิชาสำเร็จ", "success");
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
+        "error",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+  return (
+    <main className="admin-content">
+      <div className="page-intro">
+        <div>
+          <h2>รายวิชาทั้งหมด</h2>
+          <p>รายวิชาที่เปิดสอนในภาคเรียนปัจจุบัน</p>
+        </div>
+        <button
+          className="admin-button primary"
+          onClick={() => {
+            setEditing(null);
+            setModal(true);
+          }}
+        >
+          <Plus size={18} />
+          เพิ่มรายวิชา
+        </button>
+      </div>
+      <div className="admin-filters">
+        <label>
+          <Search size={18} />
+          <input
+            aria-label="ค้นหารหัสหรือชื่อรายวิชา"
+            placeholder="ค้นหารหัสหรือชื่อรายวิชา"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <select
+          aria-label="ชั้นเรียน"
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+        >
+          <option value="">ชั้นเรียนทั้งหมด</option>
+          {classrooms.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <button
+          className="admin-button secondary"
+          onClick={() => {
+            setQuery("");
+            setRoom("");
+          }}
+        >
+          ล้างตัวกรอง
+        </button>
+      </div>
+      <SubjectTable
+        subjects={filtered}
+        onEdit={(subject) => {
+          setEditing(subject);
+          setModal(true);
+        }}
+        onDelete={remove}
+        busyId={busyId}
+      />
+      <SubjectModal
+        open={modal}
+        subject={editing}
+        teachers={teachers}
+        classrooms={classrooms}
+        academicYear={academicYear}
+        onClose={() => setModal(false)}
+        onSaved={reload}
+        onToast={notify}
+      />
+      {toast && (
+        <div className={`subject-toast ${toast.tone}`}>{toast.message}</div>
+      )}
+    </main>
+  );
+}

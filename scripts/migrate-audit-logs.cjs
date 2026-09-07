@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const mysql = require("mysql2/promise");
 
 async function main() {

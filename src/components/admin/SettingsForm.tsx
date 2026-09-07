@@ -1,4 +1,233 @@
-"use client";import{useState}from"react";import{Bell,Clock,DatabaseBackup,Save,ScanFace,School,X}from"lucide-react";
-type Settings={schoolName:string;academicYear:string;semester:number;schoolStartTime:string;lateAfter:string;faceRecognitionEnabled:boolean;notificationsEnabled:boolean;updatedAt:string};type Activity={label:string;detail:string;createdAt:string};
-export function SettingsForm({initialSettings,initialActivity}:{initialSettings:Settings;initialActivity:Activity[]}){const[value,setValue]=useState(initialSettings),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[logs,setLogs]=useState(false);async function save(){setBusy(true);const r=await fetch("/api/admin/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)}),d=await r.json();setMessage(d.message);setBusy(false)}return <><div className="settings-grid"><section className="dashboard-card settings-card"><h2><School/>ข้อมูลโรงเรียน</h2><div className="form-fields"><label>ชื่อโรงเรียน<input value={value.schoolName} onChange={e=>setValue({...value,schoolName:e.target.value})}/></label><label>ปีการศึกษา<input value={value.academicYear} onChange={e=>setValue({...value,academicYear:e.target.value})}/></label><label>ภาคเรียน<select value={value.semester} onChange={e=>setValue({...value,semester:Number(e.target.value)})}><option value="1">ภาคเรียนที่ 1</option><option value="2">ภาคเรียนที่ 2</option></select></label></div></section><section className="dashboard-card settings-card"><h2><Clock/>เวลาเรียนและการเช็คชื่อ</h2><div className="form-fields two"><label>เวลาเริ่มเรียน<input type="time" value={value.schoolStartTime} onChange={e=>setValue({...value,schoolStartTime:e.target.value})}/></label><label>นับว่ามาสายหลัง<input type="time" value={value.lateAfter} onChange={e=>setValue({...value,lateAfter:e.target.value})}/></label></div></section><section className="dashboard-card settings-card"><h2><ScanFace/>ระบบตรวจจับใบหน้า</h2><Toggle label="เปิดใช้งาน Face Recognition" description="อนุญาตให้บันทึกการเข้าเรียนด้วยการตรวจจับใบหน้า" on={value.faceRecognitionEnabled} setOn={on=>setValue({...value,faceRecognitionEnabled:on})}/></section><section className="dashboard-card settings-card"><h2><Bell/>การแจ้งเตือน</h2><Toggle label="เปิดการแจ้งเตือน" description="แจ้งสถานะการเข้าเรียนและเหตุการณ์สำคัญ" on={value.notificationsEnabled} setOn={on=>setValue({...value,notificationsEnabled:on})}/></section><section className="dashboard-card settings-card backup-card"><h2><DatabaseBackup/>สำรองข้อมูล</h2><p>ส่งออกข้อมูลระบบเป็นไฟล์ JSON เพื่อเก็บสำรอง</p><a href="/api/admin/settings?action=backup" className="admin-button secondary">สำรองข้อมูลตอนนี้</a></section><div className="settings-save"><button className="admin-button secondary" onClick={()=>setLogs(true)}>ดูบันทึกระบบ</button><button className="admin-button primary" onClick={save} disabled={busy}><Save size={18}/>{busy?"กำลังบันทึก...":"บันทึกการตั้งค่า"}</button></div>{message&&<div className="settings-message">{message}</div>}</div>{logs&&<div className="subject-modal-layer" onMouseDown={e=>{if(e.target===e.currentTarget)setLogs(false)}}><section className="subject-modal settings-log"><header><div><h2>บันทึกระบบล่าสุด</h2><p>กิจกรรมจากฐานข้อมูล</p></div><button onClick={()=>setLogs(false)}><X size={18}/></button></header><div>{initialActivity.length?initialActivity.map((x,i)=><article key={i}><b>{x.label}</b><span>{x.detail}</span><small>{x.createdAt}</small></article>):<p>ยังไม่มีกิจกรรม</p>}</div></section></div>}</>}
-function Toggle({label,description,on,setOn}:{label:string;description:string;on:boolean;setOn:(on:boolean)=>void}){return <div className="toggle-row"><div><b>{label}</b><p>{description}</p></div><button type="button" role="switch" aria-checked={on} className={`toggle ${on?"on":""}`} onClick={()=>setOn(!on)}><i/></button></div>}
+"use client";
+import { useState } from "react";
+import {
+  Bell,
+  Clock,
+  DatabaseBackup,
+  Save,
+  ScanFace,
+  School,
+  X,
+} from "lucide-react";
+type Settings = {
+  schoolName: string;
+  academicYear: string;
+  semester: number;
+  schoolStartTime: string;
+  lateAfter: string;
+  faceRecognitionEnabled: boolean;
+  notificationsEnabled: boolean;
+  updatedAt: string;
+};
+type Activity = { label: string; detail: string; createdAt: string };
+export function SettingsForm({
+  initialSettings,
+  initialActivity,
+}: {
+  initialSettings: Settings;
+  initialActivity: Activity[];
+}) {
+  const [value, setValue] = useState(initialSettings),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [logs, setLogs] = useState(false);
+  async function save() {
+    setBusy(true);
+    const r = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(value),
+      }),
+      d = await r.json();
+    setMessage(d.message);
+    setBusy(false);
+  }
+  return (
+    <>
+      <div className="settings-grid">
+        <section className="dashboard-card settings-card">
+          <h2>
+            <School />
+            ข้อมูลโรงเรียน
+          </h2>
+          <div className="form-fields">
+            <label>
+              ชื่อโรงเรียน
+              <input
+                value={value.schoolName}
+                onChange={(e) =>
+                  setValue({ ...value, schoolName: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              ปีการศึกษา
+              <input
+                value={value.academicYear}
+                onChange={(e) =>
+                  setValue({ ...value, academicYear: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              ภาคเรียน
+              <select
+                value={value.semester}
+                onChange={(e) =>
+                  setValue({ ...value, semester: Number(e.target.value) })
+                }
+              >
+                <option value="1">ภาคเรียนที่ 1</option>
+                <option value="2">ภาคเรียนที่ 2</option>
+              </select>
+            </label>
+          </div>
+        </section>
+        <section className="dashboard-card settings-card">
+          <h2>
+            <Clock />
+            เวลาเรียนและการเช็คชื่อ
+          </h2>
+          <div className="form-fields two">
+            <label>
+              เวลาเริ่มเรียน
+              <input
+                type="time"
+                value={value.schoolStartTime}
+                onChange={(e) =>
+                  setValue({ ...value, schoolStartTime: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              นับว่ามาสายหลัง
+              <input
+                type="time"
+                value={value.lateAfter}
+                onChange={(e) =>
+                  setValue({ ...value, lateAfter: e.target.value })
+                }
+              />
+            </label>
+          </div>
+        </section>
+        <section className="dashboard-card settings-card">
+          <h2>
+            <ScanFace />
+            ระบบตรวจจับใบหน้า
+          </h2>
+          <Toggle
+            label="เปิดใช้งาน Face Recognition"
+            description="อนุญาตให้บันทึกการเข้าเรียนด้วยการตรวจจับใบหน้า"
+            on={value.faceRecognitionEnabled}
+            setOn={(on) => setValue({ ...value, faceRecognitionEnabled: on })}
+          />
+        </section>
+        <section className="dashboard-card settings-card">
+          <h2>
+            <Bell />
+            การแจ้งเตือน
+          </h2>
+          <Toggle
+            label="เปิดการแจ้งเตือน"
+            description="แจ้งสถานะการเข้าเรียนและเหตุการณ์สำคัญ"
+            on={value.notificationsEnabled}
+            setOn={(on) => setValue({ ...value, notificationsEnabled: on })}
+          />
+        </section>
+        <section className="dashboard-card settings-card backup-card">
+          <h2>
+            <DatabaseBackup />
+            สำรองข้อมูล
+          </h2>
+          <p>ส่งออกข้อมูลระบบเป็นไฟล์ JSON เพื่อเก็บสำรอง</p>
+          <a
+            href="/api/admin/settings?action=backup"
+            className="admin-button secondary"
+          >
+            สำรองข้อมูลตอนนี้
+          </a>
+        </section>
+        <div className="settings-save">
+          <button
+            className="admin-button secondary"
+            onClick={() => setLogs(true)}
+          >
+            ดูบันทึกระบบ
+          </button>
+          <button
+            className="admin-button primary"
+            onClick={save}
+            disabled={busy}
+          >
+            <Save size={18} />
+            {busy ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
+          </button>
+        </div>
+        {message && <div className="settings-message">{message}</div>}
+      </div>
+      {logs && (
+        <div
+          className="subject-modal-layer"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setLogs(false);
+          }}
+        >
+          <section className="subject-modal settings-log">
+            <header>
+              <div>
+                <h2>บันทึกระบบล่าสุด</h2>
+                <p>กิจกรรมจากฐานข้อมูล</p>
+              </div>
+              <button onClick={() => setLogs(false)}>
+                <X size={18} />
+              </button>
+            </header>
+            <div>
+              {initialActivity.length ? (
+                initialActivity.map((x, i) => (
+                  <article key={i}>
+                    <b>{x.label}</b>
+                    <span>{x.detail}</span>
+                    <small>{x.createdAt}</small>
+                  </article>
+                ))
+              ) : (
+                <p>ยังไม่มีกิจกรรม</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+function Toggle({
+  label,
+  description,
+  on,
+  setOn,
+}: {
+  label: string;
+  description: string;
+  on: boolean;
+  setOn: (on: boolean) => void;
+}) {
+  return (
+    <div className="toggle-row">
+      <div>
+        <b>{label}</b>
+        <p>{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        className={`toggle ${on ? "on" : ""}`}
+        onClick={() => setOn(!on)}
+      >
+        <i />
+      </button>
+    </div>
+  );
+}
