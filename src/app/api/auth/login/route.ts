@@ -11,6 +11,7 @@ type Account = {
   full_name: string;
   password_hash: string;
   role: "student" | "teacher";
+  status: "ACTIVE" | "INACTIVE";
 };
 
 type AccountRow = Account & RowDataPacket;
@@ -45,16 +46,16 @@ export async function POST(request: Request) {
 
     const [rows] = await db.query<AccountRow[]>(
       `
-        SELECT id, email, full_name, password_hash, 'teacher' AS role FROM teachers WHERE email = ?
+        SELECT id, email, full_name, password_hash, 'teacher' AS role, status FROM teachers WHERE email = ?
         UNION ALL
-        SELECT id, email, full_name, password_hash, 'student' AS role FROM students WHERE email = ?
+        SELECT id, email, full_name, password_hash, 'student' AS role, status FROM students WHERE email = ?
         LIMIT 1
       `,
       [email, email],
     );
     const account = rows[0];
 
-    if (!account || !isPasswordValid(password, account.password_hash)) {
+    if (!account || account.status !== "ACTIVE" || !isPasswordValid(password, account.password_hash)) {
       return NextResponse.json({ message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" }, { status: 401 });
     }
 

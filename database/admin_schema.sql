@@ -11,9 +11,11 @@ ALTER TABLE students ADD COLUMN IF NOT EXISTS class_id INT UNSIGNED NULL;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS class_number INT UNSIGNED NULL;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS phone VARCHAR(30) NULL;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS parent_name VARCHAR(150) NULL;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS status ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE';
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS teacher_code VARCHAR(30) NULL;
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS department VARCHAR(100) NULL;
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS phone VARCHAR(30) NULL;
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS status ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE';
 
 CREATE TABLE IF NOT EXISTS classrooms (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -64,6 +66,24 @@ CREATE TABLE IF NOT EXISTS face_data (
   UNIQUE KEY uq_face_student (student_id)
 );
 
+ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS room_number INT UNSIGNED NULL;
+ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS academic_year VARCHAR(10) NOT NULL DEFAULT '2569';
+ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS semester TINYINT UNSIGNED NOT NULL DEFAULT 1;
+ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS note VARCHAR(255) NULL;
+ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS face_samples (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  student_id INT UNSIGNED NOT NULL,
+  image_data MEDIUMBLOB NOT NULL,
+  image_mime VARCHAR(50) NOT NULL,
+  embedding JSON NOT NULL,
+  quality_score DECIMAL(5,4) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_face_sample_student (student_id)
+);
+
 CREATE TABLE IF NOT EXISTS attendance_records (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   student_id INT UNSIGNED NOT NULL,
@@ -76,6 +96,53 @@ CREATE TABLE IF NOT EXISTS attendance_records (
   INDEX idx_attendance_date (attendance_date),
   INDEX idx_attendance_student (student_id),
   UNIQUE KEY uq_attendance_student_subject_date (student_id, subject_id, attendance_date)
+);
+
+CREATE TABLE IF NOT EXISTS check_in_sessions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  subject_id INT UNSIGNED NOT NULL,
+  classroom_id INT UNSIGNED NOT NULL,
+  session_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  late_after TIME NOT NULL,
+  status ENUM('ACTIVE','CLOSED') NOT NULL DEFAULT 'ACTIVE',
+  created_by_admin_id INT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_check_in_session_date (session_date),
+  INDEX idx_check_in_session_subject (subject_id),
+  UNIQUE KEY uq_check_in_session_round (subject_id, session_date, start_time)
+);
+
+ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS check_in_session_id BIGINT UNSIGNED NULL;
+
+ALTER TABLE check_in_sessions MODIFY COLUMN created_by_admin_id INT UNSIGNED NULL;
+ALTER TABLE check_in_sessions ADD COLUMN IF NOT EXISTS created_by_teacher_id INT UNSIGNED NULL;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  entity VARCHAR(50) NOT NULL,
+  entity_id VARCHAR(50) NULL,
+  description TEXT NULL,
+  ip_address VARCHAR(45) NULL,
+  user_agent VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_user_created (user_id, created_at)
+);
+
+CREATE TABLE IF NOT EXISTS attendance_record_audits (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  attendance_record_id BIGINT UNSIGNED NOT NULL,
+  admin_id INT UNSIGNED NOT NULL,
+  action ENUM('ADD','STATUS_UPDATE') NOT NULL,
+  old_status ENUM('PRESENT','LATE','ABSENT','LEAVE') NULL,
+  new_status ENUM('PRESENT','LATE','ABSENT','LEAVE') NOT NULL,
+  note VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_attendance_audit_record (attendance_record_id),
+  INDEX idx_attendance_audit_admin (admin_id)
 );
 
 CREATE TABLE IF NOT EXISTS school_settings (

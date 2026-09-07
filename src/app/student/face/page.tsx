@@ -1,3 +1,72 @@
-import {CheckCircle2,ScanFace,ShieldCheck,SunMedium} from "lucide-react";import {PageTitle} from "@/components/student/UI";
-const angles=["หน้าตรง","เอียงซ้าย","เอียงขวา","มุมซ้าย","มุมขวา"];
-export default function Face(){return <><PageTitle eyebrow="ความปลอดภัยทางชีวมิติ" title="ข้อมูลใบหน้า" description="ข้อมูลนี้ใช้ยืนยันตัวตนสำหรับการเช็คชื่อเท่านั้น"/><section className="card face-status"><div className="face-status-icon"><ShieldCheck size={30}/></div><div><span>สถานะการลงทะเบียน</span><h2><CheckCircle2 size={20}/> ลงทะเบียนใบหน้าแล้ว</h2><p>ข้อมูลได้รับการเข้ารหัสและจัดเก็บอย่างปลอดภัย</p></div><div className="face-meta"><span>วันที่ลงทะเบียน <b>18 พ.ค. 2569</b></span><span>เวลา <b>10:24 น.</b></span><span>ผู้ลงทะเบียน <b>อ.สมชาย ใจดี</b></span><span>อุปกรณ์ <b>Webcam Lab 2</b></span></div></section><section className="card face-gallery-wrap"><div className="section-head"><div><h2>ภาพใบหน้าที่ลงทะเบียน</h2><p>ตัวอย่างภาพจาก 5 มุมสำหรับการเปรียบเทียบ</p></div></div><div className="face-gallery">{angles.map((a,i)=><article key={a}><div className="face-placeholder"><ScanFace size={48}/><span className={`face-orbit a${i}`}/></div><strong>{a}</strong></article>)}</div></section><section className="card tips"><div className="tips-icon"><SunMedium size={24}/></div><div><h2>คำแนะนำในการสแกนใบหน้า</h2><ul><li>อยู่ในบริเวณที่มีแสงสว่างเพียงพอ และหลีกเลี่ยงแสงย้อน</li><li>ถอดหน้ากาก หมวก หรือสิ่งที่บดบังใบหน้า</li><li>วางใบหน้าให้อยู่กึ่งกลางกรอบและมองตรงที่กล้อง</li></ul></div></section></>}
+import { CheckCircle2, ScanFace, ShieldCheck, SunMedium } from "lucide-react";
+import { PageTitle } from "@/components/student/UI";
+const angles = ["หน้าตรง", "เอียงซ้าย", "เอียงขวา", "มุมซ้าย", "มุมขวา"];
+export default function Face() {
+  return (
+    <>
+      <PageTitle
+        eyebrow="ความปลอดภัยทางชีวมิติ"
+        title="ข้อมูลใบหน้า"
+        description="ข้อมูลนี้ใช้ยืนยันตัวตนสำหรับการเช็คชื่อเท่านั้น"
+      />
+      <section className="card face-status">
+        <div className="face-status-icon">
+          <ShieldCheck size={30} />
+        </div>
+        <div>
+          <span>สถานะการลงทะเบียน</span>
+          <h2>
+            <CheckCircle2 size={20} /> ลงทะเบียนใบหน้าแล้ว
+          </h2>
+          <p>ข้อมูลได้รับการเข้ารหัสและจัดเก็บอย่างปลอดภัย</p>
+        </div>
+        <div className="face-meta">
+          <span>
+            วันที่ลงทะเบียน <b>18 พ.ค. 2569</b>
+          </span>
+          <span>
+            เวลา <b>10:24 น.</b>
+          </span>
+          <span>
+            ผู้ลงทะเบียน <b>อ.สมชาย ใจดี</b>
+          </span>
+          <span>
+            อุปกรณ์ <b>Webcam Lab 2</b>
+          </span>
+        </div>
+      </section>
+      <section className="card face-gallery-wrap">
+        <div className="section-head">
+          <div>
+            <h2>ภาพใบหน้าที่ลงทะเบียน</h2>
+            <p>ตัวอย่างภาพจาก 5 มุมสำหรับการเปรียบเทียบ</p>
+          </div>
+        </div>
+        <div className="face-gallery">
+          {angles.map((a, i) => (
+            <article key={a}>
+              <div className="face-placeholder">
+                <ScanFace size={48} />
+                <span className={`face-orbit a${i}`} />
+              </div>
+              <strong>{a}</strong>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="card tips">
+        <div className="tips-icon">
+          <SunMedium size={24} />
+        </div>
+        <div>
+          <h2>คำแนะนำในการสแกนใบหน้า</h2>
+          <ul>
+            <li>อยู่ในบริเวณที่มีแสงสว่างเพียงพอ และหลีกเลี่ยงแสงย้อน</li>
+            <li>ถอดหน้ากาก หมวก หรือสิ่งที่บดบังใบหน้า</li>
+            <li>วางใบหน้าให้อยู่กึ่งกลางกรอบและมองตรงที่กล้อง</li>
+          </ul>
+        </div>
+      </section>
+    </>
+  );
+}

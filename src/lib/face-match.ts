@@ -1,0 +1,3 @@
+import"server-only";
+export function isFaceEmbedding(value:unknown):value is number[]{return Array.isArray(value)&&value.length>=128&&value.length<=2048&&value.every(item=>typeof item==="number"&&Number.isFinite(item))}
+export function faceSimilarity(a:number[],b:number[]){if(a.length!==b.length)return 0;let sum=0;for(let index=0;index<a.length;index++){const difference=a[index]-b[index];sum+=difference*difference}const distance=Math.round(100*25*sum)/100;if(distance===0)return 1;const normalized=(1-Math.sqrt(distance)/100-0.2)/(0.8-0.2);return Math.round(100*Math.max(0,Math.min(1,normalized)))/100}

@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@human-browser": ["./node_modules/@vladmandic/human/dist/human.esm.js"]
     }
   },
   "include": [

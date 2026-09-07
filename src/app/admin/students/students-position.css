@@ -1,0 +1,9 @@
+.student-add-launcher {
+  top: 169px;
+}
+
+@media (max-width: 640px) {
+  .student-add-launcher {
+    top: 150px;
+  }
+}

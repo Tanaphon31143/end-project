@@ -6,17 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:admin-schema": "node --env-file=.env.local scripts/apply-admin-schema.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
+    "@vladmandic/human": "^3.3.6",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.40.0",
     "mysql2": "^3.23.2",
     "next": "16.3.0",
     "prisma": "^6.19.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

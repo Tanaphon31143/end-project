@@ -3,13 +3,13 @@
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { attendanceData } from "@/data/dashboard";
 
-export function AttendanceChart() {
+export function AttendanceChart({data=attendanceData}:{data?:{day:string;students:number;rate:number}[]}) {
   return <section className="dashboard-card chart-card">
     <div className="card-head"><div><h2>สถิติการเข้าเรียน</h2><p>ภาพรวมการเช็คชื่อของนักเรียน</p></div><select aria-label="เลือกช่วงเวลา" defaultValue="7"><option value="7">7 วันที่ผ่านมา</option><option value="30">30 วันที่ผ่านมา</option></select></div>
     <div className="legend"><span><i className="bar-dot" />จำนวนคนมาเรียน</span><span><i className="line-dot" />อัตราการเข้าเรียน</span></div>
     <div className="chart-wrap">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={attendanceData} margin={{ top: 8, right: 6, bottom: 0, left: -16 }}>
+        <ComposedChart data={data} margin={{ top: 8, right: 6, bottom: 0, left: -16 }}>
           <defs><linearGradient id="attendanceBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3775ff"/><stop offset="100%" stopColor="#8bb4ff"/></linearGradient></defs>
           <CartesianGrid stroke="#edf1f6" vertical={false} />
           <XAxis dataKey="day" tick={{ fill: "#778397", fontSize: 12 }} axisLine={false} tickLine={false} dy={10} />

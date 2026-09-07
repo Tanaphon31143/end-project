@@ -8,6 +8,46 @@
   align-self: auto;
 }
 
+.classroom-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+}
+
+.classroom-context-menu {
+  position: fixed;
+  z-index: 70;
+  width: 180px;
+  padding: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 14px 35px #0f172a26;
+}
+
+.classroom-context-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.classroom-context-menu button:hover {
+  background: #f3f6fa;
+}
+
+.classroom-context-menu .danger {
+  color: #dc2626;
+}
+
 @media (max-width: 640px) {
   .class-modal-layer {
     padding: 10px;

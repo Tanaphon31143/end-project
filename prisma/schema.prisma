@@ -7,13 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  TEACHER
-  STUDENT
-}
-
-enum UserStatus {
+enum AccountStatus {
   ACTIVE
   INACTIVE
 }
@@ -30,122 +24,130 @@ enum AttendanceStatus {
   LEAVE
 }
 
-model User {
-  id          Int                 @id @default(autoincrement()) @map("user_id")
-  username    String              @unique @db.VarChar(100)
-  password    String              @db.VarChar(255)
-  role        Role
-  status      UserStatus          @default(ACTIVE)
-  lastLoginAt DateTime?           @map("last_login_at")
-  teacher     Teacher?
-  auditLogs   AuditLog[]
-  sessions    AttendanceSession[] @relation("SessionCreator")
-
-  @@map("users")
-}
-
 model Teacher {
-  id          Int      @id @default(autoincrement()) @map("teacher_id")
-  userId      Int      @unique @map("user_id")
-  teacherCode String   @unique @map("teacher_code") @db.VarChar(30)
-  firstName   String   @map("first_name") @db.VarChar(100)
-  lastName    String   @map("last_name") @db.VarChar(100)
-  email       String   @unique @db.VarChar(255)
-  phone       String?  @db.VarChar(30)
-  user        User     @relation(fields: [userId], references: [id])
-  courses     Course[]
+  id           Int              @id @default(autoincrement()) @db.UnsignedInt
+  email        String           @unique @db.VarChar(255)
+  fullName     String           @map("full_name") @db.VarChar(150)
+  passwordHash String           @map("password_hash") @db.VarChar(180)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  teacherCode  String?          @map("teacher_code") @db.VarChar(30)
+  department   String?          @db.VarChar(100)
+  phone        String?          @db.VarChar(30)
+  status       AccountStatus    @default(ACTIVE)
+  subjects     Subject[]
+  sessions     CheckInSession[]
 
   @@map("teachers")
 }
 
 model Student {
-  id          Int             @id @default(autoincrement()) @map("student_id")
-  studentCode String          @unique @map("student_code") @db.VarChar(30)
-  firstName   String          @map("first_name") @db.VarChar(100)
-  lastName    String          @map("last_name") @db.VarChar(100)
-  classId     Int?            @map("class_id")
-  courses     CourseStudent[]
-  attendance  Attendance[]
+  id           Int                @id @default(autoincrement()) @db.UnsignedInt
+  email        String             @unique @db.VarChar(255)
+  fullName     String             @map("full_name") @db.VarChar(150)
+  studentCode  String             @unique @map("student_code") @db.VarChar(50)
+  passwordHash String             @map("password_hash") @db.VarChar(180)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  classId      Int?               @map("class_id") @db.UnsignedInt
+  classNumber  Int?               @map("class_number") @db.UnsignedInt
+  phone        String?            @db.VarChar(30)
+  parentName   String?            @map("parent_name") @db.VarChar(150)
+  status       AccountStatus      @default(ACTIVE)
+  classroom    Classroom?         @relation(fields: [classId], references: [id])
+  attendance   AttendanceRecord[]
 
   @@map("students")
 }
 
-model Course {
-  id        Int                 @id @default(autoincrement()) @map("course_id")
-  code      String              @unique @map("course_code") @db.VarChar(30)
-  name      String              @map("course_name") @db.VarChar(200)
-  teacherId Int                 @map("teacher_id")
-  createdAt DateTime            @default(now()) @map("created_at")
-  teacher   Teacher             @relation(fields: [teacherId], references: [id])
-  students  CourseStudent[]
-  schedules Schedule[]
-  sessions  AttendanceSession[]
+model Classroom {
+  id               Int              @id @default(autoincrement()) @db.UnsignedInt
+  name             String           @unique @db.VarChar(50)
+  level            String           @db.VarChar(30)
+  advisorTeacherId Int?             @map("advisor_teacher_id") @db.UnsignedInt
+  createdAt        DateTime         @default(now()) @map("created_at")
+  students         Student[]
+  subjects         Subject[]
+  sessions         CheckInSession[]
 
-  @@index([teacherId])
-  @@map("courses")
+  @@index([advisorTeacherId], map: "idx_classroom_advisor")
+  @@map("classrooms")
 }
 
-model CourseStudent {
-  id        Int     @id @default(autoincrement())
-  courseId  Int     @map("course_id")
-  studentId Int     @map("student_id")
-  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+model Subject {
+  id             Int                @id @default(autoincrement()) @db.UnsignedInt
+  subjectCode    String             @unique @map("subject_code") @db.VarChar(30)
+  subjectName    String             @map("subject_name") @db.VarChar(200)
+  teacherId      Int?               @map("teacher_id") @db.UnsignedInt
+  classroomId    Int?               @map("classroom_id") @db.UnsignedInt
+  createdAt      DateTime           @default(now()) @map("created_at")
+  gradeLevel     String?            @map("grade_level") @db.VarChar(10)
+  semester       Int                @default(1) @db.UnsignedTinyInt
+  academicYear   String             @default("2569") @map("academic_year") @db.VarChar(10)
+  credits        Decimal            @default(1.0) @db.Decimal(3, 1)
+  studyDays      String?            @map("study_days") @db.VarChar(100)
+  startTime      DateTime?          @map("start_time") @db.Time(0)
+  endTime        DateTime?          @map("end_time") @db.Time(0)
+  location       String?            @db.VarChar(150)
+  attendanceMode String             @default("EVERY_PERIOD") @map("attendance_mode") @db.VarChar(20)
+  isActive       Boolean            @default(true) @map("is_active")
+  description    String?            @db.VarChar(255)
+  teacher        Teacher?           @relation(fields: [teacherId], references: [id])
+  classroom      Classroom?         @relation(fields: [classroomId], references: [id])
+  sessions       CheckInSession[]
+  attendance     AttendanceRecord[]
 
-  @@unique([courseId, studentId])
-  @@map("course_students")
+  @@index([teacherId], map: "idx_subject_teacher")
+  @@index([classroomId], map: "idx_subject_classroom")
+  @@map("subjects")
 }
 
-model Schedule {
-  id          Int                 @id @default(autoincrement()) @map("schedule_id")
-  courseId    Int                 @map("course_id")
-  classroomId Int?                @map("classroom_id")
-  dayOfWeek   Int                 @map("day_of_week")
-  startTime   String              @map("start_time") @db.VarChar(5)
-  endTime     String              @map("end_time") @db.VarChar(5)
-  course      Course              @relation(fields: [courseId], references: [id])
-  sessions    AttendanceSession[]
+model CheckInSession {
+  id                 BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  subjectId          Int                @map("subject_id") @db.UnsignedInt
+  classroomId        Int                @map("classroom_id") @db.UnsignedInt
+  sessionDate        DateTime           @map("session_date") @db.Date
+  startTime          DateTime           @map("start_time") @db.Time(0)
+  endTime            DateTime           @map("end_time") @db.Time(0)
+  lateAfter          DateTime           @map("late_after") @db.Time(0)
+  status             SessionStatus      @default(ACTIVE)
+  createdByAdminId   Int?               @map("created_by_admin_id") @db.UnsignedInt
+  createdByTeacherId Int?               @map("created_by_teacher_id") @db.UnsignedInt
+  createdAt          DateTime           @default(now()) @map("created_at")
+  subject            Subject            @relation(fields: [subjectId], references: [id])
+  classroom          Classroom          @relation(fields: [classroomId], references: [id])
+  teacher            Teacher?           @relation(fields: [createdByTeacherId], references: [id])
+  attendance         AttendanceRecord[]
 
-  @@map("schedules")
+  @@unique([subjectId, sessionDate, startTime], map: "uq_check_in_session_round")
+  @@index([sessionDate], map: "idx_check_in_session_date")
+  @@index([subjectId], map: "idx_check_in_session_subject")
+  @@index([createdByTeacherId], map: "idx_check_in_session_teacher")
+  @@map("check_in_sessions")
 }
 
-model AttendanceSession {
-  id          Int           @id @default(autoincrement()) @map("session_id")
-  courseId    Int           @map("course_id")
-  scheduleId  Int           @map("schedule_id")
-  sessionDate DateTime      @map("session_date") @db.Date
-  startTime   String        @map("start_time") @db.VarChar(5)
-  endTime     String        @map("end_time") @db.VarChar(5)
-  lateMinutes Int           @default(15) @map("late_minutes")
-  status      SessionStatus @default(ACTIVE)
-  createdBy   Int           @map("created_by")
-  course      Course        @relation(fields: [courseId], references: [id])
-  schedule    Schedule      @relation(fields: [scheduleId], references: [id])
-  creator     User          @relation("SessionCreator", fields: [createdBy], references: [id])
-  attendance  Attendance[]
+model AttendanceRecord {
+  id               BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId        Int              @map("student_id") @db.UnsignedInt
+  subjectId        Int?             @map("subject_id") @db.UnsignedInt
+  attendanceDate   DateTime         @map("attendance_date") @db.Date
+  checkInTime      DateTime?        @map("check_in_time") @db.DateTime(0)
+  status           AttendanceStatus
+  confidence       Decimal?         @db.Decimal(5, 2)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  checkInSessionId BigInt?          @map("check_in_session_id") @db.UnsignedBigInt
+  student          Student          @relation(fields: [studentId], references: [id])
+  subject          Subject?         @relation(fields: [subjectId], references: [id])
+  session          CheckInSession?  @relation(fields: [checkInSessionId], references: [id])
 
-  @@index([courseId, sessionDate])
-  @@map("attendance_sessions")
-}
-
-model Attendance {
-  id             Int               @id @default(autoincrement()) @map("attendance_id")
-  sessionId      Int               @map("session_id")
-  studentId      Int               @map("student_id")
-  attendanceDate DateTime          @map("attendance_date") @db.Date
-  checkInTime    DateTime?         @map("check_in_time")
-  status         AttendanceStatus
-  confidence     Decimal?          @db.Decimal(5, 2)
-  session        AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student        Student           @relation(fields: [studentId], references: [id])
-
-  @@unique([sessionId, studentId])
-  @@map("attendance")
+  @@unique([studentId, subjectId, attendanceDate], map: "uq_attendance_student_subject_date")
+  @@index([attendanceDate], map: "idx_attendance_date")
+  @@index([studentId], map: "idx_attendance_student")
+  @@index([checkInSessionId], map: "idx_attendance_session")
+  @@map("attendance_records")
 }
 
 model AuditLog {
-  id          Int      @id @default(autoincrement()) @map("log_id")
-  userId      Int      @map("user_id")
+  id          BigInt   @id @default(autoincrement()) @map("log_id") @db.UnsignedBigInt
+  userId      Int      @map("user_id") @db.UnsignedInt
   action      String   @db.VarChar(50)
   entity      String   @db.VarChar(50)
   entityId    String?  @map("entity_id") @db.VarChar(50)
@@ -153,8 +155,7 @@ model AuditLog {
   ipAddress   String?  @map("ip_address") @db.VarChar(45)
   userAgent   String?  @map("user_agent") @db.VarChar(255)
   createdAt   DateTime @default(now()) @map("created_at")
-  user        User     @relation(fields: [userId], references: [id])
 
-  @@index([userId, createdAt])
+  @@index([userId, createdAt], map: "idx_audit_user_created")
   @@map("audit_logs")
 }

@@ -19,7 +19,7 @@
 
 ## API และความปลอดภัย
 
-- `src/lib/auth.ts` และ `src/lib/api-auth.ts` — อ่าน session, บังคับ role teacher และ resolve teacher_id
+- `src/lib/auth.ts` และ `src/lib/api-auth.ts` — อ่าน session, บังคับ role teacher และใช้ `teachers.id` จาก session โดยตรง
 - `POST /api/teacher/sessions` — สร้าง attendance session หลังตรวจ ownership
 - `GET|POST /api/teacher/attendance` — อ่าน/บันทึกเฉพาะ session ของครู และไม่บันทึกใบหน้าที่ไม่พบ student
 - `GET /api/teacher/reports` — สรุปเฉพาะ course ที่ teacher_id ตรงกับผู้ใช้
@@ -28,6 +28,7 @@
 
 ## ฐานข้อมูล
 
-- `prisma/schema.prisma` — โมเดล MySQL/TiDB, enum สถานะ, relation, unique constraint และ index ที่ใช้ในพอร์ทัล
+- `prisma/schema.prisma` — schema กลางที่ map ตรงกับตารางจริง `teachers`, `subjects`, `check_in_sessions` และ `attendance_records`
+- `database/admin_schema.sql` — migration แบบเพิ่มข้อมูล รองรับ `created_by_teacher_id` และ `audit_logs` โดยไม่ลบข้อมูลเดิม
 
 หน้าจอใช้ข้อมูลตัวอย่างเพื่อเปิดดูได้โดยไม่ต้องมีฐานข้อมูล ส่วน API ใช้ Prisma จริงและต้องตั้งค่า `DATABASE_URL` กับ `AUTH_SECRET` ก่อนใช้งาน production

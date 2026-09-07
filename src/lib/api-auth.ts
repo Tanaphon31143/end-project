@@ -11,10 +11,10 @@ export async function requireTeacher() {
       ),
     };
   const teacher = await prisma.teacher.findUnique({
-    where: { userId: session.id },
-    select: { id: true, userId: true },
+    where: { id: session.id },
+    select: { id: true, status: true },
   });
-  if (!teacher)
+  if (!teacher || teacher.status !== "ACTIVE")
     return {
       error: NextResponse.json({ message: "ไม่พบบัญชีครู" }, { status: 403 }),
     };
