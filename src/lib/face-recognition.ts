@@ -25,8 +25,8 @@ export function getFaceEngine() {
           description: { enabled: true },
           iris: { enabled: false },
           emotion: { enabled: false },
-          antispoof: { enabled: false },
-          liveness: { enabled: false },
+          antispoof: { enabled: true },
+          liveness: { enabled: true },
         },
         body: { enabled: false },
         hand: { enabled: false },
@@ -40,7 +40,11 @@ export function getFaceEngine() {
   return enginePromise;
 }
 
-async function analyze(source: HTMLCanvasElement | HTMLImageElement) {
+export function resetFaceEngine() {
+  enginePromise = null;
+}
+
+async function analyze(source: HTMLCanvasElement | HTMLImageElement, requireLiveness = false) {
   const human = await getFaceEngine(),
     result = await human.detect(source);
   if (!result.face.length) throw new Error("ไม่พบใบหน้าในภาพ");
@@ -60,7 +64,12 @@ async function analyze(source: HTMLCanvasElement | HTMLImageElement) {
   );
   if (quality < 0.55)
     throw new Error("ภาพใบหน้าไม่ชัด กรุณาถ่ายใหม่ในที่มีแสงเพียงพอ");
-  return { embedding: [...embedding], quality };
+  const real = typeof face.real === "number" ? face.real : 0;
+  const live = typeof face.live === "number" ? face.live : 0;
+  const liveness = Math.min(real, live);
+  if (requireLiveness && (real < 0.65 || live < 0.55))
+    throw new Error("ไม่ผ่านการตรวจจับบุคคลจริง กรุณากะพริบตาหรือขยับใบหน้าเล็กน้อยและสแกนใหม่");
+  return { embedding: [...embedding], quality, liveness, real, live };
 }
 
 function canvasBlob(canvas: HTMLCanvasElement) {
@@ -119,7 +128,7 @@ export async function analyzeVideoFrame(video: HTMLVideoElement) {
   context.translate(size.width, 0);
   context.scale(-1, 1);
   context.drawImage(video, 0, 0, size.width, size.height);
-  const analysis = await analyze(canvas),
+  const analysis = await analyze(canvas, true),
     blob = await canvasBlob(canvas);
   return { ...analysis, blob, preview: canvas.toDataURL("image/jpeg", 0.78) };
 }

@@ -51,6 +51,23 @@ function parseQualities(value: FormDataEntryValue | null, count: number) {
     return null;
   }
 }
+function parsePoseTypes(value: FormDataEntryValue | null, count: number): (string | null)[] {
+  try {
+    if (!value) return Array(count).fill(null);
+    const parsed = JSON.parse(String(value));
+    if (!Array.isArray(parsed)) return Array(count).fill(null);
+    const allowed = new Set(["FRONT", "LEFT", "RIGHT", "UP", "DOWN"]);
+    return Array.from({ length: count }, (_, i) => {
+      const item = parsed[i];
+      return typeof item === "string" && allowed.has(item.toUpperCase())
+        ? item.toUpperCase()
+        : null;
+    });
+  } catch {
+    return Array(count).fill(null);
+  }
+}
+
 async function studentExists(connection: PoolConnection, studentId: number) {
   const [rows] = await connection.execute<RowDataPacket[]>(
     "SELECT id FROM students WHERE id=? AND status='ACTIVE'",
@@ -59,7 +76,8 @@ async function studentExists(connection: PoolConnection, studentId: number) {
   return rows.length > 0;
 }
 async function saveRegistration(request: Request, updating: boolean) {
-  if (!(await getAdminSession()))
+  const adminSession = await getAdminSession();
+  if (!adminSession)
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   const form = await request.formData(),
     studentId = Number(form.get("studentId")),
@@ -82,6 +100,8 @@ async function saveRegistration(request: Request, updating: boolean) {
       { message: "ข้อมูลคุณภาพภาพไม่ถูกต้อง" },
       { status: 400 },
     );
+  const poseTypes = parsePoseTypes(form.get("poseTypes"), files.length);
+
   for (const file of files)
     if (
       !ALLOWED_TYPES.has(file.type) ||
@@ -92,6 +112,26 @@ async function saveRegistration(request: Request, updating: boolean) {
         { message: "รองรับ JPG, PNG หรือ WebP ขนาดไม่เกิน 2 MB ต่อภาพ" },
         { status: 400 },
       );
+
+  const userAgent = request.headers.get("user-agent") || "";
+  const isMobile = /mobile|iphone|android/i.test(userAgent);
+  const isTablet = /ipad|tablet/i.test(userAgent);
+  const deviceType = isTablet ? "แท็บเล็ต" : isMobile ? "โทรศัพท์มือถือ" : "คอมพิวเตอร์ / โน้ตบุ๊ก";
+  const browser = userAgent.includes("Edg")
+    ? "Microsoft Edge"
+    : userAgent.includes("Chrome")
+      ? "Google Chrome"
+      : userAgent.includes("Firefox")
+        ? "Mozilla Firefox"
+        : userAgent.includes("Safari")
+          ? "Apple Safari"
+          : "Web Browser";
+  const deviceName = form.get("deviceName")
+    ? String(form.get("deviceName"))
+    : isMobile
+      ? "กล้องสมาร์ตโฟน"
+      : "เว็บแคม / กล้องแล็ปท็อป";
+
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -119,21 +159,46 @@ async function saveRegistration(request: Request, updating: boolean) {
     const sampleIds: number[] = [];
     for (let index = 0; index < files.length; index++) {
       const [result] = await connection.execute<ResultSetHeader>(
-        "INSERT INTO face_samples(student_id,image_data,image_mime,embedding,quality_score) VALUES(?,?,?,?,?)",
+        "INSERT INTO face_samples(student_id,image_data,image_mime,embedding,quality_score,pose_type) VALUES(?,?,?,?,?,?)",
         [
           studentId,
           Buffer.from(await files[index].arrayBuffer()),
           files[index].type,
           JSON.stringify(embeddings[index]),
           qualities[index],
+          poseTypes[index],
         ],
       );
       sampleIds.push(result.insertId);
     }
     const referenceUrl = `/api/faces/image?id=${sampleIds[0]}`;
     await connection.execute(
-      "INSERT INTO face_data(student_id,reference_image_url,image_count,status) VALUES(?,?,?,'READY') ON DUPLICATE KEY UPDATE reference_image_url=VALUES(reference_image_url),image_count=VALUES(image_count),status='READY',updated_at=CURRENT_TIMESTAMP",
-      [studentId, referenceUrl, files.length],
+      `INSERT INTO face_data(
+        student_id, reference_image_url, image_count, status,
+        registered_by_id, registered_by_name, registered_by_role,
+        device_type, device_name, browser
+      ) VALUES (?, ?, ?, 'READY', ?, ?, 'ADMIN', ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        reference_image_url = VALUES(reference_image_url),
+        image_count = VALUES(image_count),
+        status = 'READY',
+        registered_by_id = VALUES(registered_by_id),
+        registered_by_name = VALUES(registered_by_name),
+        registered_by_role = VALUES(registered_by_role),
+        device_type = VALUES(device_type),
+        device_name = VALUES(device_name),
+        browser = VALUES(browser),
+        updated_at = CURRENT_TIMESTAMP`,
+      [
+        studentId,
+        referenceUrl,
+        files.length,
+        adminSession.id,
+        adminSession.name,
+        deviceType,
+        deviceName,
+        browser,
+      ],
     );
     await connection.commit();
     return Response.json(

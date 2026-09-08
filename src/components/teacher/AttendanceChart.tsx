@@ -9,15 +9,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-const data = [
-  { day: "พฤ. 27", present: 79, late: 11, absent: 10 },
-  { day: "ศ. 28", present: 84, late: 9, absent: 7 },
-  { day: "จ. 31", present: 88, late: 7, absent: 5 },
-  { day: "อ. 1", present: 82, late: 12, absent: 6 },
-  { day: "พ. 2", present: 91, late: 5, absent: 4 },
-  { day: "พฤ. 3", present: 86, late: 8, absent: 6 },
-];
-export function AttendanceChart() {
+export type AttendanceChartPoint = { day: string; present: number; late: number; absent: number; leave?: number; total?: number; attendanceRate?: number };
+export function AttendanceChart({ data = [] }: { data?: AttendanceChartPoint[] }) {
   return (
     <div className="chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -27,7 +20,7 @@ export function AttendanceChart() {
         >
           <CartesianGrid strokeDasharray="4 4" stroke="#e7eaf0" />
           <XAxis dataKey="day" axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} axisLine={false} tickLine={false} />
+          <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
           <Tooltip />
           <Legend iconType="circle" />
           <Line

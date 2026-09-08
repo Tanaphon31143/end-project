@@ -1,1 +1,18 @@
-.report-filters>input{height:40px;padding:0 10px;border:1px solid #dfe4ec;border-radius:9px;background:#fff;color:#334155;font:inherit;font-size:12px}.report-filters select{height:40px;padding:0 10px;border:1px solid #dfe4ec;border-radius:9px;background:#fff;color:#334155}
+.report-filters > input {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dfe4ec;
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+}
+.report-filters select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dfe4ec;
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+}

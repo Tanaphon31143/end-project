@@ -10,23 +10,27 @@ import {
   LayoutDashboard,
   LogOut,
   ScanFace,
+  School,
   UserRound,
   X,
 } from "lucide-react";
+import type { TeacherIdentity } from "@/lib/teacher-data";
 const items = [
   ["/teacher/dashboard", "แดชบอร์ด", LayoutDashboard],
   ["/teacher/courses", "รายวิชาของฉัน", BookOpen],
-  ["/teacher/scan/demo", "เช็คชื่อด้วยใบหน้า", ScanFace],
+  ["/teacher/scan", "เช็คชื่อด้วยใบหน้า", ScanFace],
   ["/teacher/history", "ประวัติการเข้าเรียน", History],
   ["/teacher/reports", "รายงาน", ChartNoAxesCombined],
   ["/teacher/profile", "โปรไฟล์", UserRound],
 ] as const;
 export function Sidebar({
+  identity,
   open,
   collapsed,
   onClose,
   onCollapse,
 }: {
+  identity: TeacherIdentity;
   open: boolean;
   collapsed: boolean;
   onClose: () => void;
@@ -72,16 +76,22 @@ export function Sidebar({
             <small>โรงเรียนขุขันธ์</small>
           </div>
         </div>
-        <nav>
+        <div className="teacher-role">
+          <School size={19} />
+          <span>พื้นที่สำหรับครูผู้สอน</span>
+        </div>
+        <nav aria-label="เมนูครูผู้สอน">
           {items.map(([href, label, Icon]) => {
             const active =
               path === href ||
-              (href.includes("scan") && path.startsWith("/teacher/scan"));
+              (href !== "/teacher/dashboard" && path.startsWith(`${href}/`)) ||
+              (href === "/teacher/scan" && path.startsWith("/teacher/scan/"));
             return (
               <Link
                 key={href}
                 href={href}
                 className={active ? "active" : ""}
+                title={label}
                 onClick={onClose}
               >
                 <Icon size={20} />
@@ -92,10 +102,22 @@ export function Sidebar({
         </nav>
         <div className="sidebar-foot">
           <div className="teacher-profile">
-            <div className="mini-avatar">สม</div>
+            <div className="mini-avatar">
+              {identity.hasProfileImage ? (
+                <Image
+                  src="/api/teacher/profile-image"
+                  alt="รูปครู"
+                  width={38}
+                  height={38}
+                  unoptimized
+                />
+              ) : (
+                identity.initials
+              )}
+            </div>
             <div className="teacher-profile-copy">
-              <b>สมชาย ใจดี</b>
-              <span>ครูผู้สอน</span>
+              <b>{identity.name}</b>
+              <span>{identity.position}</span>
             </div>
           </div>
           <button

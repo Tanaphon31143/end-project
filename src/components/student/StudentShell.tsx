@@ -1,8 +1,10 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import NotificationBell from "./NotificationBell";
 import {
   Bell,
   BookOpen,
@@ -21,7 +23,8 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { student } from "@/data/student";
+import type { StudentIdentity } from "@/lib/student-data";
+
 const menu = [
   ["/student/dashboard", "แดชบอร์ด", LayoutDashboard],
   ["/student/profile", "ข้อมูลส่วนตัว", UserRound],
@@ -31,22 +34,65 @@ const menu = [
   ["/student/attendance/history", "ประวัติการเข้าเรียน", Clock3],
   ["/student/attendance/statistics", "สถิติการเข้าเรียน", ChartNoAxesCombined],
   ["/student/attendance/report", "แจ้งปัญหาการเช็คชื่อ", FileWarning],
+  ["/student/notifications", "การแจ้งเตือน", Bell],
 ] as const;
+
 export default function StudentShell({
   children,
+  identity,
 }: {
   children: React.ReactNode;
+  identity: StudentIdentity;
 }) {
   const pathname = usePathname(),
     router = useRouter();
   const [drawer, setDrawer] = useState(false),
     [collapsed, setCollapsed] = useState(false),
     [profile, setProfile] = useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
+
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
     router.push("/");
     router.refresh();
   }
+
+  // Close profile and drawer on route change
+  useEffect(() => {
+    setProfile(false);
+    setDrawer(false);
+  }, [pathname]);
+
+  // Close profile on click outside or Escape
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(e.target as Node)
+      ) {
+        setProfile(false);
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && profile) {
+        setProfile(false);
+        profileTriggerRef.current?.focus();
+      }
+    }
+
+    if (profile) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profile]);
+
   return (
     <div className={`student-shell ${collapsed ? "is-collapsed" : ""}`}>
       {drawer && (
@@ -127,32 +173,53 @@ export default function StudentShell({
             <span>โรงเรียนขุขันธ์</span>
           </div>
           <div className="student-header-actions">
-            <button className="notification" aria-label="การแจ้งเตือน">
-              <Bell size={21} />
-              <i />
-            </button>
-            <div className="profile-wrap">
+            <NotificationBell />
+            <div className="profile-wrap" ref={profileRef}>
               <button
+                ref={profileTriggerRef}
                 className="profile-trigger"
                 onClick={() => setProfile((v) => !v)}
                 aria-expanded={profile}
+                aria-haspopup="menu"
+                aria-label="เมนูโปรไฟล์ผู้ใช้"
               >
-                <span className="avatar small">{student.initials}</span>
+                <span className="student-header-avatar">
+                  {identity.hasProfileImage ? (
+                    <Image
+                      src="/api/student/profile-image"
+                      alt="รูปนักเรียน"
+                      width={40}
+                      height={40}
+                      sizes="40px"
+                      unoptimized
+                    />
+                  ) : (
+                    identity.initials
+                  )}
+                </span>
                 <span className="profile-copy">
-                  <b>{student.name}</b>
+                  <b>{identity.name}</b>
                   <small>นักเรียน</small>
                 </span>
                 <ChevronDown size={16} />
               </button>
               {profile && (
-                <div className="profile-menu">
+                <div className="profile-menu" role="menu" aria-label="เมนูโปรไฟล์">
                   <Link
                     href="/student/profile"
                     onClick={() => setProfile(false)}
+                    role="menuitem"
                   >
                     <CircleUserRound size={18} /> ข้อมูลส่วนตัว
                   </Link>
-                  <button onClick={logout}>
+                  <Link
+                    href="/student/notifications"
+                    onClick={() => setProfile(false)}
+                    role="menuitem"
+                  >
+                    <Bell size={18} /> การแจ้งเตือน
+                  </Link>
+                  <button onClick={logout} role="menuitem">
                     <LogOut size={18} /> ออกจากระบบ
                   </button>
                 </div>

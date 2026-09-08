@@ -1,29 +1,16 @@
+import { redirect } from "next/navigation";
 import { Badge, PageTitle } from "@/components/student/UI";
 import IssueForm from "@/components/student/IssueForm";
-const issues = [
-  [
-    "29 ส.ค. 2569",
-    "ฐานข้อมูลเบื้องต้น",
-    "สแกนไม่ติด",
-    "กำลังตรวจสอบ",
-    "กำลังตรวจสอบภาพจากกล้อง",
-  ],
-  [
-    "18 ส.ค. 2569",
-    "การออกแบบเว็บไซต์",
-    "เช็คชื่อผิดเวลา",
-    "เสร็จสิ้น",
-    "แก้ไขสถานะเป็นมาเรียนแล้ว",
-  ],
-  [
-    "4 ส.ค. 2569",
-    "คอมพิวเตอร์พื้นฐาน",
-    "ระบบไม่เปิดกล้อง",
-    "ปฏิเสธ",
-    "ไม่พบข้อมูลการเข้าใช้งาน",
-  ],
-];
-export default function Report() {
+import { getStudentSession } from "@/lib/auth";
+import { getStudentCourses, getStudentIssues } from "@/lib/student-data";
+export const dynamic = "force-dynamic";
+export default async function Report() {
+  const session = await getStudentSession();
+  if (!session) redirect("/");
+  const [courses, issues] = await Promise.all([
+    getStudentCourses(session.id),
+    getStudentIssues(session.id),
+  ]);
   return (
     <>
       <PageTitle
@@ -34,19 +21,27 @@ export default function Report() {
       <section className="card card-pad report-card">
         <h2>รายละเอียดปัญหา</h2>
         <p>กรอกข้อมูลให้ครบถ้วนเพื่อช่วยให้ตรวจสอบได้รวดเร็วขึ้น</p>
-        <IssueForm />
+        <IssueForm
+          courses={courses.map((c) => ({
+            id: c.id,
+            name: c.name,
+            room: c.room,
+            startTime: c.startTime,
+          }))}
+        />
       </section>
       <section className="card report-history">
         <div className="section-head">
           <div>
             <h2>ประวัติการแจ้งปัญหา</h2>
-            <p>คำร้องทั้งหมด 3 รายการ</p>
+            <p>คำร้องทั้งหมด {issues.length} รายการ</p>
           </div>
         </div>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
+                <th>เลขที่</th>
                 <th>วันที่แจ้ง</th>
                 <th>รายวิชา</th>
                 <th>ประเภทปัญหา</th>
@@ -56,20 +51,24 @@ export default function Report() {
             </thead>
             <tbody>
               {issues.map((r) => (
-                <tr key={r[0] + r[1]}>
-                  <td>{r[0]}</td>
+                <tr key={r.id}>
+                  <td>#{r.id}</td>
+                  <td>{r.createdAt}</td>
                   <td>
-                    <strong>{r[1]}</strong>
+                    <strong>{r.subject}</strong>
                   </td>
-                  <td>{r[2]}</td>
+                  <td>{r.issueType}</td>
                   <td>
-                    <Badge>{r[3]}</Badge>
+                    <Badge>{r.status}</Badge>
                   </td>
-                  <td>{r[4]}</td>
+                  <td>{r.resolution}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {!issues.length && (
+            <p className="empty-note">ยังไม่มีประวัติการแจ้งปัญหา</p>
+          )}
         </div>
       </section>
     </>

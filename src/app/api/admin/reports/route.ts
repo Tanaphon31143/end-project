@@ -1,1 +1,15 @@
-import{getAdminSession}from"@/lib/auth";import{getReportData}from"@/lib/admin-data";export async function GET(r:Request){if(!(await getAdminSession()))return Response.json({message:"ไม่มีสิทธิ์ใช้งาน"},{status:401});const p=new URL(r.url).searchParams;return Response.json(await getReportData({from:p.get("from")||undefined,to:p.get("to")||undefined,classroomId:Number(p.get("classroomId"))||undefined,subjectId:Number(p.get("subjectId"))||undefined}))}
+import { getAdminSession } from "@/lib/auth";
+import { getReportData } from "@/lib/admin-data";
+export async function GET(r: Request) {
+  if (!(await getAdminSession()))
+    return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
+  const p = new URL(r.url).searchParams;
+  return Response.json(
+    await getReportData({
+      from: p.get("from") || undefined,
+      to: p.get("to") || undefined,
+      classroomId: Number(p.get("classroomId")) || undefined,
+      subjectId: Number(p.get("subjectId")) || undefined,
+    }),
+  );
+}

@@ -7,7 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:admin-schema": "node --env-file=.env.local scripts/apply-admin-schema.mjs"
+    "db:admin-schema": "node --env-file=.env.local scripts/apply-admin-schema.mjs",
+    "db:teacher-schedules": "node --env-file=.env.local scripts/migrate-teacher-schedules.mjs",
+    "db:calibrate-faces": "node --env-file=.env.local scripts/calibrate-face-threshold.mjs",
+    "test:teacher": "node --test tests/teacher-rules.test.mjs tests/teacher-workflow.integration.test.mjs",
+    "test:teacher:integration": "node --env-file=.env.test --test tests/teacher-workflow.integration.test.mjs",
+    "test:teacher:security": "node --env-file=.env.local --test tests/teacher-api.security.integration.test.mjs",
+    "test:student": "node --test tests/student-rules.test.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

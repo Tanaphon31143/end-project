@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BookOpen, CalendarCheck, Clock3, Percent, UserX } from "lucide-react";
@@ -21,7 +22,21 @@ export default async function Dashboard() {
       />
       <section className="student-hero card">
         <div className="hero-profile">
-          <span className="avatar large">{student.name.slice(0, 2)}</span>
+          <span className="student-hero-photo">
+            {student.hasProfileImage ? (
+              <Image
+                src="/api/student/profile-image"
+                alt="รูปนักเรียน"
+                width={64}
+                height={64}
+                sizes="64px"
+                unoptimized
+                priority
+              />
+            ) : (
+              student.name.slice(0, 2)
+            )}
+          </span>
           <div>
             <small>นักเรียน</small>
             <h2>{student.name}</h2>

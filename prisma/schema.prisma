@@ -33,9 +33,12 @@ model Teacher {
   teacherCode  String?          @map("teacher_code") @db.VarChar(30)
   department   String?          @db.VarChar(100)
   phone        String?          @db.VarChar(30)
+  profileImage Bytes?           @map("profile_image") @db.MediumBlob
+  profileImageMime String?      @map("profile_image_mime") @db.VarChar(50)
   status       AccountStatus    @default(ACTIVE)
   subjects     Subject[]
   sessions     CheckInSession[]
+  notifications TeacherNotification[]
 
   @@map("teachers")
 }
@@ -67,6 +70,7 @@ model Classroom {
   students         Student[]
   subjects         Subject[]
   sessions         CheckInSession[]
+  schedules        Schedule[]
 
   @@index([advisorTeacherId], map: "idx_classroom_advisor")
   @@map("classrooms")
@@ -93,11 +97,31 @@ model Subject {
   teacher        Teacher?           @relation(fields: [teacherId], references: [id])
   classroom      Classroom?         @relation(fields: [classroomId], references: [id])
   sessions       CheckInSession[]
+  schedules      Schedule[]
   attendance     AttendanceRecord[]
 
   @@index([teacherId], map: "idx_subject_teacher")
   @@index([classroomId], map: "idx_subject_classroom")
   @@map("subjects")
+}
+
+model Schedule {
+  id          Int              @id @default(autoincrement()) @db.UnsignedInt
+  subjectId   Int              @map("subject_id") @db.UnsignedInt
+  classroomId Int              @map("classroom_id") @db.UnsignedInt
+  dayOfWeek   Int              @map("day_of_week") @db.UnsignedTinyInt
+  periodName  String?          @map("period_name") @db.VarChar(50)
+  startTime   DateTime         @map("start_time") @db.Time(0)
+  endTime     DateTime         @map("end_time") @db.Time(0)
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  subject     Subject          @relation(fields: [subjectId], references: [id])
+  classroom   Classroom        @relation(fields: [classroomId], references: [id])
+  sessions    CheckInSession[]
+
+  @@unique([subjectId, dayOfWeek, startTime], map: "uq_schedule_subject_day_start")
+  @@index([classroomId, dayOfWeek], map: "idx_schedule_classroom_day")
+  @@map("schedules")
 }
 
 model CheckInSession {
@@ -112,8 +136,10 @@ model CheckInSession {
   createdByAdminId   Int?               @map("created_by_admin_id") @db.UnsignedInt
   createdByTeacherId Int?               @map("created_by_teacher_id") @db.UnsignedInt
   createdAt          DateTime           @default(now()) @map("created_at")
+  scheduleId         Int?               @map("schedule_id") @db.UnsignedInt
   subject            Subject            @relation(fields: [subjectId], references: [id])
   classroom          Classroom          @relation(fields: [classroomId], references: [id])
+  schedule           Schedule?          @relation(fields: [scheduleId], references: [id])
   teacher            Teacher?           @relation(fields: [createdByTeacherId], references: [id])
   attendance         AttendanceRecord[]
 
@@ -121,6 +147,7 @@ model CheckInSession {
   @@index([sessionDate], map: "idx_check_in_session_date")
   @@index([subjectId], map: "idx_check_in_session_subject")
   @@index([createdByTeacherId], map: "idx_check_in_session_teacher")
+  @@index([scheduleId], map: "idx_check_in_session_schedule")
   @@map("check_in_sessions")
 }
 
@@ -138,7 +165,8 @@ model AttendanceRecord {
   subject          Subject?         @relation(fields: [subjectId], references: [id])
   session          CheckInSession?  @relation(fields: [checkInSessionId], references: [id])
 
-  @@unique([studentId, subjectId, attendanceDate], map: "uq_attendance_student_subject_date")
+  @@unique([studentId, checkInSessionId], map: "uq_attendance_student_session")
+  @@index([subjectId, attendanceDate], map: "idx_attendance_subject_date")
   @@index([attendanceDate], map: "idx_attendance_date")
   @@index([studentId], map: "idx_attendance_student")
   @@index([checkInSessionId], map: "idx_attendance_session")
@@ -158,4 +186,19 @@ model AuditLog {
 
   @@index([userId, createdAt], map: "idx_audit_user_created")
   @@map("audit_logs")
+}
+
+model TeacherNotification {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  teacherId Int      @map("teacher_id") @db.UnsignedInt
+  title     String   @db.VarChar(180)
+  message   String   @db.VarChar(500)
+  href      String?  @db.VarChar(255)
+  type      String   @default("INFO") @db.VarChar(30)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+
+  @@index([teacherId, isRead, createdAt], map: "idx_teacher_notification_read")
+  @@map("teacher_notifications")
 }

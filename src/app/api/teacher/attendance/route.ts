@@ -2,8 +2,11 @@ import type { AttendanceStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireTeacher, requestMeta } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { attendanceStatus } from "@/lib/teacher-rules.mjs";
+import { protectTeacherMutation } from "@/lib/api-security";
 
 const STATUSES: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT", "LEAVE"];
+const today = () => new Date(`${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())}T00:00:00.000Z`);
 
 function isPastLateTime(lateAfter: Date) {
   const bangkokTime = new Intl.DateTimeFormat("en-GB", {
@@ -13,15 +16,14 @@ function isPastLateTime(lateAfter: Date) {
     hour12: false,
   }).format(new Date());
   const [hour, minute] = bangkokTime.split(":").map(Number);
-  return (
-    hour * 60 + minute >
-    lateAfter.getUTCHours() * 60 + lateAfter.getUTCMinutes()
-  );
+  return attendanceStatus(hour * 60 + minute, lateAfter.getUTCHours() * 60 + lateAfter.getUTCMinutes()) === "LATE";
 }
 
 export async function POST(request: Request) {
   const auth = await requireTeacher();
   if ("error" in auth) return auth.error;
+  const blocked = protectTeacherMutation(request, auth.teacher.id, "attendance-create", 20);
+  if (blocked) return blocked;
   const body = await request.json();
   const studentId = Number(body.studentId);
   let sessionId: bigint;
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
     where: {
       id: sessionId,
       status: "ACTIVE",
+      sessionDate: today(),
       subject: { teacherId: auth.teacher.id },
     },
   });
@@ -66,17 +69,14 @@ export async function POST(request: Request) {
       ? "LATE"
       : "PRESENT";
   const confidence = Number(body.confidence);
-  const result = await prisma.$transaction(
-    async (tx: Prisma.TransactionClient) => {
-      const record = await tx.attendanceRecord.upsert({
-        where: {
-          studentId_subjectId_attendanceDate: {
-            studentId,
-            subjectId: session.subjectId,
-            attendanceDate: session.sessionDate,
-          },
-        },
-        create: {
+  const existing = await prisma.attendanceRecord.findFirst({where:{studentId,checkInSessionId:session.id},select:{id:true,status:true,checkInTime:true}});
+  if(existing)return NextResponse.json({alreadyCheckedIn:true,message:"นักเรียนคนนี้เช็คชื่อแล้ว",record:{id:String(existing.id),status:existing.status,checkInTime:existing.checkInTime}},{status:409});
+  try {
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const locked = await tx.$queryRaw<Array<{ status: string }>>`SELECT status FROM check_in_sessions WHERE id=${session.id} FOR UPDATE`;
+        if (locked[0]?.status !== "ACTIVE") throw new Error("SESSION_CLOSED");
+        const record = await tx.attendanceRecord.create({ data: {
           studentId,
           subjectId: session.subjectId,
           attendanceDate: session.sessionDate,
@@ -84,14 +84,7 @@ export async function POST(request: Request) {
           status,
           confidence: Number.isFinite(confidence) ? confidence : null,
           checkInSessionId: session.id,
-        },
-        update: {
-          checkInTime: new Date(),
-          status,
-          confidence: Number.isFinite(confidence) ? confidence : null,
-          checkInSessionId: session.id,
-        },
-      });
+        }});
       await tx.auditLog.create({
         data: {
           userId: auth.teacher.id,
@@ -103,15 +96,43 @@ export async function POST(request: Request) {
         },
       });
       return record;
-    },
-  );
-  return NextResponse.json({
-    ...result,
-    id: String(result.id),
-    checkInSessionId: result.checkInSessionId
-      ? String(result.checkInSessionId)
-      : null,
+      },
+    );
+    return NextResponse.json({ ...result, id: String(result.id), checkInSessionId: result.checkInSessionId ? String(result.checkInSessionId) : null });
+  } catch(error) {
+    if((error as Error).message==="SESSION_CLOSED")return NextResponse.json({message:"รอบเช็คชื่อนี้ปิดแล้ว ไม่สามารถบันทึกเพิ่มได้"},{status:409});
+    if((error as{code?:string}).code==="P2002")return NextResponse.json({alreadyCheckedIn:true,message:"นักเรียนคนนี้เช็คชื่อแล้ว"},{status:409});
+    throw error;
+  }
+}
+
+export async function PATCH(request: Request) {
+  const auth = await requireTeacher();
+  if ("error" in auth) return auth.error;
+  const blocked = protectTeacherMutation(request, auth.teacher.id, "attendance-update", 40);
+  if (blocked) return blocked;
+  const body = await request.json();
+  const studentId = Number(body.studentId);
+  const status = String(body.status) as AttendanceStatus;
+  const reason = String(body.reason ?? "").trim();
+  let sessionId: bigint;
+  try { sessionId = BigInt(body.sessionId); } catch { return NextResponse.json({ message: "รอบเช็คชื่อไม่ถูกต้อง" }, { status: 400 }); }
+  if (!Number.isInteger(studentId) || !STATUSES.includes(status) || reason.length < 3 || reason.length > 500)
+    return NextResponse.json({ message: "กรุณาเลือกสถานะและระบุเหตุผลอย่างน้อย 3 ตัวอักษร" }, { status: 400 });
+  const session = await prisma.checkInSession.findFirst({ where: { id: sessionId, subject: { teacherId: auth.teacher.id } } });
+  if (!session) return NextResponse.json({ message: "ไม่พบรอบเช็คชื่อหรือไม่มีสิทธิ์" }, { status: 404 });
+  const student = await prisma.student.findFirst({ where: { id: studentId, classId: session.classroomId, status: "ACTIVE" }, select: { id: true, fullName: true } });
+  if (!student) return NextResponse.json({ message: "นักเรียนไม่อยู่ในรายวิชานี้" }, { status: 422 });
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const existing = await tx.attendanceRecord.findFirst({ where: { studentId, checkInSessionId: session.id } });
+    const checkInTime = status === "PRESENT" || status === "LATE" ? existing?.checkInTime ?? new Date() : null;
+    const record = existing
+      ? await tx.attendanceRecord.update({ where: { id: existing.id }, data: { status, checkInTime } })
+      : await tx.attendanceRecord.create({ data: { studentId, subjectId: session.subjectId, attendanceDate: session.sessionDate, checkInSessionId: session.id, status, checkInTime } });
+    await tx.auditLog.create({ data: { userId: auth.teacher.id, action: existing ? "STATUS_UPDATE" : "CREATE", entity: "attendance_record", entityId: String(record.id), description: `${existing?.status ?? "ยังไม่เช็คชื่อ"} → ${status}; เหตุผล: ${reason}; นักเรียน: ${student.fullName}`, ...requestMeta(request) } });
+    return record;
   });
+  return NextResponse.json({ message: "บันทึกสถานะเรียบร้อยแล้ว", record: { id: String(result.id), status: result.status, checkInTime: result.checkInTime } });
 }
 
 export async function GET(request: Request) {
@@ -129,7 +150,7 @@ export async function GET(request: Request) {
   const session = await prisma.checkInSession.findFirst({
     where: { id, subject: { teacherId: auth.teacher.id } },
     include: {
-      subject: true,
+      subject: { include: { classroom: true } },
       attendance: {
         include: { student: true },
         orderBy: { checkInTime: "desc" },
@@ -138,6 +159,7 @@ export async function GET(request: Request) {
   });
   if (!session)
     return NextResponse.json({ message: "ไม่พบข้อมูล" }, { status: 404 });
+  const totalStudents=await prisma.student.count({where:{classId:session.classroomId,status:"ACTIVE"}});
   return NextResponse.json({
     ...session,
     id: String(session.id),
@@ -148,5 +170,6 @@ export async function GET(request: Request) {
         ? String(item.checkInSessionId)
         : null,
     })),
+    totalStudents,
   });
 }

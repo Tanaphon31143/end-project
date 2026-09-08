@@ -5,6 +5,15 @@ import "./students.css";
 import "./students-position.css";
 export const dynamic = "force-dynamic";
 export default async function StudentsPage() {
-  const data=await getStudentPageData();
-  return <><StudentAddDropdown classrooms={data.classrooms}/><StudentsManager key={data.students.map(student=>student.databaseId).join("-")} initialStudents={data.students} classrooms={data.classrooms}/></>;
+  const data = await getStudentPageData();
+  return (
+    <>
+      <StudentAddDropdown classrooms={data.classrooms} />
+      <StudentsManager
+        key={data.students.map((student) => student.databaseId).join("-")}
+        initialStudents={data.students}
+        classrooms={data.classrooms}
+      />
+    </>
+  );
 }
