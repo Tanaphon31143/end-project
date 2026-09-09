@@ -9,7 +9,10 @@ async function main() {
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database: url.pathname.slice(1),
-    ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" },
+    ssl: {
+      rejectUnauthorized:
+        process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+    },
   });
   await connection.query(`CREATE TABLE IF NOT EXISTS audit_logs (
     log_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -20,8 +20,7 @@ const connection = await mysql.createConnection({
   password: decodeURIComponent(parsedUrl.password),
   database: parsedUrl.pathname.replace(/^\//, ""),
   ssl: {
-    rejectUnauthorized:
-      process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+    rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
   },
   multipleStatements: true,
 });
