@@ -2,15 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ChartNoAxesCombined,
+  Clock3,
   Download,
   FileBarChart,
   FileSpreadsheet,
   LoaderCircle,
+  UserCheck,
+  UserMinus,
+  UserRoundCheck,
+  type LucideIcon,
 } from "lucide-react";
 import {
   AttendanceChart,
   type AttendanceChartPoint,
 } from "@/components/teacher/AttendanceChart";
+import { EmptyState } from "@/components/teacher/EmptyState";
 
 type Mode = "daily" | "weekly" | "monthly";
 type Report = {
@@ -31,6 +38,17 @@ const dateKey = (date: Date) =>
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+
+const safeCount = (value: number | null | undefined) => typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+function ReportStatCard({ label, value, tone, icon: Icon }: { label: string; value: string; tone: string; icon: LucideIcon }) {
+  return (
+    <article className={`reports-stat-card ${tone}`}>
+      <div className="reports-stat-icon"><Icon size={19} aria-hidden="true" /></div>
+      <div className="reports-stat-copy"><span>{label}</span><strong>{value}</strong></div>
+    </article>
+  );
+}
 
 export function ReportsClient({
   courses,
@@ -157,62 +175,53 @@ export function ReportsClient({
     }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+  const trend = Array.isArray(report?.trend) ? report.trend : [];
   return (
-    <>
-      <div className="page-head">
+    <div className="teacher-reports">
+      <div className="reports-heading">
         <div>
+          <p className="reports-eyebrow">ภาพรวมและสถิติ</p>
           <h2>รายงานการเข้าเรียน</h2>
           <p>สรุปข้อมูลเฉพาะรายวิชาที่คุณรับผิดชอบ</p>
         </div>
       </div>
-      <div className="tabs">
+      <div className="tabs reports-tabs" aria-label="รูปแบบรายงาน">
         {modes.map((item) => (
           <button
             key={item.value}
             type="button"
             onClick={() => setMode(item.value)}
             className={`tab ${mode === item.value ? "active" : ""}`}
+            aria-pressed={mode === item.value}
           >
             {item.label}
           </button>
         ))}
       </div>
-      <section className="panel">
+      <section className="panel reports-filter-panel" aria-label="ตัวกรองรายงาน">
         <form
-          className="filters"
-          style={{ gridTemplateColumns: "1.4fr 1fr 1fr auto" }}
+          className="reports-filter-grid"
           onSubmit={(event) => {
             event.preventDefault();
             void load();
           }}
         >
-          <select
-            value={subjectId}
-            onChange={(event) => setSubjectId(event.target.value)}
-            aria-label="รายวิชา"
-          >
-            <option value="">ทุกรายวิชา</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.code} {course.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            aria-label="วันที่เริ่มต้น"
-            required
-          />
-          <input
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-            aria-label="วันที่สิ้นสุด"
-            required
-          />
-          <button className="button primary" disabled={loading}>
+          <label className="reports-field reports-course-field">
+            <span>รายวิชา</span>
+            <select value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
+              <option value="">ทุกรายวิชา</option>
+              {courses.map((course) => <option key={course.id} value={course.id}>{course.code} {course.name}</option>)}
+            </select>
+          </label>
+          <label className="reports-field">
+            <span>ตั้งแต่วันที่</span>
+            <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} required />
+          </label>
+          <label className="reports-field">
+            <span>ถึงวันที่</span>
+            <input type="date" value={to} onChange={(event) => setTo(event.target.value)} required />
+          </label>
+          <button className="button primary reports-generate" disabled={loading} aria-busy={loading}>
             {loading ? (
               <LoaderCircle className="spin" size={17} />
             ) : (
@@ -221,53 +230,41 @@ export function ReportsClient({
             {loading ? "กำลังสร้าง" : "สร้างรายงาน"}
           </button>
         </form>
-        {error && <p className="form-message error">{error}</p>}
+        {error && report && <p className="form-message error" role="alert">{error}</p>}
       </section>
       {loading && !report ? (
-        <div className="panel loading-panel">
-          <div className="skeleton table" />
+        <div className="reports-loading" role="status" aria-label="กำลังสร้างรายงาน">
+          <div className="reports-summary-grid">
+            {Array.from({ length: 5 }, (_, index) => <div className="reports-stat-card" key={index}><div className="skeleton reports-skeleton-label" /><div className="skeleton reports-skeleton-value" /></div>)}
+          </div>
+          <div className="panel reports-chart-panel"><div className="skeleton reports-skeleton-title" /><div className="skeleton reports-skeleton-chart" /></div>
         </div>
       ) : report ? (
-        <div id="teacher-report-export">
-          <section className="report-summary">
-            <div className="summary-box">
-              <span>อัตราการเข้าเรียนเฉลี่ย</span>
-              <b className="green">{report.attendanceRate.toFixed(1)}%</b>
-            </div>
-            <div className="summary-box">
-              <span>เข้าเรียนรวม</span>
-              <b>{report.counts.PRESENT}</b>
-            </div>
-            <div className="summary-box">
-              <span>มาสายรวม</span>
-              <b className="yellow">{report.counts.LATE}</b>
-            </div>
-            <div className="summary-box">
-              <span>ขาดเรียนรวม</span>
-              <b className="red">{report.counts.ABSENT}</b>
-            </div>
-            <div className="summary-box">
-              <span>ลารวม</span>
-              <b>{report.counts.LEAVE}</b>
-            </div>
+        <div id="teacher-report-export" className="reports-content" aria-busy={loading}>
+          <section className="reports-summary-grid" aria-label="สรุปรายงาน">
+            <ReportStatCard label="อัตราการเข้าเรียนเฉลี่ย" value={`${safeCount(report.attendanceRate).toFixed(1)}%`} tone="rate" icon={ChartNoAxesCombined} />
+            <ReportStatCard label="เข้าเรียนรวม" value={String(safeCount(report.counts?.PRESENT))} tone="present" icon={UserRoundCheck} />
+            <ReportStatCard label="มาสายรวม" value={String(safeCount(report.counts?.LATE))} tone="late" icon={Clock3} />
+            <ReportStatCard label="ขาดเรียนรวม" value={String(safeCount(report.counts?.ABSENT))} tone="absent" icon={UserMinus} />
+            <ReportStatCard label="ลารวม" value={String(safeCount(report.counts?.LEAVE))} tone="leave" icon={UserCheck} />
           </section>
-          <article className="panel">
-            <div className="panel-head">
+          <article className="panel reports-chart-panel">
+            <div className="reports-chart-head">
               <div>
                 <h3>
                   แนวโน้มการเข้าเรียน —{" "}
                   {modes.find((item) => item.value === mode)?.label}
                 </h3>
-                <span className="muted">
+                <p className="muted">
                   อัตราเข้าเรียนคำนวณจากเข้าเรียนและมาสาย
-                </span>
+                </p>
               </div>
               <div className="export-actions">
                 <button
                   className="button ghost"
                   type="button"
                   onClick={() => void exportExcel()}
-                  disabled={Boolean(exporting) || !report.trend.length}
+                  disabled={loading || Boolean(exporting) || !trend.length}
                 >
                   {exporting === "xlsx" ? (
                     <LoaderCircle className="spin" size={16} />
@@ -280,7 +277,7 @@ export function ReportsClient({
                   className="button ghost"
                   type="button"
                   onClick={() => void exportPdf()}
-                  disabled={Boolean(exporting) || !report.trend.length}
+                  disabled={loading || Boolean(exporting) || !trend.length}
                 >
                   {exporting === "pdf" ? (
                     <LoaderCircle className="spin" size={16} />
@@ -291,17 +288,19 @@ export function ReportsClient({
                 </button>
               </div>
             </div>
-            {report.trend.length ? (
-              <AttendanceChart data={report.trend} />
+            {trend.length ? (
+              <AttendanceChart data={trend} dashboard />
             ) : (
-              <div className="empty">
-                <h3>ไม่มีข้อมูลในช่วงเวลานี้</h3>
-                <p>ลองเปลี่ยนรายวิชาหรือช่วงวันที่</p>
-              </div>
+              <EmptyState title="ไม่มีข้อมูลในช่วงเวลานี้" description="ลองเปลี่ยนรายวิชาหรือช่วงวันที่" />
             )}
           </article>
         </div>
+      ) : error ? (
+        <div className="panel reports-error">
+          <EmptyState title="โหลดรายงานไม่สำเร็จ" description="กรุณาลองใหม่อีกครั้ง" />
+          <button className="button primary" onClick={() => void load()}>ลองใหม่</button>
+        </div>
       ) : null}
-    </>
+    </div>
   );
 }

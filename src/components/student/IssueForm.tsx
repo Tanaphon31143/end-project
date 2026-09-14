@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { ImagePlus, Send, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useStudentToast } from "./StudentToast";
 type Course = { id: number; name: string; room: string; startTime: string };
 export default function IssueForm({ courses }: { courses: Course[] }) {
+  const notify = useStudentToast();
   const router = useRouter(),
     [sent, setSent] = useState(false),
     [busy, setBusy] = useState(false),
@@ -11,39 +13,49 @@ export default function IssueForm({ courses }: { courses: Course[] }) {
     [selected, setSelected] = useState("");
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setBusy(true);
     setSent(false);
     setMessage("");
+    try {
     const response = await fetch("/api/student/reports", {
         method: "POST",
-        body: new FormData(event.currentTarget),
+        body: new FormData(form),
       }),
       data = (await response.json()) as { message?: string };
     setBusy(false);
     setMessage(data.message || "");
     if (response.ok) {
+      notify(data.message || "ส่งคำร้องเรียบร้อยแล้ว");
       setSent(true);
-      event.currentTarget.reset();
+      form.reset();
       setSelected("");
       router.refresh();
+    } else {
+      notify(data.message || "ส่งคำร้องไม่สำเร็จ", "error");
     }
+    } catch {
+      notify("เชื่อมต่อไม่สำเร็จ กรุณาลองส่งคำร้องใหม่", "error");
+      setMessage("เชื่อมต่อไม่สำเร็จ กรุณาลองส่งคำร้องใหม่");
+    } finally { setBusy(false); }
   }
   const course = courses.find((x) => String(x.id) === selected);
   return (
     <form className="report-form" onSubmit={submit}>
       {message && (
-        <div className={sent ? "form-success" : "form-error"}>
+        <div role="status" className={sent ? "form-success" : "form-error"}>
           {sent && <CheckCircle2 size={20} />} {message}
         </div>
       )}
       <div className="form-grid">
         <div className="field">
-          <label>วันที่เกิดปัญหา</label>
-          <input required className="input" name="incidentDate" type="date" />
+          <label htmlFor="issue-date">วันที่เกิดปัญหา</label>
+          <input id="issue-date" required className="input" name="incidentDate" type="date" />
         </div>
         <div className="field">
-          <label>รายวิชา</label>
+          <label htmlFor="issue-subject">รายวิชา</label>
           <select
+            id="issue-subject"
             required
             className="select"
             name="subjectId"
@@ -61,18 +73,21 @@ export default function IssueForm({ courses }: { courses: Course[] }) {
           </select>
         </div>
         <div className="field">
-          <label>เวลาเรียน</label>
+          <label htmlFor="issue-time">เวลาเรียน</label>
           <input
+            id="issue-time"
             required
             className="input"
             name="classTime"
             type="time"
             defaultValue={course?.startTime}
+            key={course?.id}
           />
         </div>
         <div className="field">
-          <label>ห้องเรียน</label>
+          <label htmlFor="issue-room">ห้องเรียน</label>
           <input
+            id="issue-room"
             required
             className="input"
             name="room"
@@ -82,8 +97,8 @@ export default function IssueForm({ courses }: { courses: Course[] }) {
           />
         </div>
         <div className="field full">
-          <label>ประเภทปัญหา</label>
-          <select required className="select" name="issueType" defaultValue="">
+          <label htmlFor="issue-type">ประเภทปัญหา</label>
+          <select id="issue-type" required className="select" name="issueType" defaultValue="">
             <option value="" disabled>
               เลือกประเภทปัญหา
             </option>
@@ -100,8 +115,9 @@ export default function IssueForm({ courses }: { courses: Course[] }) {
           </select>
         </div>
         <div className="field full">
-          <label>รายละเอียดปัญหา</label>
+          <label htmlFor="issue-details">รายละเอียดปัญหา</label>
           <textarea
+            id="issue-details"
             required
             minLength={10}
             maxLength={3000}
@@ -114,10 +130,19 @@ export default function IssueForm({ courses }: { courses: Course[] }) {
           <ImagePlus size={25} />
           <span>
             <b>แนบรูปภาพประกอบ</b>
-            <small>JPG, PNG หรือ WebP ขนาดไม่เกิน 5 MB</small>
+            <small>สูงสุด 5 รูป JPG, PNG หรือ WebP รูปละไม่เกิน 5 MB</small>
           </span>
           <input
-            name="attachment"
+            name="attachments"
+            multiple
+            onChange={(event) => {
+              const files = Array.from(event.target.files || []);
+              event.target.setCustomValidity(files.length > 5 || files.some(file => file.size > 5 * 1024 * 1024)
+                ? 'แนบได้สูงสุด 5 รูป รูปละไม่เกิน 5 MB' : '');
+              event.target.reportValidity();
+            }}
+            disabled={busy}
+            aria-label="แนบรูปภาพประกอบ สูงสุด 5 รูป"
             type="file"
             accept="image/jpeg,image/png,image/webp"
           />

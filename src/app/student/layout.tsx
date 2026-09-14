@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getStudentSession } from "@/lib/auth";
 import StudentShell from "@/components/student/StudentShell";
+import { StudentToastProvider } from "@/components/student/StudentToast";
 import { getStudentIdentity } from "@/lib/student-data";
 import "./student.css";
 
@@ -10,5 +11,5 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const identity=await getStudentIdentity(session.id);
   if(!identity) redirect("/");
 
-  return <StudentShell identity={identity}>{children}</StudentShell>;
+  return <StudentToastProvider><StudentShell identity={identity}>{children}</StudentShell></StudentToastProvider>;
 }

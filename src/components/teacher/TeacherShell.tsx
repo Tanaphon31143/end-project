@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Menu } from "lucide-react";
+import { Bell, ChevronDown, Menu, UserRound } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import type { TeacherIdentity } from "@/lib/teacher-data";
 const titles: Record<string, string> = {
@@ -33,10 +33,26 @@ export function TeacherShell({
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [notificationError, setNotificationError] = useState("");
   const unread = notifications.filter((item) => !item.isRead).length;
+  useEffect(() => {
+    function dismiss(event: MouseEvent) {
+      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
+      if (!notificationRef.current?.contains(event.target as Node)) setNotificationsOpen(false);
+    }
+    function escape(event: KeyboardEvent) {
+      if (event.key === "Escape") { setProfileOpen(false); setNotificationsOpen(false); }
+    }
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
+  }, []);
   async function openNotifications() {
+    setProfileOpen(false);
     const next = !notificationsOpen;
     setNotificationsOpen(next);
     if (next && unread) {
@@ -81,7 +97,7 @@ export function TeacherShell({
             <h1>{titles[segment]}</h1>
           </div>
           <div className="topbar-user">
-            <div className="teacher-notification-wrap">
+            <div className="teacher-notification-wrap" ref={notificationRef}>
               <button
                 className="notification"
                 aria-label={`การแจ้งเตือน${unread ? ` ${unread} รายการใหม่` : ""}`}
@@ -91,7 +107,7 @@ export function TeacherShell({
                 }}
               >
                 <Bell size={20} />
-                {unread > 0 && <i />}
+                {unread > 0 && <span className="notification-badge">{unread > 9 ? "9+" : unread}</span>}
               </button>
               {notificationsOpen && (
                 <div className="teacher-notification-menu">
@@ -124,7 +140,9 @@ export function TeacherShell({
                 </div>
               )}
             </div>
-            <div className="avatar">
+            <div className="teacher-profile-menu-wrap" ref={profileRef}>
+              <button className="teacher-profile-trigger" aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => { setProfileOpen((value) => !value); setNotificationsOpen(false); }}>
+              <div className="avatar">
               {identity.hasProfileImage ? (
                 <Image
                   src="/api/teacher/profile-image"
@@ -136,10 +154,14 @@ export function TeacherShell({
               ) : (
                 identity.initials
               )}
-            </div>
-            <div className="user-copy">
+              </div>
+              <div className="user-copy">
               <b>{identity.name}</b>
               <span>{identity.position}</span>
+              </div>
+              <ChevronDown className="teacher-profile-chevron" size={16} aria-hidden="true" />
+              </button>
+              {profileOpen && <div className="teacher-profile-dropdown" role="menu"><div className="teacher-profile-dropdown-heading"><strong>{identity.name}</strong><span>{identity.position}</span></div><Link href="/teacher/profile" role="menuitem" onClick={() => setProfileOpen(false)}><UserRound size={16} aria-hidden="true" /> ดูโปรไฟล์</Link></div>}
             </div>
           </div>
         </header>

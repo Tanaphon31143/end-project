@@ -80,6 +80,18 @@ export function evaluateScanRateLimit(failedCountInWindow, maxAllowed = 5, windo
   };
 }
 
+/** A challenge may only be issued for an open session and below its own failure limit. */
+export function canIssueLivenessChallenge({ sessionOpen, failedLivenessAttempts, maxAttempts = 3 }) {
+  if (!sessionOpen) return { allowed: false, reason: "SESSION_EXPIRED" };
+  if (failedLivenessAttempts >= maxAttempts) {
+    return { allowed: false, reason: "LIVENESS_LIMITED", remainingAttempts: 0 };
+  }
+  return {
+    allowed: true,
+    remainingAttempts: Math.max(0, maxAttempts - failedLivenessAttempts),
+  };
+}
+
 /**
  * ป้องกันคำร้องแก้ไขข้อมูลที่ซ้ำกันสำหรับข้อมูลประเภทเดียวกันขณะที่ยังมีสถานะ PENDING
  */
@@ -124,7 +136,6 @@ export async function processApprovalTransaction({
   createAuditLog,
   createNotification,
 }) {
-  let inTransaction = true;
   try {
     // 1. Update student data
     await updateStudentRecord(request.studentId, request.fieldType, request.newValue);
@@ -138,7 +149,6 @@ export async function processApprovalTransaction({
     // 4. Create Notification
     await createNotification(request.studentId);
 
-    inTransaction = false;
     return { success: true, committed: true };
   } catch (error) {
     // Rollback

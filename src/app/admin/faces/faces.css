@@ -92,6 +92,28 @@
 .face-capture-actions > * {
   justify-content: center;
 }
+.face-pose-select {
+  display: grid;
+  gap: 5px;
+  color: #526076;
+  font-size: 12px;
+  font-weight: 600;
+}
+.face-pose-select select,
+.face-sample-grid select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font: inherit;
+}
+.face-sample-grid select {
+  margin-top: 5px;
+  padding: 4px;
+  font-size: 11px;
+}
 .face-upload {
   position: relative;
   cursor: pointer;

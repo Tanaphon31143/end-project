@@ -7,6 +7,7 @@ import { getStudentSession } from "@/lib/auth";
 import { getStudentDashboardData } from "@/lib/student-data";
 
 export const dynamic = "force-dynamic";
+
 export default async function Dashboard() {
   const session = await getStudentSession();
   if (!session) redirect("/");

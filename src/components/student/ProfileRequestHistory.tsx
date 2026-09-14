@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
-  Clock,
-  FileCheck2,
   FileSpreadsheet,
-  FileText,
   Paperclip,
   RefreshCw,
-  ShieldAlert,
 } from "lucide-react";
 import AttachmentModal, { type AttachmentInfo } from "./AttachmentModal";
 
@@ -79,7 +75,7 @@ export default function ProfileRequestHistory() {
   }
 
   useEffect(() => {
-    loadRequests();
+    queueMicrotask(() => void loadRequests());
   }, []);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import StudentModal from "./StudentModal";
 import {
   Download,
   ExternalLink,
@@ -25,16 +25,6 @@ export default function AttachmentModal({
   attachment: AttachmentInfo | null;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (attachment) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [attachment, onClose]);
-
   if (!attachment) return null;
 
   const fileUrl = `/api/attachments/profile-request/${attachment.requestId}`;
@@ -50,14 +40,7 @@ export default function AttachmentModal({
   }
 
   return (
-    <div
-      className="student-modal-layer attachment-modal-layer"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="dialog"
-      aria-label="ดูไฟล์แนบเอกสารหลักฐาน"
-    >
+    <StudentModal label="ดูไฟล์แนบเอกสารหลักฐาน" onClose={onClose}>
       <div className="student-modal card attachment-modal">
         <header className="attachment-modal-header">
           <div className="attachment-header-info">
@@ -140,6 +123,6 @@ export default function AttachmentModal({
           </button>
         </footer>
       </div>
-    </div>
+    </StudentModal>
   );
 }

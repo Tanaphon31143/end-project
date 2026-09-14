@@ -10,6 +10,49 @@
   color: var(--ink);
   display: flex;
 }
+.student-native-modal {
+  border: 0;
+  padding: 0;
+  margin: auto;
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border-radius: 16px;
+  color: var(--ink);
+}
+.self-face-enrollment { margin-top: 20px; display: grid; gap: 14px; }
+.self-face-enrollment h2 { margin: 0; font-size: 1.1rem; }
+.self-face-enrollment p { margin: 0; color: var(--muted); }
+.self-face-wizard { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.self-face-wizard li { padding: 8px 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: .85rem; }
+.self-face-wizard li.current { border-color: var(--blue); background: #eef5ff; color: var(--blue); font-weight: 700; }
+.self-face-wizard li.done { border-color: #b7e8d0; background: #effaf4; color: #087c4a; }
+.self-face-account { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 12px; border-radius: 10px; background: #f4f7fb; }
+.self-face-account small { flex-basis: 100%; color: var(--muted); }
+.self-face-consent { display: flex; align-items: flex-start; gap: 10px; max-width: 720px; line-height: 1.5; }
+.self-face-consent input { width: 18px; height: 18px; flex: none; margin-top: 3px; }
+.self-face-video { width: min(100%, 560px); aspect-ratio: 16 / 9; max-height: 390px; object-fit: cover; border-radius: 16px; background: #0b1727; }
+.self-face-camera-select { display: grid; gap: 6px; width: min(100%, 560px); font-weight: 600; }
+.self-face-camera-select select { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
+.self-face-steps { display: flex; gap: 12px; flex-wrap: wrap; }
+.self-face-steps > div { min-width: 100px; min-height: 100px; display: grid; justify-items: center; align-content: center; gap: 5px; border: 1px solid var(--line); border-radius: 12px; background: #f4f7fb; }
+.self-face-steps > div.done { border-color: #24a36a; background: #effaf4; }
+.self-face-steps img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+.self-face-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.self-face-actions .button { min-height: 44px; }
+.student-native-modal::backdrop { background: #07182c99; }
+.student-native-modal > .student-modal { width: min(600px, calc(100vw - 32px)); }
+.student-toast-region { position: fixed; bottom: 24px; right: 24px; z-index: 200; max-width: min(420px, calc(100vw - 32px)); }
+.student-toast { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 12px; background: #0b2345; color: white; box-shadow: 0 8px 30px #0003; }
+.student-toast.error { background: #8f1d2c; }
+.student-toast button { background: transparent; color: white; border: 1px solid currentColor; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.student-shell :focus-visible, .student-toast :focus-visible { outline: 3px solid #1677ff; outline-offset: 3px; }
+.student-skip-link { position: fixed; top: 8px; left: 8px; z-index: 300; padding: 12px; background: white; color: #0b2345; transform: translateY(-150%); }
+.student-skip-link:focus { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .student-shell *, .student-shell *::before, .student-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
 .profile-action-buttons {
   display: grid;
   gap: 9px;
@@ -1285,6 +1328,40 @@
 .scan-layout {
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.75fr);
 }
+.student-skeleton {
+  background: linear-gradient(90deg, #e8eef6 25%, #f5f8fc 50%, #e8eef6 75%);
+  background-size: 200% 100%;
+  animation: student-skeleton-shimmer 1.4s infinite linear;
+}
+.scan-title-skeleton {
+  width: min(420px, 75%);
+  height: 58px;
+  margin-bottom: 22px;
+  border-radius: 12px;
+}
+.scan-camera-skeleton {
+  min-height: 600px;
+}
+.scan-side-skeleton {
+  min-height: 260px;
+}
+.scan-side-skeleton.short {
+  min-height: 90px;
+}
+.scan-route-error {
+  max-width: 680px;
+  margin: 40px auto;
+  text-align: center;
+}
+.scan-route-error svg {
+  color: #dc3545;
+}
+.scan-route-error .button {
+  margin: 18px auto 0;
+}
+@keyframes student-skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
 .camera-view {
   background: #07111d;
   border-radius: 13px;
@@ -1609,6 +1686,22 @@
   margin-bottom: 14px;
   font-size: 0.77rem;
 }
+.issue-gallery {
+  margin: auto;
+  padding: 20px;
+  width: min(920px, 94vw);
+  max-height: 90dvh;
+  overflow: auto;
+  border: 1px solid #dce5ef;
+  border-radius: 16px;
+  color: #102b4c;
+  background: white;
+}
+.issue-gallery::backdrop { background: #071b31bb; }
+.issue-gallery header, .issue-gallery nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.issue-gallery header { justify-content: space-between; }
+.issue-gallery img { display: block; width: 100%; height: min(55dvh, 650px); object-fit: contain; margin-bottom: 14px; }
+.issue-gallery [aria-pressed="true"] { outline: 2px solid #1677ff; }
 .report-history,
 .summary-table {
   margin-top: 18px;
@@ -2481,7 +2574,7 @@
 
 .session-confirm-box {
   padding: 18px 22px;
-  margin-bottom: 16px;
+  margin-bottom: 28px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -2580,8 +2673,37 @@
 
 /* Detailed Scan Results Card */
 .scan-result-card {
-  margin-top: 18px;
+  margin: 18px 0 28px;
   padding: 20px 24px;
+}
+.liveness-challenge {
+  position: absolute;
+  z-index: 4;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(88%, 390px);
+  padding: 13px 18px;
+  border: 1px solid #72b6ff;
+  border-radius: 14px;
+  background: #071b31e8;
+  color: white;
+  text-align: center;
+  box-shadow: 0 10px 30px #0007;
+}
+.liveness-challenge small,
+.liveness-challenge span,
+.liveness-challenge strong {
+  display: block;
+}
+.liveness-challenge small,
+.liveness-challenge span {
+  color: #bfd9f5;
+  font-size: 0.72rem;
+}
+.liveness-challenge strong {
+  margin: 3px 0;
+  font-size: 1.25rem;
 }
 .scan-result-card.success {
   background: #f0fdf4;
@@ -2595,11 +2717,48 @@
   background: #fef2f2;
   border: 1px solid #fca5a5;
 }
+.scan-result-card.expired {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.scan-result-card.expired .danger-icon,
+.scan-result-card.expired h3 {
+  color: #b45309;
+}
+.scan-result-card.expired .error-desc {
+  color: #92400e;
+}
+.scan-result-card .danger-icon {
+  margin: 0;
+  flex: none;
+}
+.scan-result-card.error .result-header,
+.scan-result-card.expired .result-header {
+  margin-bottom: 0;
+}
 .result-header {
   display: flex;
   align-items: center;
   gap: 14px;
   margin-bottom: 16px;
+}
+.result-student-photo,
+.result-student-avatar {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border-radius: 50%;
+}
+.result-student-photo {
+  object-fit: cover;
+  border: 2px solid #bfdbfe;
+}
+.result-student-avatar {
+  display: grid;
+  place-items: center;
+  background: #dbeafe;
+  color: #1769d2;
+  font-weight: 800;
 }
 .result-header h3 {
   font-size: 1.15rem;
@@ -2634,6 +2793,54 @@
   color: #dc2626;
   font-size: 0.75rem;
   font-weight: 600;
+}
+.student-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+}
+.student-pagination span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.student-pagination .is-disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+.attendance-row-details {
+  position: relative;
+}
+.attendance-row-details summary {
+  color: var(--blue);
+  cursor: pointer;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.attendance-row-details > div {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  width: min(320px, 75vw);
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 12px 30px #0f172a22;
+}
+.attendance-row-details span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+@media (max-width: 640px) {
+  .student-pagination {
+    justify-content: space-between;
+  }
 }
 
 /* ==========================================================================

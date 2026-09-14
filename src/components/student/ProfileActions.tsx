@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import StudentModal from "./StudentModal";
+import { useStudentToast } from "./StudentToast";
 import {
   Camera,
   FilePenLine,
@@ -9,9 +11,7 @@ import {
   Pencil,
   Save,
   Send,
-  Upload,
   X,
-  AlertCircle,
 } from "lucide-react";
 
 export type StudentProfileValues = {
@@ -42,6 +42,7 @@ export default function ProfileActions({
   onRequestSubmitted?: () => void;
 }) {
   const router = useRouter();
+  const notify = useStudentToast();
   const [mode, setMode] = useState<"profile" | "password" | "request" | null>(null);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -99,8 +100,9 @@ export default function ProfileActions({
         throw new Error(data.message || "บันทึกข้อมูลไม่สำเร็จ");
       }
       setMessage(data.message || "บันทึกข้อมูลเรียบร้อยแล้ว");
+      notify(data.message || "บันทึกข้อมูลเรียบร้อยแล้ว");
       router.refresh();
-      setTimeout(() => setMode(null), 1000);
+      setMode(null);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -129,9 +131,10 @@ export default function ProfileActions({
         throw new Error(data.message || "ยื่นคำร้องไม่สำเร็จ");
       }
       setMessage(data.message || "ยื่นคำร้องเรียบร้อยแล้ว");
+      notify(data.message || "ยื่นคำร้องเรียบร้อยแล้ว");
       router.refresh();
       if (onRequestSubmitted) onRequestSubmitted();
-      setTimeout(() => setMode(null), 1200);
+      setMode(null);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -156,6 +159,7 @@ export default function ProfileActions({
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "อัปโหลดรูปไม่สำเร็จ");
       setMessage(data.message || "เปลี่ยนรูปประจำตัวสำเร็จ");
+      notify(data.message || "เปลี่ยนรูปประจำตัวสำเร็จ");
       router.refresh();
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -220,74 +224,74 @@ export default function ProfileActions({
         </button>
       </div>
 
-      {message && !mode && <p className="success-banner">{message}</p>}
-      {errorMessage && !mode && <p className="error-banner">{errorMessage}</p>}
+      {message && !mode && <p role="status" className="success-banner">{message}</p>}
+      {errorMessage && !mode && <p role="alert" className="error-banner">{errorMessage}</p>}
 
       {/* Modal for Immediate Profile Edit (Email, Phone, Birthday, Address) */}
       {mode === "profile" && (
-        <div
-          className="student-modal-layer"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !busy) setMode(null);
-          }}
-        >
+        <StudentModal label="แก้ไขข้อมูลติดต่อ" busy={busy} onClose={() => setMode(null)}>
           <form className="student-modal card" onSubmit={submitImmediate}>
             <header>
               <div>
                 <h2>แก้ไขข้อมูลติดต่อส่วนตัว</h2>
                 <p>ข้อมูลติดต่อสามารถปรับปรุงได้ทันทีโดยไม่ต้องรออนุมัติ</p>
               </div>
-              <button type="button" onClick={() => setMode(null)}>
+              <button type="button" aria-label="ปิดหน้าต่าง" disabled={busy} onClick={() => setMode(null)}>
                 <X size={19} />
               </button>
             </header>
 
             <div className="field">
-              <label>อีเมล</label>
+              <label htmlFor="profile-email">อีเมล</label>
               <input
                 className="input"
                 name="email"
+                id="profile-email"
                 type="email"
                 defaultValue={student.email}
                 required
               />
             </div>
             <div className="field">
-              <label>เบอร์โทรศัพท์</label>
+              <label htmlFor="profile-phone">เบอร์โทรศัพท์</label>
               <input
                 className="input"
                 name="phone"
+                id="profile-phone"
                 defaultValue={student.phone}
                 maxLength={30}
               />
             </div>
             <div className="field">
-              <label>วันเกิด</label>
+              <label htmlFor="profile-birthday">วันเกิด</label>
               <input
                 className="input"
                 name="birthday"
+                id="profile-birthday"
                 type="date"
                 defaultValue={student.birthday}
               />
             </div>
             <div className="field">
-              <label>ที่อยู่</label>
+              <label htmlFor="profile-address">ที่อยู่</label>
               <textarea
                 className="textarea"
                 name="address"
+                id="profile-address"
                 defaultValue={student.address}
                 maxLength={1000}
                 rows={3}
               />
             </div>
 
-            {message && <p className="modal-message success">{message}</p>}
-            {errorMessage && <p className="modal-message error">{errorMessage}</p>}
+            {message && <p role="status" className="modal-message success">{message}</p>}
+            {errorMessage && <p role="alert" className="modal-message error">{errorMessage}</p>}
 
             <footer>
               <button
                 type="button"
                 className="button secondary"
+                disabled={busy}
                 onClick={() => setMode(null)}
               >
                 ยกเลิก
@@ -297,31 +301,27 @@ export default function ProfileActions({
               </button>
             </footer>
           </form>
-        </div>
+        </StudentModal>
       )}
 
       {/* Modal for Critical Profile Edit Requests (Name, Student Code, Grade, Room, Class Number) */}
       {mode === "request" && (
-        <div
-          className="student-modal-layer"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !busy) setMode(null);
-          }}
-        >
+        <StudentModal label="ยื่นคำร้องแก้ไขข้อมูล" busy={busy} onClose={() => setMode(null)}>
           <form className="student-modal card request-form-modal" onSubmit={submitRequest}>
             <header>
               <div>
                 <h2>ยื่นคำร้องขอแก้ไขข้อมูลสำคัญ</h2>
                 <p>ข้อมูลสำคัญต้องผ่านการพิจารณาและอนุมัติจากผู้ดูแลระบบ</p>
               </div>
-              <button type="button" onClick={() => setMode(null)}>
+              <button type="button" aria-label="ปิดหน้าต่าง" disabled={busy} onClick={() => setMode(null)}>
                 <X size={19} />
               </button>
             </header>
 
             <div className="field">
-              <label>ประเภทข้อมูลที่ต้องการแก้ไข</label>
+              <label htmlFor="profile-field-type">ประเภทข้อมูลที่ต้องการแก้ไข</label>
               <select
+                id="profile-field-type"
                 className="input"
                 value={selectedField}
                 onChange={(e) => setSelectedField(e.target.value)}
@@ -335,8 +335,9 @@ export default function ProfileActions({
             </div>
 
             <div className="field">
-              <label>ข้อมูลปัจจุบัน (ค่าเดิม)</label>
+              <label htmlFor="profile-old-value">ข้อมูลปัจจุบัน (ค่าเดิม)</label>
               <input
+                id="profile-old-value"
                 className="input readonly"
                 value={getOldValue(selectedField) || "ยังไม่มีข้อมูล"}
                 readOnly
@@ -344,20 +345,22 @@ export default function ProfileActions({
             </div>
 
             <div className="field">
-              <label>ข้อมูลที่ถูกต้อง (ค่าใหม่) *</label>
+              <label htmlFor="profile-newValue">ข้อมูลที่ถูกต้อง (ค่าใหม่) *</label>
               <input
                 className="input"
                 name="newValue"
+                id="profile-newValue"
                 placeholder="ระบุข้อมูลที่ถูกต้อง..."
                 required
               />
             </div>
 
             <div className="field">
-              <label>เหตุผลในการขอแก้ไข *</label>
+              <label htmlFor="profile-reason">เหตุผลในการขอแก้ไข *</label>
               <textarea
                 className="textarea"
                 name="reason"
+                id="profile-reason"
                 placeholder="อธิบายเหตุผล เช่น สะกดชื่อผิด, ย้ายห้องเรียน..."
                 minLength={5}
                 maxLength={1000}
@@ -367,10 +370,11 @@ export default function ProfileActions({
             </div>
 
             <div className="field">
-              <label>เอกสารหรือภาพถ่ายหลักฐาน (JPG, PNG หรือ PDF ไม่เกิน 5MB)</label>
+              <label htmlFor="profile-attachment">เอกสารหรือภาพถ่ายหลักฐาน (JPG, PNG หรือ PDF ไม่เกิน 5MB)</label>
               <input
                 type="file"
                 name="attachment"
+                id="profile-attachment"
                 accept="image/jpeg,image/png,image/webp,application/pdf"
                 className="input file-input"
               />
@@ -379,13 +383,14 @@ export default function ProfileActions({
               </small>
             </div>
 
-            {message && <p className="modal-message success">{message}</p>}
-            {errorMessage && <p className="modal-message error">{errorMessage}</p>}
+            {message && <p role="status" className="modal-message success">{message}</p>}
+            {errorMessage && <p role="alert" className="modal-message error">{errorMessage}</p>}
 
             <footer>
               <button
                 type="button"
                 className="button secondary"
+                disabled={busy}
                 onClick={() => setMode(null)}
               >
                 ยกเลิก
@@ -395,42 +400,39 @@ export default function ProfileActions({
               </button>
             </footer>
           </form>
-        </div>
+        </StudentModal>
       )}
 
       {/* Modal for Password Change */}
       {mode === "password" && (
-        <div
-          className="student-modal-layer"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !busy) setMode(null);
-          }}
-        >
+        <StudentModal label="เปลี่ยนรหัสผ่าน" busy={busy} onClose={() => setMode(null)}>
           <form className="student-modal card" onSubmit={submitImmediate}>
             <header>
               <div>
                 <h2>เปลี่ยนรหัสผ่าน</h2>
                 <p>กำหนดรหัสผ่านใหม่เพื่อความปลอดภัยในการเข้าใช้งาน</p>
               </div>
-              <button type="button" onClick={() => setMode(null)}>
+              <button type="button" aria-label="ปิดหน้าต่าง" disabled={busy} onClick={() => setMode(null)}>
                 <X size={19} />
               </button>
             </header>
 
             <div className="field">
-              <label>รหัสผ่านปัจจุบัน</label>
+              <label htmlFor="profile-currentPassword">รหัสผ่านปัจจุบัน</label>
               <input
                 className="input"
                 name="currentPassword"
+                id="profile-currentPassword"
                 type="password"
                 required
               />
             </div>
             <div className="field">
-              <label>รหัสผ่านใหม่</label>
+              <label htmlFor="profile-newPassword">รหัสผ่านใหม่</label>
               <input
                 className="input"
                 name="newPassword"
+                id="profile-newPassword"
                 type="password"
                 minLength={8}
                 required
@@ -438,13 +440,14 @@ export default function ProfileActions({
               <small className="field-hint">ความยาวอย่างน้อย 8 ตัวอักษร</small>
             </div>
 
-            {message && <p className="modal-message success">{message}</p>}
-            {errorMessage && <p className="modal-message error">{errorMessage}</p>}
+            {message && <p role="status" className="modal-message success">{message}</p>}
+            {errorMessage && <p role="alert" className="modal-message error">{errorMessage}</p>}
 
             <footer>
               <button
                 type="button"
                 className="button secondary"
+                disabled={busy}
                 onClick={() => setMode(null)}
               >
                 ยกเลิก
@@ -454,7 +457,7 @@ export default function ProfileActions({
               </button>
             </footer>
           </form>
-        </div>
+        </StudentModal>
       )}
     </>
   );

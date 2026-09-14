@@ -212,6 +212,12 @@
   border-radius: 11px;
   background: white;
   color: #44516a;
+  cursor: pointer;
+}
+.bell:hover,
+.bell:focus-visible {
+  border-color: #a9c3fa;
+  background: #f4f8ff;
 }
 .bell span {
   position: absolute;
@@ -225,6 +231,122 @@
   background: #ef4444;
   color: white;
   font: 700 10px/14px Arial;
+}
+.admin-notification-wrap {
+  position: relative;
+}
+.admin-notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 50;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(550px, calc(100vh - 110px));
+  overflow-y: auto;
+  border: 1px solid #e4eaf2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 40px #14365a26;
+}
+.admin-notification-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #edf0f5;
+  background: #fff;
+}
+.admin-notification-heading strong,
+.admin-notification-heading small {
+  display: block;
+}
+.admin-notification-heading small,
+.admin-notification-date {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+.admin-notification-heading button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+.admin-notification-list button {
+  display: grid;
+  width: 100%;
+  gap: 3px;
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 1px solid #edf0f5;
+  background: #fff;
+  color: #1e293b;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-notification-list button:hover,
+.admin-notification-list button:focus-visible {
+  background: #f3f7ff;
+}
+.admin-notification-list span {
+  font-size: 13px;
+}
+.admin-notification-list small,
+.admin-notification-list p {
+  color: #64748b;
+  font-size: 12px;
+}
+.admin-notification-list p,
+.admin-notification-empty,
+.admin-notification-error {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+}
+.admin-notification-error {
+  color: #b42332;
+  background: #fff3f3;
+}
+.admin-notification-error button,
+.admin-notification-back {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #245dcc;
+  font: inherit;
+  cursor: pointer;
+}
+.admin-notification-detail {
+  padding: 16px;
+}
+.admin-notification-detail h2 {
+  margin-top: 14px;
+  font-size: 16px;
+}
+.admin-notification-detail dl {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+.admin-notification-detail dt {
+  color: #64748b;
+  font-size: 12px;
+}
+.admin-notification-detail dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.admin-notification-detail a {
+  color: #245dcc;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .profile {
   display: flex;
@@ -700,6 +822,9 @@
   }
 }
 @media (max-width: 640px) {
+  .admin-notification-panel {
+    right: -52px;
+  }
   .admin-header {
     height: 72px;
     padding: 0 15px;

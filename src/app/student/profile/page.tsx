@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { UserRound, FilePenLine } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { PageTitle } from "@/components/student/UI";
 import ProfileActions from "@/components/student/ProfileActions";
 import ProfileRequestHistory from "@/components/student/ProfileRequestHistory";

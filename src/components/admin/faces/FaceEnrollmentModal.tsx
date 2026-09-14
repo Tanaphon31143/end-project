@@ -8,7 +8,24 @@ import {
   analyzeVideoFrame,
   getFaceEngine,
 } from "@/lib/face-recognition";
-import type { FaceSample, FaceStudentOption } from "./types";
+import type { FacePoseType, FaceSample, FaceStudentOption } from "./types";
+
+const poseOptions: Array<{ value: FacePoseType; label: string }> = [
+  { value: "FRONT", label: "หน้าตรง" },
+  { value: "LEFT", label: "หันซ้าย" },
+  { value: "RIGHT", label: "หันขวา" },
+  { value: "UP", label: "เงยหน้า" },
+  { value: "DOWN", label: "ก้มหน้า" },
+];
+
+function detectOperatingSystem(userAgent: string) {
+  if (/Windows NT/i.test(userAgent)) return "Windows";
+  if (/Android/i.test(userAgent)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return "iOS / iPadOS";
+  if (/Mac OS X/i.test(userAgent)) return "macOS";
+  if (/Linux/i.test(userAgent)) return "Linux";
+  return "ไม่มีข้อมูล";
+}
 
 export default function FaceEnrollmentModal({
   students,
@@ -27,6 +44,8 @@ export default function FaceEnrollmentModal({
     [samples, setSamples] = useState<FaceSample[]>([]),
     [camera, setCamera] = useState(false),
     [busy, setBusy] = useState(false),
+    [capturePose, setCapturePose] = useState<FacePoseType>("FRONT"),
+    [cameraType, setCameraType] = useState(""),
     [message, setMessage] = useState("กำลังเตรียมโมเดลตรวจจับใบหน้า...");
   const existing =
     students.find((student) => student.id === studentId)?.faceStatus != null;
@@ -51,6 +70,7 @@ export default function FaceEnrollmentModal({
         audio: false,
       });
       streamRef.current = stream;
+      setCameraType(stream.getVideoTracks()[0]?.label || "");
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -72,8 +92,12 @@ export default function FaceEnrollmentModal({
     setMessage("กำลังตรวจสอบและสร้าง Face Embedding...");
     try {
       const sample = await analyzeVideoFrame(videoRef.current);
-      setSamples((current) => [...current, sample]);
-      setMessage("บันทึกภาพตัวอย่างแล้ว กรุณาเปลี่ยนมุมใบหน้าเล็กน้อย");
+      setSamples((current) => [...current, { ...sample, poseType: capturePose }]);
+      const nextPose = poseOptions.find(
+        (option) => option.value !== capturePose && !samples.some((item) => item.poseType === option.value),
+      );
+      if (nextPose) setCapturePose(nextPose.value);
+      setMessage(`บันทึกภาพมุม ${poseOptions.find((item) => item.value === capturePose)?.label} แล้ว`);
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "ประมวลผลใบหน้าไม่สำเร็จ",
@@ -89,7 +113,7 @@ export default function FaceEnrollmentModal({
     try {
       for (const file of Array.from(files).slice(0, 5 - next.length)) {
         setMessage(`กำลังตรวจสอบ ${file.name}...`);
-        next = [...next, await analyzeImageFile(file)];
+        next = [...next, { ...(await analyzeImageFile(file)), poseType: null }];
         setSamples(next);
       }
       setMessage(`ประมวลผลสำเร็จ ${next.length} ภาพ`);
@@ -110,6 +134,19 @@ export default function FaceEnrollmentModal({
       setMessage("กรุณาใช้ภาพใบหน้าอย่างน้อย 3 ภาพ");
       return;
     }
+    const poses = samples.map((sample) => sample.poseType);
+    if (poses.some((pose) => !pose)) {
+      setMessage("กรุณาระบุมุมจริงของภาพทุกภาพ");
+      return;
+    }
+    if (!poses.includes("FRONT")) {
+      setMessage("ต้องมีภาพหน้าตรงอย่างน้อย 1 ภาพ");
+      return;
+    }
+    if (new Set(poses).size !== poses.length) {
+      setMessage("มุมภาพต้องไม่ซ้ำกัน");
+      return;
+    }
     setBusy(true);
     setMessage("กำลังบันทึกข้อมูลชีวมิติ...");
     try {
@@ -123,6 +160,10 @@ export default function FaceEnrollmentModal({
         "qualities",
         JSON.stringify(samples.map((sample) => sample.quality)),
       );
+      form.set("poseTypes", JSON.stringify(poses));
+      form.set("deviceName", navigator.platform || "ไม่มีข้อมูล");
+      form.set("operatingSystem", detectOperatingSystem(navigator.userAgent));
+      if (cameraType) form.set("cameraType", cameraType);
       samples.forEach((sample, index) =>
         form.append("images", sample.blob, `face-${index + 1}.jpg`),
       );
@@ -142,13 +183,10 @@ export default function FaceEnrollmentModal({
       setBusy(false);
     }
   }
-  const angles = [
-    "หน้าตรง",
-    "หันซ้ายเล็กน้อย",
-    "หันขวาเล็กน้อย",
-    "มุมเพิ่มเติม",
-    "มุมเพิ่มเติม",
-  ];
+  const posesComplete = samples.length >= 3 &&
+    samples.every((sample) => sample.poseType) &&
+    samples.some((sample) => sample.poseType === "FRONT") &&
+    new Set(samples.map((sample) => sample.poseType)).size === samples.length;
   return (
     <div
       className="subject-modal-layer"
@@ -203,6 +241,24 @@ export default function FaceEnrollmentModal({
               </span>
             </div>
             <div className="face-capture-actions">
+              <label className="face-pose-select">
+                มุมที่จะถ่าย
+                <select
+                  value={capturePose}
+                  disabled={busy}
+                  onChange={(event) => setCapturePose(event.target.value as FacePoseType)}
+                >
+                  {poseOptions.map((option) => (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      disabled={samples.some((sample) => sample.poseType === option.value)}
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 className="admin-button secondary"
                 onClick={camera ? stopCamera : startCamera}
@@ -242,7 +298,7 @@ export default function FaceEnrollmentModal({
             </div>
           </div>
           <div className="face-sample-grid">
-            {angles.map((angle, index) => (
+            {Array.from({ length: 5 }, (_, index) => index).map((index) => (
               <article key={index} className={samples[index] ? "ready" : ""}>
                 {samples[index] ? (
                   <>
@@ -251,7 +307,7 @@ export default function FaceEnrollmentModal({
                       width={180}
                       height={180}
                       unoptimized
-                      alt={`ตัวอย่าง ${angle}`}
+                      alt={`ตัวอย่างภาพใบหน้าที่ ${index + 1}`}
                     />
                     <button
                       onClick={() =>
@@ -270,7 +326,28 @@ export default function FaceEnrollmentModal({
                 ) : (
                   <span>{index + 1}</span>
                 )}
-                <small>{angle}</small>
+                {samples[index] ? (
+                  <select
+                    aria-label={`มุมของภาพที่ ${index + 1}`}
+                    value={samples[index].poseType || ""}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const poseType = event.target.value as FacePoseType;
+                      setSamples((current) => current.map((sample, sampleIndex) =>
+                        sampleIndex === index ? { ...sample, poseType } : sample,
+                      ));
+                    }}
+                  >
+                    <option value="">ระบุมุมภาพ</option>
+                    {poseOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <small>ภาพที่ {index + 1}</small>
+                )}
               </article>
             ))}
           </div>
@@ -294,7 +371,7 @@ export default function FaceEnrollmentModal({
           <button
             className="admin-button primary"
             onClick={submit}
-            disabled={busy || samples.length < 3}
+            disabled={busy || !posesComplete}
           >
             {busy && <span className="button-spinner" />}บันทึกข้อมูลใบหน้า (
             {samples.length}/5)

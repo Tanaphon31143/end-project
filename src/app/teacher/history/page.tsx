@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getTeacherSession } from "@/lib/auth";
 import { getTeacherCourses, getTeacherHistory } from "@/lib/teacher-data";
+import { EmptyState } from "@/components/teacher/EmptyState";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const value = (input: string | string[] | undefined) =>
@@ -142,10 +143,7 @@ export default async function History({
               ) : (
                 <tr>
                   <td colSpan={9}>
-                    <div className="empty">
-                      <h3>ไม่พบประวัติการเช็คชื่อ</h3>
-                      <p>ลองเปลี่ยนรายวิชา ช่วงวันที่ หรือคำค้นหา</p>
-                    </div>
+                    <EmptyState title="ไม่พบประวัติการเช็คชื่อ" description="ลองเปลี่ยนรายวิชา ช่วงวันที่ หรือคำค้นหา" />
                   </td>
                 </tr>
               )}

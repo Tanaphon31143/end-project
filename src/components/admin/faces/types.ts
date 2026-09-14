@@ -21,4 +21,12 @@ export type FaceStudentOption={
   faceStatus:FaceStatus|null;
 };
 
-export type FaceSample={blob:Blob;preview:string;embedding:number[];quality:number};
+export type FacePoseType="FRONT"|"LEFT"|"RIGHT"|"UP"|"DOWN";
+
+export type FaceSample={
+  blob:Blob;
+  preview:string;
+  embedding:number[];
+  quality:number;
+  poseType:FacePoseType|null;
+};

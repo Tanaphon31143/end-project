@@ -184,6 +184,8 @@ export async function getTeacherDashboard(teacherId: number) {
       time: start,
       code: session.subject.subjectCode,
       name: `${session.subject.subjectName} ${session.subject.classroom?.name ?? ""}`,
+      subjectName: session.subject.subjectName,
+      room: session.subject.classroom?.name ?? "",
       count: `${checked}/${total}`,
       status: state,
       label:
@@ -220,6 +222,7 @@ export async function getTeacherDashboard(teacherId: number) {
       present: daily.filter((item) => item.status === "PRESENT").length,
       late: daily.filter((item) => item.status === "LATE").length,
       absent: daily.filter((item) => item.status === "ABSENT").length,
+      leave: daily.filter((item) => item.status === "LEAVE").length,
     };
   });
   return {

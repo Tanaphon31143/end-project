@@ -44,6 +44,7 @@ type Match = {
   liveness: number;
   student: { id: number; code: string; name: string; className: string };
 };
+type CameraDevice = { deviceId: string; label: string };
 const labels = {
   PRESENT: "เข้าเรียน",
   LATE: "มาสาย",
@@ -67,6 +68,72 @@ const dbTime = (value: string) => {
 const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
+async function waitForVideoFrame(video: HTMLVideoElement) {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth)
+    return;
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("กล้องส่งภาพไม่สำเร็จ กรุณาลองเปิดกล้องใหม่"));
+    }, 10_000);
+    const onReady = () => {
+      if (!video.videoWidth) return;
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("ไม่สามารถแสดงภาพจากกล้องได้"));
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      video.removeEventListener("loadeddata", onReady);
+      video.removeEventListener("canplay", onReady);
+      video.removeEventListener("error", onError);
+    };
+    video.addEventListener("loadeddata", onReady);
+    video.addEventListener("canplay", onReady);
+    video.addEventListener("error", onError);
+  });
+}
+
+async function requestCameraStream(
+  deviceId: string,
+  facing: "user" | "environment",
+) {
+  const preferredVideo: MediaTrackConstraints = deviceId
+    ? {
+        deviceId: { exact: deviceId },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      }
+    : {
+        // `ideal`, unlike an exact facing-mode requirement, also works on
+        // laptops and USB webcams which do not advertise a facing direction.
+        facingMode: { ideal: facing },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      };
+  const fallbacks: MediaTrackConstraints[] = [
+    preferredVideo,
+    { width: { ideal: 1280 }, height: { ideal: 720 } },
+    {},
+  ];
+  let lastError: unknown;
+  for (const video of fallbacks) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ video, audio: false });
+    } catch (error) {
+      lastError = error;
+      // Permission errors cannot be resolved by choosing another camera.
+      if (error instanceof DOMException && error.name === "NotAllowedError")
+        throw error;
+    }
+  }
+  throw lastError;
+}
+
 export function LiveScanFeed({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -75,8 +142,12 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
   const [match, setMatch] = useState<Match | null>(null);
   const [message, setMessage] = useState("กำลังโหลดรอบเช็คชื่อ...");
   const [busy, setBusy] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [facing, setFacing] = useState<"user" | "environment">("user");
+  const [cameras, setCameras] = useState<CameraDevice[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState("");
   const [error, setError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [studentImageFailed, setStudentImageFailed] = useState(false);
@@ -86,6 +157,16 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraOpen(false);
+  }, []);
+  const refreshCameraDevices = useCallback(async () => {
+    const devices = (await navigator.mediaDevices.enumerateDevices())
+      .filter((device) => device.kind === "videoinput")
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `กล้อง ${index + 1}`,
+      }));
+    setCameras(devices);
+    return devices;
   }, []);
   const loadSession = useCallback(async () => {
     const response = await fetch(
@@ -117,7 +198,10 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
     };
   }, [loadSession, stopCamera]);
 
-  async function openCamera(mode = facing) {
+  async function openCamera(
+    deviceId = selectedCameraId,
+    mode = facing,
+  ) {
     setBusy(true);
     setError("");
     setMessage("กำลังเตรียมระบบตรวจจับใบหน้า...");
@@ -136,27 +220,30 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
             setMessage(`กำลังลองเชื่อมต่อใหม่ ครั้งที่ ${attempt - 1}/2...`);
             await wait(650);
           }
-          await getFaceEngine();
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: mode,
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-            audio: false,
-          });
+          const stream = await requestCameraStream(deviceId, mode);
           streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            await videoRef.current.play();
-          }
+          const video = videoRef.current;
+          if (!video) throw new Error("ไม่พบพื้นที่แสดงภาพจากกล้อง");
+          video.srcObject = stream;
+          await video.play();
+          await waitForVideoFrame(video);
+          const availableCameras = await refreshCameraDevices();
+          const activeDeviceId = stream
+            .getVideoTracks()[0]
+            ?.getSettings().deviceId;
+          if (activeDeviceId && availableCameras.some((camera) => camera.deviceId === activeDeviceId))
+            setSelectedCameraId(activeDeviceId);
           setCameraOpen(true);
           setRetryCount(0);
           setMessage(
             "จัดใบหน้าให้อยู่กึ่งกลางกรอบ กะพริบตาหรือขยับใบหน้าเล็กน้อย แล้วกดสแกน",
           );
+          // The preview must not wait on model downloads. The scanner loads the
+          // engine on demand, while this warms it up for the first scan.
+          void getFaceEngine().catch(() => {});
           return;
         } catch (cause) {
+          stopCamera();
           lastError = cause;
           const name = cause instanceof DOMException ? cause.name : "";
           if (name === "NotAllowedError" || name === "NotFoundError") break;
@@ -180,9 +267,20 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
     }
   }
   async function switchCamera() {
-    const next = facing === "user" ? "environment" : "user";
-    setFacing(next);
-    await openCamera(next);
+    const activeDeviceId =
+      streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId ||
+      selectedCameraId;
+    const currentIndex = cameras.findIndex(
+      (camera) => camera.deviceId === activeDeviceId,
+    );
+    const nextCamera =
+      cameras.length > 1
+        ? cameras[(currentIndex + 1 + cameras.length) % cameras.length]
+        : undefined;
+    const nextFacing = facing === "user" ? "environment" : "user";
+    setFacing(nextFacing);
+    if (nextCamera) setSelectedCameraId(nextCamera.deviceId);
+    await openCamera(nextCamera?.deviceId || "", nextFacing);
   }
   async function scan() {
     if (!videoRef.current || !cameraOpen) return;
@@ -250,6 +348,7 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
     }
   }
   async function closeSession() {
+    if (closingRef.current) return;
     if (
       !window.confirm(
         "ปิดรอบเช็คชื่อและบันทึกนักเรียนที่ยังไม่เช็คชื่อเป็นขาดเรียนหรือไม่?",
@@ -257,19 +356,32 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
     )
       return;
     setBusy(true);
+    closingRef.current = true;
+    setClosing(true);
+    setError("");
     try {
       const response = await fetch("/api/teacher/sessions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "ปิดรอบไม่สำเร็จ");
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        // A lost response may follow a successful commit. Check before retrying.
+        const latest = await loadSession().catch(() => null);
+        if (latest?.status !== "CLOSED")
+          throw new Error(data?.message || "เซิร์ฟเวอร์ไม่สามารถยืนยันการปิดรอบได้ กรุณาลองอีกครั้ง");
+      }
+      setSession((current) => current ? { ...current, status: "CLOSED" } : current);
+      setMatch(null);
       stopCamera();
       router.push("/teacher/dashboard");
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ปิดรอบไม่สำเร็จ");
+    } finally {
+      closingRef.current = false;
+      setClosing(false);
       setBusy(false);
     }
   }
@@ -303,7 +415,7 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
           onClick={closeSession}
           disabled={busy || session.status === "CLOSED"}
         >
-          {session.status === "CLOSED" ? "ปิดรอบแล้ว" : "ปิดรอบเช็คชื่อ"}
+          {closing ? "กำลังปิดรอบ…" : session.status === "CLOSED" ? "ปิดรอบแล้ว" : "ปิดรอบเช็คชื่อ"}
         </button>
       </div>
       <section className="scan-grid">
@@ -348,6 +460,26 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
               <SwitchCamera size={17} />
               สลับกล้อง
             </button>
+            {cameras.length > 1 && (
+              <label className="camera-picker">
+                <span>เลือกกล้อง</span>
+                <select
+                  value={selectedCameraId}
+                  disabled={busy || session.status === "CLOSED"}
+                  onChange={(event) => {
+                    const deviceId = event.target.value;
+                    setSelectedCameraId(deviceId);
+                    void openCamera(deviceId);
+                  }}
+                >
+                  {cameras.map((camera) => (
+                    <option key={camera.deviceId} value={camera.deviceId}>
+                      {camera.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button
               className="button primary"
               onClick={() => void scan()}

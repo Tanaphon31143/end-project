@@ -1,15 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   Camera,
   CameraIcon,
   CheckCircle2,
   Clock,
   DoorOpen,
-  HelpCircle,
   Layers,
   LoaderCircle,
   Lock,
@@ -19,22 +18,35 @@ import {
   UserRound,
   XCircle,
 } from "lucide-react";
-import { analyzeVideoFrame, getFaceEngine } from "@/lib/face-recognition";
+import {
+  analyzeVideoFrame,
+  analyzeVideoObservation,
+  getFaceEngine,
+} from "@/lib/face-recognition";
+import type { StudentCheckInSession } from "@/lib/student-check-in";
 
-export type StudentCheckInSession = {
-  id: number;
-  subjectId: number;
-  subjectCode: string;
-  subjectName: string;
-  teacherName: string;
-  room: string;
-  sessionDate: string;
-  startTime: string;
-  endTime: string;
-  lateAfter: string;
-  status: "ACTIVE" | "CLOSED";
-  alreadyCheckedIn?: boolean;
-  remainingSeconds?: number;
+type LivenessChallenge = "BLINK" | "TURN_LEFT" | "TURN_RIGHT" | "LOOK_UP";
+type StudentSummary = {
+  name: string;
+  code: string;
+  className: string;
+  initials: string;
+  hasProfileImage: boolean;
+  faceReady: boolean;
+};
+
+const challengeLabels: Record<LivenessChallenge, string> = {
+  BLINK: "กะพริบตา",
+  TURN_LEFT: "หันหน้าไปทางซ้าย",
+  TURN_RIGHT: "หันหน้าไปทางขวา",
+  LOOK_UP: "เงยหน้าขึ้นเล็กน้อย",
+};
+
+const acceptedGestures: Record<LivenessChallenge, string[]> = {
+  BLINK: ["blink left eye", "blink right eye"],
+  TURN_LEFT: ["facing left"],
+  TURN_RIGHT: ["facing right"],
+  LOOK_UP: ["head up"],
 };
 
 export type ScanResultData = {
@@ -69,9 +81,11 @@ const STEPS_CONFIG = [
 export default function FaceScanner({
   initialSessions = [],
   preferredSessionId,
+  student,
 }: {
   initialSessions: StudentCheckInSession[];
   preferredSessionId?: number;
+  student?: StudentSummary;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -88,7 +102,7 @@ export default function FaceScanner({
   );
   const [confirmed, setConfirmed] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(
-    initialSessions.length > 1 && !preferredSessionId,
+    initialSessions.length > 1 && !initialSessions.some((s) => s.id === preferredSessionId),
   );
 
   const [facing, setFacing] = useState<"user" | "environment">("user");
@@ -101,9 +115,18 @@ export default function FaceScanner({
     "idle",
   );
   const [errorMessage, setErrorMessage] = useState("");
+  const [currentChallenge, setCurrentChallenge] = useState<LivenessChallenge | null>(null);
+  const [challengeNumber, setChallengeNumber] = useState(0);
 
   // Rate Limiting
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  const isSelectedSessionOpen = Boolean(selectedSession?.isOpenNow);
+  const selectedSessionEnded = selectedSession?.availability === "ENDED";
+  const sessionNotOpenMessage = selectedSession
+    ? selectedSessionEnded
+      ? `คาบนี้ปิดรับเช็คชื่อแล้วเมื่อ ${selectedSession.endTime} น.`
+      : `คาบนี้เปิดให้เช็คชื่อเวลา ${selectedSession.startTime}–${selectedSession.endTime} น.`
+    : "";
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -124,9 +147,40 @@ export default function FaceScanner({
         return data.sessions as StudentCheckInSession[];
       }
     } catch {
-      // Ignore network error
+      setErrorMessage("เชื่อมต่อระบบคาบเรียนไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่");
     }
     return [];
+  }
+
+  async function completeChallenge(video: HTMLVideoElement, challenge: LivenessChallenge) {
+    const deadline = Date.now() + 10_000;
+    let lastError: unknown;
+    while (Date.now() < deadline) {
+      try {
+        const observation = await analyzeVideoObservation(video);
+        if (
+          observation.real >= 0.65 &&
+          observation.live >= 0.55 &&
+          observation.gestures.some((gesture) => acceptedGestures[challenge].includes(gesture))
+        ) {
+          return {
+            challenge,
+            gestures: observation.gestures,
+            real: observation.real,
+            live: observation.live,
+            capturedAt: Date.now(),
+          };
+        }
+      } catch (error) {
+        lastError = error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(
+      lastError instanceof Error
+        ? `หมดเวลาตรวจบุคคลจริง: ${lastError.message}`
+        : `ไม่พบการเคลื่อนไหว “${challengeLabels[challenge]}” ภายใน 10 วินาที`,
+    );
   }
 
   // Lockout Countdown Timer
@@ -144,6 +198,11 @@ export default function FaceScanner({
       setSessionModalOpen(true);
       return;
     }
+    if (!selectedSession.isOpenNow) {
+      setScanStatus("error");
+      setErrorMessage(sessionNotOpenMessage);
+      return;
+    }
 
     stopCamera();
     setResult(null);
@@ -158,6 +217,13 @@ export default function FaceScanner({
       const current = latestSessions.find((s) => s.id === selectedSession.id);
       if (!current) {
         throw new Error("คาบเรียนนี้ปิดแล้วหรือไม่พร้อมให้เช็คชื่อ");
+      }
+      if (!current.isOpenNow) {
+        throw new Error(
+          current.availability === "ENDED"
+            ? `คาบนี้ปิดรับเช็คชื่อแล้วเมื่อ ${current.endTime} น.`
+            : `คาบนี้เปิดให้เช็คชื่อเวลา ${current.startTime}–${current.endTime} น.`,
+        );
       }
       setSelectedSession(current);
 
@@ -217,15 +283,32 @@ export default function FaceScanner({
       await new Promise((r) => setTimeout(r, 200));
 
       const video = videoRef.current;
-      const sample = await analyzeVideoFrame(video);
+      await analyzeVideoObservation(video);
 
-      // Step 3: Liveness Detection
+      // Step 3: server-issued randomized interactive liveness
       setCurrentStep("LIVENESS");
-      await new Promise((r) => setTimeout(r, 300));
-      // livenessPassed from sample analysis or real/live score
-      const livenessPassed = (sample as { liveness?: number }).liveness !== undefined
-        ? (sample as { liveness: number }).liveness >= 0.5
-        : true;
+      const challengeResponse = await fetch("/api/student/liveness-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: selectedSession.id }),
+      });
+      const challengeData = (await challengeResponse.json()) as {
+        token?: string;
+        challenges?: LivenessChallenge[];
+        message?: string;
+      };
+      if (!challengeResponse.ok || !challengeData.token || !challengeData.challenges) {
+        throw new Error(challengeData.message || "ไม่สามารถเริ่มการตรวจบุคคลจริงได้");
+      }
+      const livenessEvidence = [];
+      for (let index = 0; index < challengeData.challenges.length; index += 1) {
+        const challenge = challengeData.challenges[index];
+        setChallengeNumber(index + 1);
+        setCurrentChallenge(challenge);
+        livenessEvidence.push(await completeChallenge(video, challenge));
+      }
+      setCurrentChallenge(null);
+      const sample = await analyzeVideoFrame(video);
 
       // Step 4: Matching
       setCurrentStep("MATCHING");
@@ -240,7 +323,8 @@ export default function FaceScanner({
         body: JSON.stringify({
           sessionId: selectedSession.id,
           embedding: sample.embedding,
-          livenessPassed,
+          livenessToken: challengeData.token,
+          livenessEvidence,
           deviceInfo: navigator.userAgent.slice(0, 150),
         }),
       });
@@ -272,6 +356,8 @@ export default function FaceScanner({
         error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการสแกนใบหน้า",
       );
     } finally {
+      setCurrentChallenge(null);
+      setChallengeNumber(0);
       setIsProcessing(false);
     }
   }
@@ -378,6 +464,15 @@ export default function FaceScanner({
                   }}
                   role="button"
                   tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedSession(s);
+                      setConfirmed(false);
+                      setSessionModalOpen(false);
+                      stopCamera();
+                    }
+                  }}
                 >
                   <div className="session-card-header">
                     <span className="badge info">{s.subjectCode}</span>
@@ -405,6 +500,14 @@ export default function FaceScanner({
                       <CheckCircle2 size={14} /> คุณเคยเช็คชื่อในคาบนี้แล้ว
                     </div>
                   )}
+                  {!s.isOpenNow && (
+                    <div className="already-checked-tag">
+                      <Clock size={14} />
+                      {s.availability === "ENDED"
+                        ? `ปิดรับเช็คชื่อแล้วเมื่อ ${s.endTime} น.`
+                        : `เปิดเช็คชื่อเวลา ${s.startTime} น.`}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -424,7 +527,7 @@ export default function FaceScanner({
       )}
 
       {/* Confirmation before Camera Open (When 1 session available and camera not open) */}
-      {!cameraOpen && selectedSession && !confirmed && (
+      {!cameraOpen && selectedSession && !confirmed && !selectedSessionEnded && (
         <div className="session-confirm-box card">
           <div className="confirm-icon">
             <ShieldCheck size={36} />
@@ -439,15 +542,37 @@ export default function FaceScanner({
             <small>
               เวลาเปิดเช็คชื่อ: {selectedSession.startTime} – {selectedSession.endTime} น.
             </small>
+            {student && (
+              <small>
+                ผู้เช็คชื่อ: {student.name} ({student.code}) · {student.className} · {student.faceReady ? "ข้อมูลใบหน้าพร้อม" : "ยังไม่มีข้อมูลใบหน้า"}
+              </small>
+            )}
           </div>
           <button
             type="button"
             className="button primary confirm-open-cam-btn"
             onClick={() => openCamera()}
-            disabled={lockoutRemaining > 0}
+            disabled={lockoutRemaining > 0 || !isSelectedSessionOpen}
           >
             <Camera size={18} /> ยืนยันคาบและเปิดกล้อง
           </button>
+        </div>
+      )}
+
+      {selectedSession && !isSelectedSessionOpen && (
+        <div className={`scan-result-card card ${selectedSessionEnded ? "expired" : "error"}`}>
+          <div className="result-header">
+            <Clock size={32} className="danger-icon" />
+            <div>
+              <h3>{selectedSessionEnded ? "หมดเวลาเช็คชื่อแล้ว" : "ยังไม่ถึงเวลาเปิดเช็คชื่อ"}</h3>
+              <p className="error-desc">
+                {sessionNotOpenMessage}{" "}
+                {selectedSessionEnded
+                  ? "กรุณาติดต่อครูผู้สอนหากต้องการแจ้งปัญหาการเช็คชื่อ"
+                  : "กล้องจะพร้อมใช้งานเมื่อถึงเวลาเปิดคาบ"}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -540,6 +665,14 @@ export default function FaceScanner({
               )}
             </div>
           )}
+
+          {currentChallenge && (
+            <div className="liveness-challenge" role="status" aria-live="assertive">
+              <small>ขั้นที่ {challengeNumber} จาก 2 · ทำภายใน 10 วินาที</small>
+              <strong>{challengeLabels[currentChallenge]}</strong>
+              <span>มองกล้องและขยับอย่างเป็นธรรมชาติ</span>
+            </div>
+          )}
         </div>
 
         {/* Action Controls */}
@@ -561,7 +694,8 @@ export default function FaceScanner({
               isProcessing ||
               lockoutRemaining > 0 ||
               scanStatus === "success" ||
-              !selectedSession
+              !selectedSession ||
+              !isSelectedSessionOpen
             }
           >
             <Camera size={18} />
@@ -572,7 +706,7 @@ export default function FaceScanner({
             type="button"
             className="button secondary"
             onClick={() => openCamera()}
-            disabled={isProcessing || lockoutRemaining > 0}
+            disabled={isProcessing || lockoutRemaining > 0 || !isSelectedSessionOpen}
           >
             <RefreshCw size={18} /> เปิดกล้องใหม่
           </button>
@@ -582,21 +716,48 @@ export default function FaceScanner({
         {result && (scanStatus === "success" || scanStatus === "duplicate") && (
           <div className={`scan-result-card card ${scanStatus}`}>
             <div className="result-header">
-              <CheckCircle2 size={32} className="success-icon" />
+              {student?.hasProfileImage ? (
+                <Image
+                  className="result-student-photo"
+                  src="/api/student/profile-image"
+                  alt={`รูปของ ${student.name}`}
+                  width={56}
+                  height={56}
+                  unoptimized
+                />
+              ) : (
+                <span className="result-student-avatar" aria-hidden="true">
+                  {student?.initials || <CheckCircle2 size={28} />}
+                </span>
+              )}
               <div>
                 <h3>{scanStatus === "duplicate" ? "เช็คชื่อคาบนี้แล้ว" : "เช็คชื่อสำเร็จ"}</h3>
-                <p>
-                  {result.message || "บันทึกเวลาเข้าเรียนเรียบร้อยแล้ว"}
-                </p>
+                <p>{student ? `${student.name} · ${student.code} · ${student.className}` : result.message}</p>
               </div>
             </div>
 
             <div className="result-details-grid">
               <div className="result-field">
+                <span>วันที่</span>
+                <strong>
+                  {new Intl.DateTimeFormat("th-TH", { dateStyle: "long" }).format(
+                    new Date(`${(result.session || selectedSession)?.sessionDate}T00:00:00`),
+                  )}
+                </strong>
+              </div>
+              <div className="result-field">
                 <span>รายวิชา</span>
                 <strong>
                   {(result.session || selectedSession)?.subjectCode}{" "}
                   {(result.session || selectedSession)?.subjectName}
+                </strong>
+              </div>
+              <div className="result-field">
+                <span>คาบและเวลาเรียน</span>
+                <strong>
+                  {(result.session || selectedSession)?.periodName} ·{" "}
+                  {(result.session || selectedSession)?.startTime}–
+                  {(result.session || selectedSession)?.endTime} น.
                 </strong>
               </div>
               <div className="result-field">
@@ -624,14 +785,8 @@ export default function FaceScanner({
                 </span>
               </div>
               <div className="result-field">
-                <span>ความแม่นยำใบหน้า</span>
-                <strong>
-                  {result.confidence
-                    ? `${result.confidence}%`
-                    : result.similarity
-                      ? `${(result.similarity * 100).toFixed(1)}%`
-                      : "ผ่านเกณฑ์"}
-                </strong>
+                <span>ผลยืนยันใบหน้า</span>
+                <strong>{Number(result.confidence || 0) >= 80 ? "ความมั่นใจสูง" : "ผ่านเกณฑ์"}</strong>
               </div>
             </div>
           </div>

@@ -49,9 +49,11 @@ export function Sidebar({
       <div
         className={`sidebar-backdrop ${open ? "show" : ""}`}
         onClick={onClose}
+        aria-hidden="true"
       />
       <aside
         className={`sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}
+        aria-label="แถบเมนูครูผู้สอน"
       >
         <button
           className="sidebar-close"
@@ -91,6 +93,7 @@ export function Sidebar({
                 key={href}
                 href={href}
                 className={active ? "active" : ""}
+                aria-current={active ? "page" : undefined}
                 title={label}
                 onClick={onClose}
               >

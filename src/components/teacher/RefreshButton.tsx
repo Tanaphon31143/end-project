@@ -9,6 +9,7 @@ export function RefreshButton() {
     <button
       className="button ghost"
       disabled={pending}
+      aria-busy={pending}
       onClick={() => startTransition(() => router.refresh())}
     >
       {pending ? (

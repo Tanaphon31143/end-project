@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import NotificationBell from "./NotificationBell";
+import { useStudentToast } from "./StudentToast";
 import {
   Bell,
   BookOpen,
@@ -52,17 +53,55 @@ export default function StudentShell({
 
   const profileRef = useRef<HTMLDivElement>(null);
   const profileTriggerRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 720px)');
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const notify = useStudentToast();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!drawer) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const sidebar = sidebarRef.current;
+    const items = () => Array.from(sidebar?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') || []).filter(el => el.getClientRects().length > 0);
+    items()[0]?.focus();
+    function keydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') { event.preventDefault(); setDrawer(false); }
+      if (event.key !== 'Tab') return;
+      const list = items(), first = list[0], last = list.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    const resize = () => { if (window.innerWidth > 720) setDrawer(false); };
+    document.addEventListener('keydown', keydown);
+    window.addEventListener('resize', resize);
+    return () => { document.removeEventListener('keydown', keydown); window.removeEventListener('resize', resize); previous?.focus(); };
+  }, [drawer]);
 
   async function logout() {
-    await fetch("/api/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const response = await fetch("/api/logout", { method: "POST" });
+      if (!response.ok) throw new Error('logout failed');
+      router.push("/");
+      router.refresh();
+    } catch { notify("ออกจากระบบไม่สำเร็จ กรุณาลองใหม่", "error"); }
+    finally { setLoggingOut(false); }
   }
 
   // Close profile and drawer on route change
   useEffect(() => {
-    setProfile(false);
-    setDrawer(false);
+    queueMicrotask(() => {
+      setProfile(false);
+      setDrawer(false);
+    });
   }, [pathname]);
 
   // Close profile on click outside or Escape
@@ -95,6 +134,7 @@ export default function StudentShell({
 
   return (
     <div className={`student-shell ${collapsed ? "is-collapsed" : ""}`}>
+      <a className="student-skip-link" href="#student-main">ข้ามไปยังเนื้อหา</a>
       {drawer && (
         <button
           className="student-overlay"
@@ -102,7 +142,7 @@ export default function StudentShell({
           onClick={() => setDrawer(false)}
         />
       )}
-      <aside className={`student-sidebar ${drawer ? "is-open" : ""}`}>
+      <aside ref={sidebarRef} id="student-navigation" inert={mobile && !drawer} className={`student-sidebar ${drawer ? "is-open" : ""}`}>
         <div className="student-brand">
           <span className="student-logo">
             <Image
@@ -136,6 +176,7 @@ export default function StudentShell({
               href={href}
               key={href}
               title={label}
+              aria-current={pathname === href || pathname.startsWith(href + '/') ? "page" : undefined}
               className={pathname === href ? "active" : ""}
               onClick={() => setDrawer(false)}
             >
@@ -145,7 +186,7 @@ export default function StudentShell({
           ))}
         </nav>
         <div className="student-sidebar-footer">
-          <button className="student-logout" onClick={logout}>
+          <button className="student-logout" onClick={logout} disabled={loggingOut}>
             <LogOut size={20} />
             <span>ออกจากระบบ</span>
           </button>
@@ -159,12 +200,14 @@ export default function StudentShell({
           </button>
         </div>
       </aside>
-      <div className="student-workspace">
+      <div className="student-workspace" inert={drawer}>
         <header className="student-header">
           <button
             className="student-menu-button mobile"
             onClick={() => setDrawer(true)}
             aria-label="เปิดเมนู"
+            aria-expanded={drawer}
+            aria-controls="student-navigation"
           >
             <Menu size={22} />
           </button>
@@ -180,7 +223,6 @@ export default function StudentShell({
                 className="profile-trigger"
                 onClick={() => setProfile((v) => !v)}
                 aria-expanded={profile}
-                aria-haspopup="menu"
                 aria-label="เมนูโปรไฟล์ผู้ใช้"
               >
                 <span className="student-header-avatar">
@@ -204,22 +246,20 @@ export default function StudentShell({
                 <ChevronDown size={16} />
               </button>
               {profile && (
-                <div className="profile-menu" role="menu" aria-label="เมนูโปรไฟล์">
+                <div className="profile-menu" aria-label="เมนูโปรไฟล์">
                   <Link
                     href="/student/profile"
                     onClick={() => setProfile(false)}
-                    role="menuitem"
                   >
                     <CircleUserRound size={18} /> ข้อมูลส่วนตัว
                   </Link>
                   <Link
                     href="/student/notifications"
                     onClick={() => setProfile(false)}
-                    role="menuitem"
                   >
                     <Bell size={18} /> การแจ้งเตือน
                   </Link>
-                  <button onClick={logout} role="menuitem">
+                  <button onClick={logout} disabled={loggingOut}>
                     <LogOut size={18} /> ออกจากระบบ
                   </button>
                 </div>
@@ -227,7 +267,7 @@ export default function StudentShell({
             </div>
           </div>
         </header>
-        <main className="student-content">{children}</main>
+        <main id="student-main" tabIndex={-1} className="student-content">{children}</main>
       </div>
     </div>
   );

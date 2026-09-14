@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStudentSession } from "@/lib/auth";
+import { notificationPagination, notificationReadCommand } from "@/lib/student-notification-rules.mjs";
 import {
   getStudentNotifications,
   markNotificationAsRead,
@@ -15,10 +16,11 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const limit = Number(searchParams.get('limit')) || 20;
-  const page = Number(searchParams.get('page')) || 1;
+  const pagination = notificationPagination(searchParams);
+  if (!pagination)
+    return NextResponse.json({ message: 'เลขหน้าไม่ถูกต้อง' }, { status: 400 });
 
-  const result = await getStudentNotifications(student.id, limit, page);
+  const result = await getStudentNotifications(student.id, pagination.limit, pagination.page);
   return NextResponse.json(result);
 }
 
@@ -28,13 +30,10 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    id?: number | string;
-    markAll?: boolean;
-  };
-
-  const notificationId = body.id ? Number(body.id) : undefined;
-  await markNotificationAsRead(student.id, notificationId);
+  const command = notificationReadCommand(await request.json().catch(() => null));
+  if (!command)
+    return NextResponse.json({ message: 'กรุณาระบุรายการแจ้งเตือน' }, { status: 400 });
+  await markNotificationAsRead(student.id, command.all ? undefined : command.id);
 
   return NextResponse.json({ ok: true, message: "อัปเดตสถานะการแจ้งเตือนแล้ว" });
 }

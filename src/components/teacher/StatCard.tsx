@@ -13,14 +13,14 @@ export function StatCard({
   icon: LucideIcon;
 }) {
   return (
-    <article className="stat-card">
+    <article className="stat-card dashboard-stat-card">
       <div className={`stat-icon ${tone}`}>
-        <Icon size={22} />
+        <Icon size={20} aria-hidden="true" />
       </div>
-      <div>
+      <div className="dashboard-stat-copy">
         <span>{label}</span>
         <strong>{value}</strong>
-        <small className={tone}>{detail}</small>
+        <small>{detail}</small>
       </div>
     </article>
   );

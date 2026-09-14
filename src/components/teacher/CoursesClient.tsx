@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Plus, X } from "lucide-react";
 import { CourseCard, type Course } from "@/components/teacher/CourseCard";
+import { EmptyState } from "@/components/teacher/EmptyState";
 
 type CourseSchedule = {
   id: number;
@@ -109,10 +110,7 @@ export function CoursesClient({
   }
   if (!initialCourses.length)
     return (
-      <div className="panel empty">
-        <h3>ยังไม่มีรายวิชาที่รับผิดชอบ</h3>
-        <p>ติดต่อผู้ดูแลระบบเพื่อกำหนดรายวิชาและห้องเรียน</p>
-      </div>
+      <div className="panel"><EmptyState title="ยังไม่มีรายวิชาที่รับผิดชอบ" description="ติดต่อผู้ดูแลระบบเพื่อกำหนดรายวิชาและห้องเรียน" /></div>
     );
   return (
     <>

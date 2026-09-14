@@ -6,14 +6,8 @@ import {
   Camera,
   CheckCircle2,
   Clock,
-  DoorOpen,
-  GraduationCap,
   Percent,
   ShieldAlert,
-  UserCheck,
-  XCircle,
-  AlertCircle,
-  UserRound,
 } from "lucide-react";
 import { Badge, PageTitle } from "@/components/student/UI";
 import { getStudentSession } from "@/lib/auth";
@@ -23,13 +17,16 @@ export const dynamic = "force-dynamic";
 
 export default async function CourseDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams?: Promise<{ page?: string }>;
 }) {
   const session = await getStudentSession();
   if (!session) redirect("/");
 
   const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const courseId = Number(resolvedParams.courseId);
 
   if (!Number.isInteger(courseId) || courseId < 1) {
@@ -48,6 +45,7 @@ export default async function CourseDetailPage({
   const { authorized, course } = await getStudentCourseDetail(
     session.id,
     courseId,
+    resolvedSearchParams?.page || 1,
   );
 
   if (!authorized || !course) {
@@ -76,7 +74,7 @@ export default async function CourseDetailPage({
       <PageTitle
         eyebrow={`ภาคเรียนที่ ${course.semester} ปีการศึกษา ${course.academicYear}`}
         title={`${course.code} ${course.name}`}
-        description={`ระดับชั้น ${course.gradeLevel || "ทั่วไป"} · ${course.credits} หน่วยกิต`}
+        description={`${course.className} · ระดับชั้น ${course.gradeLevel || "ทั่วไป"} · ${course.credits} หน่วยกิต`}
       />
 
       {/* Active Check-In Session Banner */}
@@ -136,6 +134,10 @@ export default async function CourseDetailPage({
             <div className="info-row">
               <span>ห้องเรียน / สถานที่</span>
               <strong>{course.room}</strong>
+            </div>
+            <div className="info-row">
+              <span>ชั้น / ห้อง</span>
+              <strong>{course.className}</strong>
             </div>
             <div className="info-row">
               <span>วันและเวลาเรียน</span>
@@ -203,7 +205,7 @@ export default async function CourseDetailPage({
         <div className="section-head">
           <div>
             <h2>ประวัติการเข้าเรียนล่าสุดในวิชานี้</h2>
-            <p>บันทึกการเช็คชื่อย้อนหลังของรายวิชา {course.name}</p>
+            <p>ทั้งหมด {course.pagination.totalItems} รายการ · แสดง 20 รายการต่อหน้า</p>
           </div>
         </div>
 
@@ -218,27 +220,61 @@ export default async function CourseDetailPage({
               <thead>
                 <tr>
                   <th>วันที่</th>
-                  <th>เวลาเช็คชื่อ</th>
+                  <th>คาบ</th>
+                  <th>เวลาเรียน</th>
+                  <th>ห้อง</th>
                   <th>สถานะ</th>
-                  <th>ความแม่นยำใบหน้า</th>
+                  <th>เวลาเช็คชื่อ</th>
+                  <th>หมายเหตุ</th>
+                  <th>รายละเอียด</th>
                 </tr>
               </thead>
               <tbody>
                 {course.recentAttendance.map((rec) => (
                   <tr key={rec.id}>
                     <td>{rec.date}</td>
+                    <td>{rec.periodName}</td>
+                    <td>{rec.classTime}</td>
+                    <td>{rec.room}</td>
+                    <td><Badge>{rec.status}</Badge></td>
                     <td>{rec.checkIn}</td>
+                    <td>{rec.note}</td>
                     <td>
-                      <Badge>{rec.status}</Badge>
-                    </td>
-                    <td>
-                      {rec.confidence !== null ? `${rec.confidence}%` : "-"}
+                      <details className="attendance-row-details">
+                        <summary>ดูรายละเอียด</summary>
+                        <div>
+                          <b>{course.code} {course.name}</b>
+                          <span>{rec.date} · {rec.periodName} · {rec.classTime} น.</span>
+                          <span>ห้อง {rec.room} · เช็คชื่อ {rec.checkIn} น.</span>
+                          <span>สถานะ {rec.status} · {rec.note}</span>
+                        </div>
+                      </details>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {course.pagination.totalPages > 1 && (
+          <nav className="student-pagination" aria-label="หน้าประวัติการเข้าเรียน">
+            <Link
+              href={`?page=${Math.max(1, course.pagination.page - 1)}`}
+              className={`button secondary ${course.pagination.page === 1 ? "is-disabled" : ""}`}
+              aria-disabled={course.pagination.page === 1}
+            >
+              ก่อนหน้า
+            </Link>
+            <span>หน้า {course.pagination.page} จาก {course.pagination.totalPages}</span>
+            <Link
+              href={`?page=${Math.min(course.pagination.totalPages, course.pagination.page + 1)}`}
+              className={`button secondary ${course.pagination.page === course.pagination.totalPages ? "is-disabled" : ""}`}
+              aria-disabled={course.pagination.page === course.pagination.totalPages}
+            >
+              ถัดไป
+            </Link>
+          </nav>
         )}
       </section>
     </>

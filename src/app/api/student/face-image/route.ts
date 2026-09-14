@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { getStudentSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { studentIdentityRecord } from "@/lib/student-face-identity";
 export const runtime = "nodejs";
 type ImageRow = RowDataPacket & { imageData: Buffer; imageMime: string };
 export async function GET(request: Request) {
@@ -10,6 +11,8 @@ export async function GET(request: Request) {
       { message: "กรุณาเข้าสู่ระบบนักเรียน" },
       { status: 401 },
     );
+  if (!await studentIdentityRecord(student))
+    return Response.json({ message: "บัญชีนักเรียนไม่พร้อมใช้งาน" }, { status: 403 });
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id < 1)
     return Response.json({ message: "ไม่พบรูปภาพ" }, { status: 400 });

@@ -5,73 +5,17 @@ import { faceSimilarity, isFaceEmbedding } from "@/lib/face-match";
 import {
   checkScanRateLimit,
   hashIp,
+  recordScanEvidence,
   recordScanAttempt,
 } from "@/lib/face-security";
 import { createNotification } from "@/lib/notifications";
+import { getActiveSessionsForStudent } from "@/lib/student-check-in";
+import {
+  checkLivenessFailureLimit,
+  verifyAndConsumeLivenessChallenge,
+} from "@/lib/student-liveness";
 
 export const runtime = "nodejs";
-
-type ActiveSessionRow = RowDataPacket & {
-  id: number;
-  subjectId: number;
-  subjectCode: string;
-  subjectName: string;
-  teacherName: string;
-  room: string;
-  sessionDate: string;
-  startTime: string;
-  endTime: string;
-  lateAfter: string;
-  status: "ACTIVE" | "CLOSED";
-  alreadyCheckedIn: number;
-  remainingSeconds: number;
-};
-
-async function getActiveSessionsForStudent(studentId: number, sessionId?: number) {
-  const params: (number | string)[] = [studentId, studentId];
-  let extra = "";
-  if (sessionId) {
-    extra = " AND cs.id = ?";
-    params.push(sessionId);
-  }
-
-  const [rows] = await db.execute<ActiveSessionRow[]>(
-    `SELECT cs.id,
-            cs.subject_id subjectId,
-            sb.subject_code subjectCode,
-            sb.subject_name subjectName,
-            COALESCE(t.full_name, 'ยังไม่กำหนด') teacherName,
-            COALESCE(sb.location, c.name, 'ยังไม่ระบุ') room,
-            DATE_FORMAT(cs.session_date, '%Y-%m-%d') sessionDate,
-            TIME_FORMAT(cs.start_time, '%H:%i') startTime,
-            TIME_FORMAT(cs.end_time, '%H:%i') endTime,
-            TIME_FORMAT(cs.late_after, '%H:%i:%s') lateAfter,
-            cs.status,
-            EXISTS(
-              SELECT 1 FROM attendance_records a
-              WHERE a.student_id = ? AND a.check_in_session_id = cs.id
-            ) alreadyCheckedIn,
-            TIMESTAMPDIFF(SECOND, CURRENT_TIME, cs.end_time) remainingSeconds
-     FROM check_in_sessions cs
-     JOIN subjects sb ON sb.id = cs.subject_id
-     JOIN classrooms c ON c.id = cs.classroom_id
-     JOIN students st ON st.class_id = cs.classroom_id
-     LEFT JOIN teachers t ON t.id = sb.teacher_id
-     WHERE st.id = ?
-       AND cs.session_date = CURRENT_DATE
-       AND cs.status = 'ACTIVE'
-       AND CURRENT_TIME <= cs.end_time
-       ${extra}
-     ORDER BY cs.start_time`,
-    params,
-  );
-
-  return rows.map((r) => ({
-    ...r,
-    alreadyCheckedIn: Boolean(r.alreadyCheckedIn),
-    remainingSeconds: Math.max(0, Number(r.remainingSeconds) || 0),
-  }));
-}
 
 export async function GET(request: Request) {
   const student = await getStudentSession();
@@ -129,18 +73,31 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     sessionId?: unknown;
     embedding?: unknown;
-    livenessPassed?: boolean;
-    livenessScore?: number;
+    livenessToken?: unknown;
+    livenessEvidence?: unknown;
     deviceInfo?: string;
   };
 
   const sessionId = Number(body.sessionId);
   const embedding = body.embedding;
-  const livenessPassed = body.livenessPassed !== false; // defaults to true if omitted by client test
   const deviceInfo = typeof body.deviceInfo === "string" ? body.deviceInfo : null;
+  const livenessEvidence = Array.isArray(body.livenessEvidence)
+    ? body.livenessEvidence.slice(0, 2).map((item) => {
+        const value = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        return {
+          challenge: typeof value.challenge === "string" ? value.challenge.slice(0, 30) : null,
+          gestures: Array.isArray(value.gestures)
+            ? value.gestures.filter((gesture): gesture is string => typeof gesture === "string").slice(0, 4)
+            : [],
+          real: typeof value.real === "number" ? value.real : null,
+          live: typeof value.live === "number" ? value.live : null,
+          capturedAt: typeof value.capturedAt === "number" ? value.capturedAt : null,
+        };
+      })
+    : [];
 
   if (!Number.isInteger(sessionId) || sessionId < 1 || !isFaceEmbedding(embedding)) {
-    await recordScanAttempt({
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: Number.isInteger(sessionId) ? sessionId : null,
       success: false,
@@ -148,6 +105,16 @@ export async function POST(request: Request) {
       ipHash: ipH,
       deviceInfo,
     });
+    if (Number.isInteger(sessionId) && sessionId > 0) {
+      await recordScanEvidence({
+        scanAttemptId,
+        userId: student.id,
+        attendanceSessionId: sessionId,
+        livenessResult: "NOT_ATTEMPTED",
+        matchResult: "NO_FACE",
+        evidence: livenessEvidence,
+      });
+    }
     return Response.json(
       { message: "ข้อมูลการสแกนไม่ถูกต้องหรือไม่พบใบหน้า", code: "NO_FACE" },
       { status: 400 },
@@ -159,13 +126,21 @@ export async function POST(request: Request) {
   const session = activeSessions.find((s) => s.id === sessionId);
 
   if (!session) {
-    await recordScanAttempt({
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: sessionId,
       success: false,
       failureReason: "SESSION_EXPIRED",
       ipHash: ipH,
       deviceInfo,
+    });
+    await recordScanEvidence({
+      scanAttemptId,
+      userId: student.id,
+      attendanceSessionId: sessionId,
+      livenessResult: "NOT_ATTEMPTED",
+      matchResult: "SESSION_EXPIRED",
+      evidence: livenessEvidence,
     });
     return Response.json(
       {
@@ -176,23 +151,44 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. Liveness Check Verification
-  if (!livenessPassed) {
-    await recordScanAttempt({
+  // 3. Server-issued, one-time interactive liveness challenge verification.
+  const livenessLimit = await checkLivenessFailureLimit(student.id, sessionId);
+  const liveness = livenessLimit.isLimited
+    ? { valid: false, reason: "LIVENESS_LIMITED" }
+    : await verifyAndConsumeLivenessChallenge({
+        token: body.livenessToken,
+        userId: student.id,
+        sessionId,
+        evidence: livenessEvidence,
+      });
+  if (!liveness.valid) {
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: sessionId,
       success: false,
       failureReason: "LIVENESS_FAILED",
-      livenessResult: "FAILED",
+      livenessResult: String(liveness.reason || "FAILED").slice(0, 50),
       ipHash: ipH,
       deviceInfo,
     });
+    await recordScanEvidence({
+      scanAttemptId,
+      livenessChallengeId: liveness.challengeId,
+      userId: student.id,
+      attendanceSessionId: sessionId,
+      livenessResult: String(liveness.reason || "FAILED"),
+      evidence: livenessEvidence,
+    });
     return Response.json(
       {
-        message: "การตรวจสอบบุคคลจริง (Liveness) ไม่ผ่าน กรุณากะพริบตาหรือหันหน้าตามคำแนะนำ",
-        code: "LIVENESS_FAILED",
+        message:
+          liveness.reason === "LIVENESS_LIMITED"
+            ? "ตรวจบุคคลจริงไม่ผ่านครบ 3 ครั้ง กรุณาติดต่อครูผู้สอน"
+            : "การตรวจสอบบุคคลจริงไม่ผ่านหรือหมดเวลา กรุณาทำตามคำสั่งบนหน้าจอและลองใหม่",
+        code: liveness.reason === "LIVENESS_LIMITED" ? "LIVENESS_LIMITED" : "LIVENESS_FAILED",
+        remainingAttempts: Math.max(0, livenessLimit.remainingAttempts - 1),
       },
-      { status: 422 },
+      { status: liveness.reason === "LIVENESS_LIMITED" ? 429 : 422 },
     );
   }
 
@@ -213,13 +209,23 @@ export async function POST(request: Request) {
   );
 
   if (existing[0]) {
-    await recordScanAttempt({
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: sessionId,
       success: false,
       failureReason: "ALREADY_ATTENDED",
       ipHash: ipH,
       deviceInfo,
+    });
+    await recordScanEvidence({
+      scanAttemptId,
+      livenessChallengeId: liveness.challengeId,
+      userId: student.id,
+      attendanceSessionId: sessionId,
+      livenessResult: "PASSED",
+      livenessScore: liveness.score,
+      matchResult: "ALREADY_ATTENDED",
+      evidence: livenessEvidence,
     });
     return Response.json(
       {
@@ -249,13 +255,23 @@ export async function POST(request: Request) {
   );
 
   if (!samples.length) {
-    await recordScanAttempt({
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: sessionId,
       success: false,
       failureReason: "PERMISSION_DENIED",
       ipHash: ipH,
       deviceInfo,
+    });
+    await recordScanEvidence({
+      scanAttemptId,
+      livenessChallengeId: liveness.challengeId,
+      userId: student.id,
+      attendanceSessionId: sessionId,
+      livenessResult: "PASSED",
+      livenessScore: liveness.score,
+      matchResult: "FACE_NOT_REGISTERED",
+      evidence: livenessEvidence,
     });
     return Response.json(
       {
@@ -282,11 +298,14 @@ export async function POST(request: Request) {
     }
   }
 
-  const threshold = 0.55;
+  const [settingRows] = await db.execute<(RowDataPacket & { threshold: number })[]>(
+    `SELECT face_match_threshold threshold FROM school_settings ORDER BY id LIMIT 1`,
+  );
+  const threshold = Number(settingRows[0]?.threshold || 0.55);
   const confidencePercent = Math.round(best * 10000) / 100;
 
   if (best < threshold) {
-    await recordScanAttempt({
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: sessionId,
       success: false,
@@ -296,6 +315,18 @@ export async function POST(request: Request) {
       confidence: confidencePercent,
       ipHash: ipH,
       deviceInfo,
+    });
+    await recordScanEvidence({
+      scanAttemptId,
+      livenessChallengeId: liveness.challengeId,
+      userId: student.id,
+      attendanceSessionId: sessionId,
+      livenessResult: "PASSED",
+      livenessScore: liveness.score,
+      matchResult: "MISMATCH",
+      similarity: best,
+      threshold,
+      evidence: livenessEvidence,
     });
 
     const updatedLimit = await checkScanRateLimit(student.id, ipH);
@@ -338,7 +369,7 @@ export async function POST(request: Request) {
     );
 
     // Record success in scan_attempts
-    await recordScanAttempt({
+    const scanAttemptId = await recordScanAttempt({
       userId: student.id,
       attendanceSessionId: sessionId,
       success: true,
@@ -347,6 +378,18 @@ export async function POST(request: Request) {
       confidence: confidencePercent,
       ipHash: ipH,
       deviceInfo,
+    });
+    await recordScanEvidence({
+      scanAttemptId,
+      livenessChallengeId: liveness.challengeId,
+      userId: student.id,
+      attendanceSessionId: sessionId,
+      livenessResult: "PASSED",
+      livenessScore: liveness.score,
+      matchResult: "MATCHED",
+      similarity: best,
+      threshold,
+      evidence: livenessEvidence,
     });
 
     // If marked LATE, send a student notification
@@ -381,13 +424,25 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
-      await recordScanAttempt({
+      const scanAttemptId = await recordScanAttempt({
         userId: student.id,
         attendanceSessionId: sessionId,
         success: false,
         failureReason: "ALREADY_ATTENDED",
         ipHash: ipH,
         deviceInfo,
+      });
+      await recordScanEvidence({
+        scanAttemptId,
+        livenessChallengeId: liveness.challengeId,
+        userId: student.id,
+        attendanceSessionId: sessionId,
+        livenessResult: "PASSED",
+        livenessScore: liveness.score,
+        matchResult: "ALREADY_ATTENDED",
+        similarity: best,
+        threshold,
+        evidence: livenessEvidence,
       });
       return Response.json(
         {

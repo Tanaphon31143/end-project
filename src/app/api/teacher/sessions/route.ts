@@ -138,6 +138,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  try {
   const auth = await requireTeacher();
   if ("error" in auth) return auth.error;
   const blocked = protectTeacherMutation(
@@ -147,9 +148,10 @@ export async function PATCH(request: Request) {
     10,
   );
   if (blocked) return blocked;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   let sessionId: bigint;
   try {
+    if (!body || !/^[1-9]\d*$/.test(String(body.sessionId ?? ""))) throw new Error("INVALID_ID");
     sessionId = BigInt(body.sessionId);
   } catch {
     return NextResponse.json(
@@ -160,7 +162,6 @@ export async function PATCH(request: Request) {
   const session = await prisma.checkInSession.findFirst({
     where: {
       id: sessionId,
-      status: "ACTIVE",
       subject: { teacherId: auth.teacher.id },
     },
     include: { subject: true },
@@ -170,6 +171,8 @@ export async function PATCH(request: Request) {
       { message: "ไม่พบรอบที่เปิดอยู่หรือไม่มีสิทธิ์" },
       { status: 404 },
     );
+  if (session.status === "CLOSED")
+    return NextResponse.json({ message: "รอบเช็คชื่อนี้ปิดแล้ว", alreadyClosed: true, absentCreated: 0 });
   const students = await prisma.student.findMany({
     where: { classId: session.classroomId, status: "ACTIVE" },
     select: { id: true },
@@ -195,25 +198,29 @@ export async function PATCH(request: Request) {
     const checked = new Set(existing.map((item) => item.studentId));
     const missing = students.filter((student) => !checked.has(student.id));
     absentCreated = missing.length;
-    for (const student of missing) {
-      const record = await tx.attendanceRecord.create({
-        data: {
+    if (missing.length) {
+      await tx.attendanceRecord.createMany({
+        data: missing.map((student) => ({
           studentId: student.id,
           subjectId: session.subjectId,
           attendanceDate: session.sessionDate,
           status: "ABSENT",
           checkInSessionId: session.id,
-        },
+        })),
       });
-      await tx.auditLog.create({
-        data: {
+      const created = await tx.attendanceRecord.findMany({
+        where: { checkInSessionId: session.id, studentId: { in: missing.map((student) => student.id) } },
+        select: { id: true, studentId: true },
+      });
+      await tx.auditLog.createMany({
+        data: created.map((record) => ({
           userId: auth.teacher.id,
           action: "CREATE",
           entity: "attendance_record",
           entityId: String(record.id),
-          description: `ปิดรอบและบันทึกขาดเรียน นักเรียน ${student.id}`,
+          description: `ปิดรอบและบันทึกขาดเรียน นักเรียน ${record.studentId}`,
           ...requestMeta(request),
-        },
+        })),
       });
     }
     await tx.auditLog.create({
@@ -227,11 +234,17 @@ export async function PATCH(request: Request) {
       },
     });
     await tx.$executeRaw`INSERT INTO teacher_notifications(teacher_id,title,message,href,type) VALUES(${auth.teacher.id},${"ปิดรอบเช็คชื่อแล้ว"},${`${session.subject.subjectCode} บันทึกขาดเรียน ${absentCreated} คน`},${`/teacher/history/${session.id}`},${"SESSION"})`;
-  });
+  }, { maxWait: 10_000, timeout: 30_000 });
   if (alreadyClosed)
     return NextResponse.json(
-      { message: "รอบเช็คชื่อนี้ถูกปิดแล้ว" },
-      { status: 409 },
+      { message: "รอบเช็คชื่อนี้ถูกปิดแล้ว", alreadyClosed: true, absentCreated: 0 },
     );
   return NextResponse.json({ message: "ปิดรอบเช็คชื่อแล้ว", absentCreated });
+  } catch (error) {
+    console.error("Close teacher session failed", error);
+    return NextResponse.json(
+      { message: "ปิดรอบเช็คชื่อไม่สำเร็จ กรุณาลองอีกครั้ง หากยังพบปัญหาให้ติดต่อผู้ดูแลระบบ" },
+      { status: 500 },
+    );
+  }
 }

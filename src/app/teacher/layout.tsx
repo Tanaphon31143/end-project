@@ -4,6 +4,7 @@ import { TeacherShell } from "@/components/teacher/TeacherShell";
 import { getTeacherSession } from "@/lib/auth";
 import { getTeacherIdentity, getTeacherNotifications } from "@/lib/teacher-data";
 import "./teacher.css";
+import "./teacher-dashboard.css";
 export const metadata: Metadata = {
   title: "ระบบสำหรับครู | School OS",
   description: "ระบบเช็คชื่อด้วยการสแกนใบหน้าสำหรับครูผู้สอน",

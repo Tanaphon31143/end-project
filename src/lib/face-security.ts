@@ -99,3 +99,39 @@ export async function recordScanAttempt(params: {
   );
   return result.insertId;
 }
+
+/**
+ * Stores an audit-safe summary of a scan. Camera frames and face embeddings are
+ * deliberately excluded; the evidence is limited to challenge outcomes.
+ */
+export async function recordScanEvidence(params: {
+  scanAttemptId?: number | null;
+  livenessChallengeId?: string | null;
+  userId: number;
+  attendanceSessionId: number;
+  livenessResult: string;
+  livenessScore?: number | null;
+  matchResult?: string | null;
+  similarity?: number | null;
+  threshold?: number | null;
+  evidence?: unknown;
+}) {
+  await db.execute(
+    `INSERT INTO student_scan_evidence (
+      scan_attempt_id, liveness_challenge_id, user_id, attendance_session_id,
+      liveness_result, liveness_score, match_result, similarity, threshold_value, evidence_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.scanAttemptId || null,
+      params.livenessChallengeId || null,
+      params.userId,
+      params.attendanceSessionId,
+      params.livenessResult.slice(0, 50),
+      params.livenessScore ?? null,
+      params.matchResult?.slice(0, 50) || null,
+      params.similarity ?? null,
+      params.threshold ?? null,
+      JSON.stringify(params.evidence ?? []),
+    ],
+  );
+}

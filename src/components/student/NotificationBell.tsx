@@ -13,12 +13,17 @@ import {
   CalendarCheck,
   FileCheck2,
   FileX2,
-  AlertTriangle,
 } from "lucide-react";
 import type { AppNotification } from "@/lib/notifications";
 
 function getNotificationIcon(type: string) {
   switch (type) {
+    case 'ATTENDANCE_SUCCESS':
+      return <CalendarCheck className="notif-type-icon notif-success" size={18} />;
+    case 'ISSUE_RESOLVED':
+      return <FileCheck2 className="notif-type-icon notif-info" size={18} />;
+    case 'COURSE_UPDATED':
+      return <Info className="notif-type-icon notif-info" size={18} />;
     case "SESSION_OPENED":
       return <CalendarCheck className="notif-type-icon notif-session" size={18} />;
     case "SESSION_EXPIRING":
@@ -38,6 +43,9 @@ function getNotificationIcon(type: string) {
 
 function getNotificationTypeBadge(type: string) {
   switch (type) {
+    case 'ATTENDANCE_SUCCESS': return <span className="notif-badge approved">เช็คชื่อสำเร็จ</span>;
+    case 'ISSUE_RESOLVED': return <span className="notif-badge info">ผลคำร้อง</span>;
+    case 'COURSE_UPDATED': return <span className="notif-badge info">รายวิชาเปลี่ยนแปลง</span>;
     case "SESSION_OPENED":
       return <span className="notif-badge session">เปิดคาบเช็คชื่อ</span>;
     case "SESSION_EXPIRING":
@@ -62,33 +70,40 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const fetchingRef = useRef(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   async function fetchNotifications() {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    setFetching(true);
     try {
       const res = await fetch("/api/student/notifications", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
         setUnreadCount(Number(data.unreadCount) || 0);
-      }
+        setError('');
+      } else throw new Error('fetch failed');
     } catch {
-      // Ignore background network error
-    }
+      setError('โหลดแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่');
+    } finally { fetchingRef.current = false; setFetching(false); }
   }
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 25000); // Periodic polling
+    queueMicrotask(() => void fetchNotifications());
+    const interval = setInterval(() => { if (!document.hidden) void fetchNotifications(); }, 30000);
     return () => clearInterval(interval);
   }, []);
 
   // Close dropdown on route change
   useEffect(() => {
-    setOpen(false);
+    queueMicrotask(() => setOpen(false));
   }, [pathname]);
 
   // Close dropdown on click outside or Escape
@@ -124,31 +139,30 @@ export default function NotificationBell() {
   async function handleMarkRead(id: number, e?: React.MouseEvent) {
     if (e) e.stopPropagation();
     try {
-      await fetch("/api/student/notifications", {
+      const response = await fetch("/api/student/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      if (!response.ok) throw new Error('update failed');
+      await fetchNotifications();
     } catch {
-      // Ignore error
+      setError('อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่');
     }
   }
 
   async function handleMarkAllRead() {
     setLoading(true);
     try {
-      await fetch("/api/student/notifications", {
+      const response = await fetch("/api/student/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAll: true }),
       });
+      if (!response.ok) throw new Error('update failed');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } finally {
+    } catch { setError('อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่'); } finally {
       setLoading(false);
     }
   }
@@ -158,7 +172,7 @@ export default function NotificationBell() {
       handleMarkRead(notif.id);
     }
     setOpen(false);
-    if (notif.actionUrl) {
+    if (notif.actionUrl?.startsWith('/student/') && !notif.actionUrl.includes('\\')) {
       router.push(notif.actionUrl);
     }
   }
@@ -214,7 +228,8 @@ export default function NotificationBell() {
           </header>
 
           <div className="notif-list">
-            {notifications.length === 0 ? (
+            {error && <div role="alert"><p>{error}</p><button type="button" onClick={fetchNotifications}>ลองใหม่</button></div>}
+            {fetching && !notifications.length ? <p role="status">กำลังโหลดแจ้งเตือน...</p> : notifications.length === 0 ? (
               <div className="notif-empty">
                 <Bell size={32} />
                 <p>ไม่มีการแจ้งเตือนในขณะนี้</p>
@@ -230,6 +245,8 @@ export default function NotificationBell() {
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
+                      if (e.target !== e.currentTarget) return;
+                      e.preventDefault();
                       handleItemClick(n);
                     }
                   }}

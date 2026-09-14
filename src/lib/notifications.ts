@@ -1,6 +1,7 @@
 import "server-only";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { db } from "./db";
+import { syncStudentNotificationEvents } from './student-notification-events';
 
 export type NotificationType =
   | "SESSION_OPENED"
@@ -10,6 +11,9 @@ export type NotificationType =
   | "ATTENDANCE_LATE"
   | "ATTENDANCE_ABSENT"
   | "ATTENDANCE_ANOMALY"
+  | "ATTENDANCE_SUCCESS"
+  | "ISSUE_RESOLVED"
+  | "COURSE_UPDATED"
   | "INFO";
 
 export type AppNotification = {
@@ -37,9 +41,14 @@ export async function createNotification(params: {
   relatedEntityId?: string | number | null;
   actionUrl?: string | null;
 }): Promise<number> {
+  const id = params.relatedEntityId;
+  const eventKey = params.relatedEntityType === 'attendance_record' && id
+    ? `attendance:${id}:${params.type === 'ATTENDANCE_LATE' ? 'LATE' : params.type === 'ATTENDANCE_ABSENT' ? 'ABSENT' : 'PRESENT'}`
+    : params.relatedEntityType === 'profile_edit_request' && id
+      ? `profile:${id}:${params.type === 'REQUEST_APPROVED' ? 'APPROVED' : 'REJECTED'}` : null;
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO notifications (user_id, user_role, type, title, message, related_entity_type, related_entity_id, action_url, is_read)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    `INSERT INTO notifications (user_id, user_role, type, title, message, related_entity_type, related_entity_id, action_url, is_read, event_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
     [
       params.userId,
       params.userRole || "student",
@@ -49,6 +58,7 @@ export async function createNotification(params: {
       params.relatedEntityType || null,
       params.relatedEntityId ? String(params.relatedEntityId) : null,
       params.actionUrl || null,
+      eventKey,
     ],
   );
   return result.insertId;
@@ -70,8 +80,9 @@ export async function getStudentNotifications(
   limit = 20,
   page = 1,
 ): Promise<NotificationsResult> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
-  const safePage = Math.max(1, page);
+  await syncStudentNotificationEvents(studentId);
+  const safeLimit = Number.isSafeInteger(limit) ? Math.max(1, Math.min(limit, 100)) : 20;
+  const safePage = Number.isSafeInteger(page) ? Math.max(1, Math.min(page, 100000)) : 1;
   const offset = (safePage - 1) * safeLimit;
 
   const [[items], [countRow], [totalRow]] = await Promise.all([
@@ -99,8 +110,8 @@ export async function getStudentNotifications(
        FROM notifications
        WHERE user_id = ? AND user_role = 'student'
        ORDER BY created_at DESC, id DESC
-       LIMIT ? OFFSET ?`,
-      [studentId, safeLimit, offset],
+       LIMIT ${safeLimit} OFFSET ${offset}`,
+      [studentId],
     ),
     db.execute<(RowDataPacket & { unread: number })[]>(
       `SELECT COUNT(*) unread FROM notifications

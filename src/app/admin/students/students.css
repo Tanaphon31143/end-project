@@ -125,13 +125,9 @@
   }
 }
 .student-add-launcher {
-  position: absolute;
-  right: 28px;
-  top: 257px;
+  position: relative;
+  flex: 0 0 auto;
   z-index: 25;
-}
-.admin-content .page-intro > .admin-button.primary {
-  visibility: hidden;
 }
 .student-add-menu {
   position: absolute;
@@ -386,8 +382,10 @@
 }
 @media (max-width: 640px) {
   .student-add-launcher {
-    right: 14px;
-    top: 230px;
+    width: 100%;
+  }
+  .student-add-launcher > .admin-button {
+    width: 100%;
   }
   .import-room-row,
   .import-summary {

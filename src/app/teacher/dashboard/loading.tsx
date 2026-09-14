@@ -1,5 +1,3 @@
-export default function Loading() {
-  return (
-    <div className="panel empty loading-panel">กำลังโหลดข้อมูลแดชบอร์ด...</div>
-  );
-}
+import { DashboardSkeleton } from "@/components/teacher/DashboardSkeleton";
+
+export default function Loading() { return <DashboardSkeleton />; }

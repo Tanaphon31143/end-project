@@ -6,8 +6,10 @@ import StudentImportModal from "./StudentImportModal";
 type Room = { id: number; name: string; level: string };
 export default function StudentAddDropdown({
   classrooms,
+  onAddSingle,
 }: {
   classrooms: Room[];
+  onAddSingle: () => void;
 }) {
   const [open, setOpen] = useState(false),
     [importing, setImporting] = useState(false);
@@ -27,11 +29,7 @@ export default function StudentAddDropdown({
           <button
             onClick={() => {
               setOpen(false);
-              (
-                document.querySelector(
-                  ".admin-content .page-intro > .admin-button.primary",
-                ) as HTMLButtonElement
-              )?.click();
+              onAddSingle();
             }}
           >
             <UserPlus size={17} />

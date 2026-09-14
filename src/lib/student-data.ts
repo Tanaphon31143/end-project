@@ -1,6 +1,7 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2/promise";
 import { db } from "@/lib/db";
+import { normalizeCoursePage } from "@/lib/face-registration-rules.mjs";
 
 export type StudentDashboardData = {
   student: {
@@ -143,8 +144,8 @@ export async function getStudentDashboardData(
   };
 }
 
-export type StudentIdentity={id:number;name:string;code:string;email:string;phone:string;birthday:string;address:string;hasProfileImage:boolean;className:string;classLevel:string;classNumber:number|null;initials:string};
-export async function getStudentIdentity(studentId:number):Promise<StudentIdentity|null>{const[rows]=await db.execute<(RowDataPacket&Omit<StudentIdentity,"initials"|"hasProfileImage">&{hasProfileImage:number})[]>(`SELECT s.id,s.full_name name,s.student_code code,s.email,COALESCE(s.phone,'') phone,COALESCE(DATE_FORMAT(s.birthday,'%Y-%m-%d'),'') birthday,COALESCE(s.address,'') address,(s.profile_image IS NOT NULL) hasProfileImage,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,s.class_number classNumber FROM students s LEFT JOIN classrooms c ON c.id=s.class_id WHERE s.id=? AND s.status='ACTIVE' LIMIT 1`,[studentId]);const item=rows[0];return item?{...item,hasProfileImage:Boolean(item.hasProfileImage),initials:item.name.replace(/^(นาย|นางสาว|เด็กชาย|เด็กหญิง)/,"").trim().slice(0,2)}:null}
+export type StudentIdentity={id:number;name:string;code:string;email:string;phone:string;birthday:string;address:string;hasProfileImage:boolean;faceReady:boolean;className:string;classLevel:string;classNumber:number|null;initials:string};
+export async function getStudentIdentity(studentId:number):Promise<StudentIdentity|null>{const[rows]=await db.execute<(RowDataPacket&Omit<StudentIdentity,"initials"|"hasProfileImage"|"faceReady">&{hasProfileImage:number;faceReady:number})[]>(`SELECT s.id,s.full_name name,s.student_code code,s.email,COALESCE(s.phone,'') phone,COALESCE(DATE_FORMAT(s.birthday,'%Y-%m-%d'),'') birthday,COALESCE(s.address,'') address,(s.profile_image IS NOT NULL) hasProfileImage,EXISTS(SELECT 1 FROM face_data fd WHERE fd.student_id=s.id AND fd.status='READY') faceReady,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,s.class_number classNumber FROM students s LEFT JOIN classrooms c ON c.id=s.class_id WHERE s.id=? AND s.status='ACTIVE' LIMIT 1`,[studentId]);const item=rows[0];return item?{...item,hasProfileImage:Boolean(item.hasProfileImage),faceReady:Boolean(item.faceReady),initials:item.name.replace(/^(นาย|นางสาว|เด็กชาย|เด็กหญิง)/,"").trim().slice(0,2)}:null}
 
 export type StudentCourse={id:number;code:string;name:string;teacher:string;days:string[];startTime:string;endTime:string;room:string;credits:string;description:string};
 export async function getStudentCourses(studentId:number):Promise<StudentCourse[]>{const[rows]=await db.execute<(RowDataPacket&Omit<StudentCourse,"days">&{studyDays:string})[]>(`SELECT sb.id,sb.subject_code code,sb.subject_name name,COALESCE(t.full_name,'ยังไม่กำหนด') teacher,COALESCE(sb.study_days,'') studyDays,COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--') startTime,COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--') endTime,COALESCE(sb.location,c.name,'ยังไม่ระบุ') room,CAST(sb.credits AS CHAR) credits,COALESCE(sb.description,'') description FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id LEFT JOIN teachers t ON t.id=sb.teacher_id LEFT JOIN classrooms c ON c.id=sb.classroom_id WHERE st.id=? AND st.status='ACTIVE' AND sb.is_active=1 ORDER BY sb.start_time,sb.subject_code`,[studentId]);return rows.map(({studyDays,...row})=>({...row,days:studyDays.split(",").map(x=>x.trim()).filter(Boolean)}))}
@@ -166,31 +167,22 @@ export type StudentFaceData = {
   imageCount: number;
   registeredAt: string;
   updatedAt: string;
-  registeredByName: string;
-  registeredByRole: string;
-  deviceType: string;
-  deviceName: string;
-  browser: string;
-  registrationIp: string;
-  cameraType: string;
+  studentName: string;
+  studentCode: string;
+  registeredByName: string | null;
+  registeredByRole: string | null;
+  deviceType: string | null;
+  deviceName: string | null;
+  browser: string | null;
+  operatingSystem: string | null;
+  registrationIp: null;
+  cameraType: string | null;
+  verificationMethod: string | null;
+  livenessVerifiedAt: string | null;
+  verifiedEmail: string | null;
   samples: FaceSampleItem[];
   sampleIds: number[];
 } | null;
-
-function maskIp(ip?: string | null): string {
-  if (!ip || ip === "unknown") return "ไม่ระบุ";
-  if (ip.includes(":")) {
-    // IPv6
-    const parts = ip.split(":");
-    return parts.slice(0, 3).join(":") + ":****:****";
-  }
-  // IPv4
-  const parts = ip.split(".");
-  if (parts.length === 4) {
-    return `${parts[0]}.${parts[1]}.***.***`;
-  }
-  return ip.slice(0, Math.min(6, ip.length)) + "***";
-}
 
 export async function getStudentFaceData(studentId: number): Promise<StudentFaceData> {
   const [[faces], [samples]] = await Promise.all([
@@ -200,27 +192,38 @@ export async function getStudentFaceData(studentId: number): Promise<StudentFace
         imageCount: number;
         registeredAt: string;
         updatedAt: string;
-        registeredByName: string;
-        registeredByRole: string;
-        deviceType: string;
-        deviceName: string;
-        browser: string;
-        registrationIp: string | null;
-        cameraType: string;
+        studentName: string;
+        studentCode: string;
+        registeredByName: string | null;
+        registeredByRole: string | null;
+        deviceType: string | null;
+        deviceName: string | null;
+        browser: string | null;
+        operatingSystem: string | null;
+        cameraType: string | null;
+        verificationMethod: string | null;
+        livenessVerifiedAt: string | null;
+        verifiedEmail: string | null;
       })[]
     >(
-      `SELECT status, image_count imageCount,
-              DATE_FORMAT(registered_at, '%d/%m/%Y %H:%i') registeredAt,
-              DATE_FORMAT(updated_at, '%d/%m/%Y %H:%i') updatedAt,
-              COALESCE(registered_by_name, 'ผู้ดูแลระบบ') registeredByName,
-              COALESCE(registered_by_role, 'ADMIN') registeredByRole,
-              COALESCE(device_type, 'ไม่ระบุอุปกรณ์') deviceType,
-              COALESCE(device_name, 'ไม่ระบุรุ่น/อุปกรณ์') deviceName,
-              COALESCE(browser, 'ไม่ระบุเบราว์เซอร์') browser,
-              registration_ip registrationIp,
-              COALESCE(camera_type, 'กล้องเว็บแคม / มาตรฐาน') cameraType
-       FROM face_data
-       WHERE student_id = ?
+      `SELECT fd.status, fd.image_count imageCount,
+              s.full_name studentName, s.student_code studentCode,
+              DATE_FORMAT(fd.registered_at, '%d/%m/%Y %H:%i') registeredAt,
+              DATE_FORMAT(fd.updated_at, '%d/%m/%Y %H:%i') updatedAt,
+              registered_by_name registeredByName,
+              registered_by_role registeredByRole,
+              device_type deviceType,
+              device_name deviceName,
+              browser,
+              operating_system operatingSystem,
+              camera_type cameraType,
+              verification_method verificationMethod,
+              DATE_FORMAT(liveness_verified_at, '%d/%m/%Y %H:%i') livenessVerifiedAt,
+              feb.verified_email verifiedEmail
+       FROM face_data fd
+       JOIN students s ON s.id = fd.student_id
+       LEFT JOIN student_face_email_bindings feb ON feb.student_id=fd.student_id AND feb.face_data_id=fd.id
+       WHERE fd.student_id = ?
        LIMIT 1`,
       [studentId],
     ),
@@ -245,7 +248,7 @@ export async function getStudentFaceData(studentId: number): Promise<StudentFace
 
   return {
     ...face,
-    registrationIp: maskIp(face.registrationIp),
+    registrationIp: null,
     samples: samples.map((s) => ({
       id: s.id,
       poseType: s.poseType || null,
@@ -269,6 +272,7 @@ export type StudentCourseDetail = {
   semester: number;
   academicYear: string;
   gradeLevel: string;
+  className: string;
   stats: {
     total: number;
     present: number;
@@ -280,10 +284,14 @@ export type StudentCourseDetail = {
   recentAttendance: Array<{
     id: number;
     date: string;
+    periodName: string;
+    classTime: string;
+    room: string;
     checkIn: string;
     status: "มาเรียน" | "สาย" | "ขาด" | "ลา";
-    confidence: number | null;
+    note: string;
   }>;
+  pagination: { page: number; pageSize: number; totalPages: number; totalItems: number };
   activeSession: {
     id: number;
     startTime: string;
@@ -296,6 +304,7 @@ export type StudentCourseDetail = {
 export async function getStudentCourseDetail(
   studentId: number,
   courseId: number,
+  requestedPage: number | string = 1,
 ): Promise<{ authorized: boolean; course: StudentCourseDetail | null }> {
   // Check authorization: does this subject belong to the student's active classroom?
   const [courses] = await db.execute<
@@ -313,6 +322,7 @@ export async function getStudentCourseDetail(
       semester: number;
       academicYear: string;
       gradeLevel: string | null;
+      className: string;
       classroomId: number;
     })[]
   >(
@@ -326,6 +336,7 @@ export async function getStudentCourseDetail(
             COALESCE(sb.description, '') description,
             sb.semester, sb.academic_year academicYear,
             COALESCE(sb.grade_level, '') gradeLevel,
+            COALESCE(c.name, 'ยังไม่ระบุ') className,
             sb.classroom_id classroomId
      FROM subjects sb
      JOIN students st ON st.class_id = sb.classroom_id
@@ -342,9 +353,7 @@ export async function getStudentCourseDetail(
     return { authorized: false, course: null };
   }
 
-  // Fetch stats and recent attendance for this course
-  const [[statRows], [recentRows], [activeSessions]] = await Promise.all([
-    db.execute<
+  const [statRows] = await db.execute<
       (RowDataPacket & {
         total: number;
         present: number;
@@ -361,31 +370,55 @@ export async function getStudentCourseDetail(
        FROM attendance_records
        WHERE student_id = ? AND subject_id = ?`,
       [studentId, courseId],
-    ),
-    db.execute<
+    );
+  const historyTotal = Number(statRows[0]?.total || 0);
+  const pagination = normalizeCoursePage(requestedPage, historyTotal, 20);
+
+  const [[recentRows], [activeSessions]] = await Promise.all([
+    // Text-protocol binding preserves integer LIMIT/OFFSET on TiDB/mysql2.
+    db.query<
       (RowDataPacket & {
         id: number;
         date: string;
+        periodName: string;
+        classTime: string;
+        room: string;
         checkIn: string;
         status: "มาเรียน" | "สาย" | "ขาด" | "ลา";
-        confidence: number | null;
+        note: string;
       })[]
     >(
-      `SELECT id,
-              DATE_FORMAT(attendance_date, '%d/%m/%Y') date,
-              COALESCE(TIME_FORMAT(check_in_time, '%H:%i'), '-') checkIn,
-              CASE status
+      `SELECT a.id,
+              DATE_FORMAT(a.attendance_date, '%d/%m/%Y') date,
+              COALESCE(sc.period_name, 'ไม่ระบุคาบ') periodName,
+              CONCAT(
+                COALESCE(TIME_FORMAT(cs.start_time, '%H:%i'), TIME_FORMAT(sb.start_time, '%H:%i'), '--:--'),
+                '–',
+                COALESCE(TIME_FORMAT(cs.end_time, '%H:%i'), TIME_FORMAT(sb.end_time, '%H:%i'), '--:--')
+              ) classTime,
+              COALESCE(sb.location, c.name, 'ไม่ระบุ') room,
+              COALESCE(TIME_FORMAT(a.check_in_time, '%H:%i'), '-') checkIn,
+              CASE a.status
                 WHEN 'PRESENT' THEN 'มาเรียน'
                 WHEN 'LATE' THEN 'สาย'
                 WHEN 'ABSENT' THEN 'ขาด'
                 ELSE 'ลา'
               END status,
-              confidence
-       FROM attendance_records
-       WHERE student_id = ? AND subject_id = ?
-       ORDER BY attendance_date DESC, check_in_time DESC
-       LIMIT 15`,
-      [studentId, courseId],
+              CASE a.status
+                WHEN 'LATE' THEN 'เช็คชื่อหลังเวลาที่กำหนด'
+                WHEN 'ABSENT' THEN 'ไม่พบการเช็คชื่อ'
+                WHEN 'LEAVE' THEN 'บันทึกการลา'
+                ELSE '-'
+              END note
+       FROM attendance_records a
+       LEFT JOIN check_in_sessions cs ON cs.id = a.check_in_session_id
+       LEFT JOIN schedules sc ON sc.id = cs.schedule_id
+       LEFT JOIN subjects sb ON sb.id = a.subject_id
+       LEFT JOIN classrooms c ON c.id = sb.classroom_id
+       WHERE a.student_id = ? AND a.subject_id = ?
+       ORDER BY a.attendance_date DESC, a.check_in_time DESC
+       LIMIT ? OFFSET ?`,
+      [studentId, courseId, pagination.pageSize, pagination.offset],
     ),
     db.execute<
       (RowDataPacket & {
@@ -406,8 +439,9 @@ export async function getStudentCourseDetail(
               ) alreadyCheckedIn
        FROM check_in_sessions cs
        WHERE cs.subject_id = ? AND cs.classroom_id = ?
-         AND cs.session_date = CURRENT_DATE AND cs.status = 'ACTIVE'
-         AND CURRENT_TIME <= cs.end_time
+         AND cs.session_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+07:00'))
+         AND cs.status = 'ACTIVE'
+         AND TIME(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+07:00')) BETWEEN cs.start_time AND cs.end_time
        ORDER BY cs.start_time
        LIMIT 1`,
       [studentId, courseId, row.classroomId],
@@ -459,6 +493,7 @@ export async function getStudentCourseDetail(
       semester: row.semester,
       academicYear: row.academicYear,
       gradeLevel: row.gradeLevel || "",
+      className: row.className,
       stats: {
         total,
         present,
@@ -467,10 +502,13 @@ export async function getStudentCourseDetail(
         leave,
         rate,
       },
-      recentAttendance: recentRows.map((r) => ({
-        ...r,
-        confidence: r.confidence !== null ? Number(r.confidence) : null,
-      })),
+      recentAttendance: recentRows,
+      pagination: {
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        totalPages: pagination.totalPages,
+        totalItems: historyTotal,
+      },
       activeSession: active,
     },
   };
@@ -487,7 +525,7 @@ export type StudentIssue = {
 };
 export async function getStudentIssues(studentId: number): Promise<StudentIssue[]> {
   const [rows] = await db.execute<(RowDataPacket & StudentIssue)[]>(
-    `SELECT r.id,DATE_FORMAT(r.created_at,'%d/%m/%Y %H:%i') createdAt,COALESCE(s.subject_name,'ไม่ระบุรายวิชา') subject,r.issue_type issueType,CASE r.status WHEN 'PENDING' THEN 'รอตรวจสอบ' WHEN 'REVIEWING' THEN 'กำลังตรวจสอบ' WHEN 'COMPLETED' THEN 'เสร็จสิ้น' ELSE 'ปฏิเสธ' END status,COALESCE(r.resolution,'ยังไม่มีผลการดำเนินการ') resolution,(r.attachment_data IS NOT NULL) hasAttachment FROM attendance_issue_reports r LEFT JOIN subjects s ON s.id=r.subject_id WHERE r.student_id=? ORDER BY r.created_at DESC LIMIT 100`,
+    `SELECT r.id,DATE_FORMAT(r.created_at,'%d/%m/%Y %H:%i') createdAt,COALESCE(s.subject_name,'ไม่ระบุรายวิชา') subject,r.issue_type issueType,CASE r.status WHEN 'PENDING' THEN 'รอตรวจสอบ' WHEN 'REVIEWING' THEN 'กำลังตรวจสอบ' WHEN 'COMPLETED' THEN 'เสร็จสิ้น' ELSE 'ปฏิเสธ' END status,COALESCE(r.resolution,'ยังไม่มีผลการดำเนินการ') resolution,(r.attachment_data IS NOT NULL OR EXISTS(SELECT 1 FROM attendance_issue_attachments att WHERE att.report_id=r.id)) hasAttachment FROM attendance_issue_reports r LEFT JOIN subjects s ON s.id=r.subject_id WHERE r.student_id=? ORDER BY r.created_at DESC LIMIT 100`,
     [studentId],
   );
   return rows.map((x) => ({ ...x, hasAttachment: Boolean(x.hasAttachment) }));

@@ -92,8 +92,40 @@ export default function Home() {
     }
   }
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
+    if (errorParam === "google_account_inactive") {
+      return "บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ";
+    }
+    if (errorParam === "google_access_denied") {
+      return "การยืนยันตัวตนด้วย Google ถูกยกเลิก";
+    }
+    if (
+      errorParam === "google_state_mismatch" ||
+      errorParam === "google_auth_failed" ||
+      errorParam === "google_config_error"
+    ) {
+      return "เกิดข้อผิดพลาดในการเชื่อมต่อกับ Google กรุณาลองใหม่อีกครั้ง";
+    }
+    return "";
+  });
+
+  const effectiveStatus = authErrorMessage && status === "idle" ? "error" : status;
+
+  function handleGoogleLogin() {
+    setAuthErrorMessage("");
+    setErrors({ email: "", password: "" });
+    setGoogleLoading(true);
+    setStatus("loading");
+    window.location.assign("/api/auth/google");
+  }
+
   function announceAction(nextStatus: Exclude<Status, "idle" | "error" | "loading" | "authenticated">) {
     setErrors({ email: "", password: "" });
+    setAuthErrorMessage("");
     setStatus(nextStatus);
   }
 
@@ -173,22 +205,28 @@ export default function Home() {
             </div>
 
             <button data-cursor-target className={styles.primaryButton} type="submit" disabled={status === "loading"} aria-busy={status === "loading"}>
-              {status === "loading" ? "กำลังตรวจสอบ…" : "เข้าสู่ระบบ"}
+              {status === "loading" && !googleLoading ? "กำลังตรวจสอบ…" : "เข้าสู่ระบบ"}
             </button>
             {status !== "idle" && <p className={`${styles.notice} ${status === "error" ? styles.noticeError : ""}`} role="status" aria-live="polite">
-              {status === "error" && "กรุณาตรวจสอบข้อมูลที่กรอกแล้วลองอีกครั้ง"}
-              {status === "loading" && "กำลังเตรียมการเชื่อมต่อระบบ"}
+              {status === "error" && (authErrorMessage || "กรุณาตรวจสอบข้อมูลที่กรอกแล้วลองอีกครั้ง")}
+              {status === "loading" && (googleLoading ? "กำลังเชื่อมต่อไปยัง Google…" : "กำลังเตรียมการเชื่อมต่อระบบ")}
               {status === "authenticated" && "เข้าสู่ระบบสำเร็จ · เชื่อมต่อข้อมูลโรงเรียนแล้ว"}
               {status === "forgot" && "การกู้คืนรหัสผ่านจะเชื่อมต่อในขั้นตอนถัดไป"}
-              {status === "google" && "การเข้าสู่ระบบด้วย Google จะเชื่อมต่อในขั้นตอนถัดไป"}
+              {status === "google" && "กำลังเชื่อมต่อระบบ Google Login…"}
             </p>}
           </form>
 
           <div className={styles.divider}><span>หรือ</span></div>
 
-          <button data-cursor-target className={styles.googleButton} type="button" onClick={() => announceAction("google")}>
+          <button
+            data-cursor-target
+            className={styles.googleButton}
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={status === "loading"}
+          >
             <GoogleMark />
-            <span>เข้าสู่ระบบด้วย Google</span>
+            <span>{googleLoading ? "กำลังเปิด Google…" : "เข้าสู่ระบบด้วย Google"}</span>
           </button>
 
           <p className={styles.supportText}>ยังไม่มีบัญชี? ติดต่อผู้ดูแลระบบโรงเรียน</p>

@@ -6,6 +6,7 @@ import type {
 import { getFacePageData } from "@/lib/admin-data";
 import { getAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { validateFacePoseTypes } from "@/lib/face-registration-rules.mjs";
 
 export const runtime = "nodejs";
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024,
@@ -51,21 +52,21 @@ function parseQualities(value: FormDataEntryValue | null, count: number) {
     return null;
   }
 }
-function parsePoseTypes(value: FormDataEntryValue | null, count: number): (string | null)[] {
+function parsePoseTypes(value: FormDataEntryValue | null, count: number): string[] | null {
   try {
-    if (!value) return Array(count).fill(null);
+    if (!value) return null;
     const parsed = JSON.parse(String(value));
-    if (!Array.isArray(parsed)) return Array(count).fill(null);
-    const allowed = new Set(["FRONT", "LEFT", "RIGHT", "UP", "DOWN"]);
-    return Array.from({ length: count }, (_, i) => {
-      const item = parsed[i];
-      return typeof item === "string" && allowed.has(item.toUpperCase())
-        ? item.toUpperCase()
-        : null;
-    });
+    const result = validateFacePoseTypes(parsed, count);
+    return result.valid && Array.isArray(result.poses) ? result.poses : null;
   } catch {
-    return Array(count).fill(null);
+    return null;
   }
+}
+
+function optionalMetadata(value: FormDataEntryValue | null, maxLength = 150) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized && normalized !== "ไม่มีข้อมูล" ? normalized.slice(0, maxLength) : null;
 }
 
 async function studentExists(connection: PoolConnection, studentId: number) {
@@ -101,6 +102,11 @@ async function saveRegistration(request: Request, updating: boolean) {
       { status: 400 },
     );
   const poseTypes = parsePoseTypes(form.get("poseTypes"), files.length);
+  if (!poseTypes)
+    return Response.json(
+      { message: "กรุณาระบุมุมภาพจริงทุกภาพ มุมต้องไม่ซ้ำและต้องมีภาพหน้าตรง" },
+      { status: 400 },
+    );
 
   for (const file of files)
     if (
@@ -124,13 +130,11 @@ async function saveRegistration(request: Request, updating: boolean) {
       : userAgent.includes("Firefox")
         ? "Mozilla Firefox"
         : userAgent.includes("Safari")
-          ? "Apple Safari"
-          : "Web Browser";
-  const deviceName = form.get("deviceName")
-    ? String(form.get("deviceName"))
-    : isMobile
-      ? "กล้องสมาร์ตโฟน"
-      : "เว็บแคม / กล้องแล็ปท็อป";
+        ? "Apple Safari"
+          : null;
+  const deviceName = optionalMetadata(form.get("deviceName"));
+  const operatingSystem = optionalMetadata(form.get("operatingSystem"), 100);
+  const cameraType = optionalMetadata(form.get("cameraType"));
 
   const connection = await db.getConnection();
   try {
@@ -176,8 +180,8 @@ async function saveRegistration(request: Request, updating: boolean) {
       `INSERT INTO face_data(
         student_id, reference_image_url, image_count, status,
         registered_by_id, registered_by_name, registered_by_role,
-        device_type, device_name, browser
-      ) VALUES (?, ?, ?, 'READY', ?, ?, 'ADMIN', ?, ?, ?)
+        device_type, device_name, browser, operating_system, camera_type
+      ) VALUES (?, ?, ?, 'READY', ?, ?, 'ADMIN', ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         reference_image_url = VALUES(reference_image_url),
         image_count = VALUES(image_count),
@@ -188,6 +192,8 @@ async function saveRegistration(request: Request, updating: boolean) {
         device_type = VALUES(device_type),
         device_name = VALUES(device_name),
         browser = VALUES(browser),
+        operating_system = VALUES(operating_system),
+        camera_type = VALUES(camera_type),
         updated_at = CURRENT_TIMESTAMP`,
       [
         studentId,
@@ -198,6 +204,8 @@ async function saveRegistration(request: Request, updating: boolean) {
         deviceType,
         deviceName,
         browser,
+        operatingSystem,
+        cameraType,
       ],
     );
     await connection.commit();

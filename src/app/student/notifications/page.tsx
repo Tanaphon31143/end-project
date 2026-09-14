@@ -8,7 +8,6 @@ import {
   CheckCheck,
   Clock,
   ExternalLink,
-  Filter,
   RefreshCw,
   CalendarCheck,
   FileCheck2,
@@ -63,6 +62,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState<"all" | "unread" | "sessions" | "requests">(
     "all",
   );
@@ -88,49 +88,52 @@ export default function NotificationsPage() {
           setPage(data.pagination.page);
           setTotalPages(data.pagination.totalPages || 1);
         }
-      }
-    } finally {
+        setError('');
+      } else throw new Error('load failed');
+    } catch { setError('โหลดแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่'); } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData(page);
+    queueMicrotask(() => void loadData(page));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   async function handleMarkRead(id: number, e?: React.MouseEvent) {
     if (e) e.stopPropagation();
     try {
-      await fetch("/api/student/notifications", {
+      const response = await fetch("/api/student/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!response.ok) throw new Error('update failed');
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch {}
+    } catch { setError('อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่'); }
   }
 
   async function handleMarkAllRead() {
     try {
-      await fetch("/api/student/notifications", {
+      const response = await fetch("/api/student/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAll: true }),
       });
+      if (!response.ok) throw new Error('update failed');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch {}
+    } catch { setError('อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่'); }
   }
 
   function handleItemClick(n: AppNotification) {
     if (!n.isRead) {
       handleMarkRead(n.id);
     }
-    if (n.actionUrl) {
+    if (n.actionUrl?.startsWith('/student/') && !n.actionUrl.includes('\\')) {
       router.push(n.actionUrl);
     }
   }
@@ -140,7 +143,7 @@ export default function NotificationsPage() {
     if (filter === "sessions")
       return n.type === "SESSION_OPENED" || n.type === "SESSION_EXPIRING";
     if (filter === "requests")
-      return n.type === "REQUEST_APPROVED" || n.type === "REQUEST_REJECTED";
+      return n.type === "REQUEST_APPROVED" || n.type === "REQUEST_REJECTED" || n.type === 'ISSUE_RESOLVED';
     return true;
   });
 
@@ -162,6 +165,7 @@ export default function NotificationsPage() {
 
   return (
     <>
+      {error && <div role="alert" className="form-error">{error} <button type="button" onClick={() => loadData(page)}>ลองใหม่</button></div>}
       <PageTitle
         eyebrow="กล่องข้อความ"
         title="ประวัติการแจ้งเตือน"

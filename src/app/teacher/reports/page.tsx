@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ReportsClient } from "@/components/teacher/ReportsClient";
 import { getTeacherSession } from "@/lib/auth";
 import { getTeacherCourses } from "@/lib/teacher-data";
+import "./reports.css";
 
 export default async function Reports() {
   const session = await getTeacherSession();

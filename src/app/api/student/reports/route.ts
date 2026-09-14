@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getStudentSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES, validateIssueImage } from "@/lib/issue-attachment-rules.mjs";
 export const runtime = "nodejs";
 const allowed = [
   "สแกนสำเร็จแต่สถานะเป็นขาด",
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
     room = String(form.get("room") || "").trim(),
     issueType = String(form.get("issueType") || ""),
     details = String(form.get("details") || "").trim(),
-    attachment = form.get("attachment");
+    attachments = [...form.getAll("attachments"), ...form.getAll("attachment")]
+      .filter((file): file is File => file instanceof File && file.size > 0);
   if (
     !Number.isInteger(subjectId) ||
     !/^\d{4}-\d{2}-\d{2}$/.test(incidentDate) ||
@@ -48,36 +50,33 @@ export async function POST(request: Request) {
       { message: "รายวิชานี้ไม่อยู่ในห้องเรียนของคุณ" },
       { status: 403 },
     );
-  let data: Buffer | null = null,
-    mime: string | null = null;
-  if (attachment instanceof File && attachment.size) {
-    if (
-      !["image/jpeg", "image/png", "image/webp"].includes(attachment.type) ||
-      attachment.size > 5 * 1024 * 1024
-    )
-      return Response.json(
-        { message: "รูปแนบต้องเป็น JPG, PNG หรือ WebP ขนาดไม่เกิน 5 MB" },
-        { status: 400 },
-      );
-    data = Buffer.from(await attachment.arrayBuffer());
-    mime = attachment.type;
+  if (attachments.length > MAX_ATTACHMENTS || attachments.some(file => file.size > MAX_ATTACHMENT_BYTES))
+    return Response.json({ message: "แนบได้สูงสุด 5 รูป รูปละไม่เกิน 5 MB" }, { status: 400 });
+  const images = [];
+  for (const file of attachments) {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (!validateIssueImage(file.type, bytes))
+      return Response.json({ message: "ไฟล์ต้องเป็นภาพ JPG, PNG หรือ WebP ที่ถูกต้อง" }, { status: 400 });
+    images.push({ file, bytes });
   }
-  const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO attendance_issue_reports(student_id,subject_id,incident_date,class_time,room,issue_type,details,attachment_data,attachment_mime) VALUES(?,?,?,?,?,?,?,?,?)`,
-    [
-      student.id,
-      subjectId,
-      incidentDate,
-      classTime,
-      room,
-      issueType,
-      details,
-      data,
-      mime,
-    ],
-  );
-  return Response.json(
-    { id: result.insertId, message: "ส่งคำร้องเรียบร้อยแล้ว" },
-    { status: 201 },
-  );
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO attendance_issue_reports(student_id,subject_id,incident_date,class_time,room,issue_type,details) VALUES(?,?,?,?,?,?,?)`,
+      [student.id, subjectId, incidentDate, classTime, room, issueType, details],
+    );
+    for (const { file, bytes } of images) {
+      await connection.execute(
+        'INSERT INTO attendance_issue_attachments(report_id,file_name,image_mime,image_data) VALUES(?,?,?,?)',
+        [result.insertId, file.name.slice(0, 255), file.type, bytes],
+      );
+    }
+    await connection.commit();
+    return Response.json({ id: result.insertId, message: "ส่งคำร้องเรียบร้อยแล้ว" }, { status: 201 });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Issue submission failed', error);
+    return Response.json({ message: "ส่งคำร้องไม่สำเร็จ กรุณาลองใหม่" }, { status: 500 });
+  } finally { connection.release(); }
 }

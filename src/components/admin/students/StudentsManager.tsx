@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Eye, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { Eye, Pencil, Save, Search, Trash2, X } from "lucide-react";
 import { Badge, PersonCell } from "@/components/admin/AdminPage";
+import StudentAddDropdown from "./StudentAddDropdown";
 import {
   EMPTY_STUDENT,
   type ClassroomOption,
@@ -189,10 +190,7 @@ export default function StudentsManager({
           <h2>ทะเบียนนักเรียน</h2>
           <p>จัดการข้อมูล บัญชี และห้องเรียนของนักเรียน</p>
         </div>
-        <button className="admin-button primary" onClick={() => open("create")}>
-          <Plus size={18} />
-          เพิ่มนักเรียน
-        </button>
+        <StudentAddDropdown classrooms={classrooms} onAddSingle={() => open("create")} />
       </div>
       <div className="admin-filters">
         <label>

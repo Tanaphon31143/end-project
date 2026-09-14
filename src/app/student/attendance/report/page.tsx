@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Badge, PageTitle } from "@/components/student/UI";
 import IssueForm from "@/components/student/IssueForm";
+import IssueAttachments from "@/components/student/IssueAttachments";
 import { getStudentSession } from "@/lib/auth";
 import { getStudentCourses, getStudentIssues } from "@/lib/student-data";
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function Report() {
                 <th>ประเภทปัญหา</th>
                 <th>สถานะ</th>
                 <th>ผลการดำเนินการ</th>
+                <th>รูปแนบ</th>
               </tr>
             </thead>
             <tbody>
@@ -62,6 +64,7 @@ export default async function Report() {
                     <Badge>{r.status}</Badge>
                   </td>
                   <td>{r.resolution}</td>
+                  <td>{r.hasAttachment ? <IssueAttachments reportId={r.id} /> : 'ไม่มีรูปแนบ'}</td>
                 </tr>
               ))}
             </tbody>

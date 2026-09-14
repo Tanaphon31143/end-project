@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canAccessStudentResource,
+  canIssueLivenessChallenge,
   canSubmitProfileRequest,
   evaluateCheckInEligibility,
   evaluateScanRateLimit,
@@ -211,6 +212,21 @@ test("10. Server Rate Limiting ทำงานถูกต้อง (ล็อ�
   assert.equal(check5.isLimited, true);
   assert.equal(check5.remainingAttempts, 0);
   assert.equal(check5.retryAfterMinutes, 10);
+});
+
+test("10.1 ออก liveness challenge ได้เฉพาะคาบที่เปิดและยังไม่เกินโควตา", () => {
+  assert.deepEqual(
+    canIssueLivenessChallenge({ sessionOpen: false, failedLivenessAttempts: 0 }),
+    { allowed: false, reason: "SESSION_EXPIRED" },
+  );
+  assert.deepEqual(
+    canIssueLivenessChallenge({ sessionOpen: true, failedLivenessAttempts: 3 }),
+    { allowed: false, reason: "LIVENESS_LIMITED", remainingAttempts: 0 },
+  );
+  assert.deepEqual(
+    canIssueLivenessChallenge({ sessionOpen: true, failedLivenessAttempts: 1 }),
+    { allowed: true, remainingAttempts: 2 },
+  );
 });
 
 test("11. ป้องกันคำร้องแก้ไขข้อมูลซ้ำซ้อนขณะยังมีสถานะ PENDING", () => {

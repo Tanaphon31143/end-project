@@ -1,8 +1,7 @@
+import { EmptyState } from "@/components/teacher/EmptyState";
+
 export default function Empty() {
   return (
-    <div className="panel empty">
-      <h3>ยังไม่มีประวัติการเช็คชื่อ</h3>
-      <p>เมื่อปิดรอบเช็คชื่อ รายการจะปรากฏที่หน้านี้</p>
-    </div>
+    <div className="panel"><EmptyState title="ยังไม่มีประวัติการเช็คชื่อ" description="เมื่อปิดรอบเช็คชื่อ รายการจะปรากฏที่หน้านี้" /></div>
   );
 }

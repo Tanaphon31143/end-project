@@ -8,8 +8,7 @@ export function getFaceEngine() {
   if (!enginePromise)
     enginePromise = (async () => {
       const { default: Human } = await import("@human-browser");
-      const human = new Human({
-        backend: "webgl",
+      const config = {
         modelBasePath: "/models/human/",
         cacheModels: true,
         filter: { enabled: true, equalization: true },
@@ -31,12 +30,19 @@ export function getFaceEngine() {
         body: { enabled: false },
         hand: { enabled: false },
         object: { enabled: false },
-        gesture: { enabled: false },
+        gesture: { enabled: true },
         segmentation: { enabled: false },
-      });
-      await human.load();
-      return human;
-    })();
+      } as const;
+      try {
+        const human = new Human({ ...config, backend: 'webgl' });
+        await human.load();
+        return human;
+      } catch {
+        const human = new Human({ ...config, backend: 'cpu' });
+        await human.load();
+        return human;
+      }
+    })().catch(error => { enginePromise = null; throw error; });
   return enginePromise;
 }
 
@@ -58,6 +64,11 @@ async function analyze(source: HTMLCanvasElement | HTMLImageElement, requireLive
   const faceRatio = face.box[2] / Math.max(1, sourceWidth);
   if (faceRatio < 0.18)
     throw new Error("ใบหน้าอยู่ไกลเกินไป กรุณาเข้าใกล้กล้อง");
+  const sourceHeight = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight;
+  const centerX = (face.box[0] + face.box[2] / 2) / sourceWidth;
+  const centerY = (face.box[1] + face.box[3] / 2) / sourceHeight;
+  if (centerX < 0.2 || centerX > 0.8 || centerY < 0.15 || centerY > 0.85)
+    throw new Error("กรุณาวางใบหน้าไว้กลางกรอบกล้องแล้วถ่ายใหม่");
   const quality = Math.min(
     1,
     Math.max(0, (face.boxScore + face.faceScore) / 2),
@@ -69,7 +80,10 @@ async function analyze(source: HTMLCanvasElement | HTMLImageElement, requireLive
   const liveness = Math.min(real, live);
   if (requireLiveness && (real < 0.65 || live < 0.55))
     throw new Error("ไม่ผ่านการตรวจจับบุคคลจริง กรุณากะพริบตาหรือขยับใบหน้าเล็กน้อยและสแกนใหม่");
-  return { embedding: [...embedding], quality, liveness, real, live };
+  const gestures = result.gesture
+    .filter((item) => "face" in item && item.face === 0)
+    .map((item) => item.gesture);
+  return { embedding: [...embedding], quality, liveness, real, live, gestures };
 }
 
 function canvasBlob(canvas: HTMLCanvasElement) {
@@ -125,10 +139,30 @@ export async function analyzeVideoFrame(video: HTMLVideoElement) {
   canvas.height = size.height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("อุปกรณ์ไม่รองรับการประมวลผลรูปภาพ");
-  context.translate(size.width, 0);
-  context.scale(-1, 1);
   context.drawImage(video, 0, 0, size.width, size.height);
   const analysis = await analyze(canvas, true),
     blob = await canvasBlob(canvas);
   return { ...analysis, blob, preview: canvas.toDataURL("image/jpeg", 0.78) };
+}
+
+export function matchesEnrollmentPose(pose: 'FRONT' | 'LEFT' | 'RIGHT' | 'UP' | 'DOWN', gestures: string[]) {
+  const required: Record<typeof pose, string> = {
+    FRONT: 'facing center', LEFT: 'facing left', RIGHT: 'facing right', UP: 'head up', DOWN: 'head down',
+  };
+  if (!gestures.includes(required[pose])) return false;
+  if (pose === 'UP' || pose === 'DOWN') return gestures.includes('facing center');
+  return true;
+}
+
+export async function analyzeVideoObservation(video: HTMLVideoElement) {
+  if (!video.videoWidth || !video.videoHeight)
+    throw new Error("กล้องยังไม่พร้อม กรุณารอสักครู่");
+  const size = fitSize(video.videoWidth, video.videoHeight, 640);
+  const canvas = document.createElement("canvas");
+  canvas.width = size.width;
+  canvas.height = size.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("อุปกรณ์ไม่รองรับการประมวลผลรูปภาพ");
+  context.drawImage(video, 0, 0, size.width, size.height);
+  return analyze(canvas);
 }

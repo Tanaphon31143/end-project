@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BookOpen, Calendar, Clock, DoorOpen, Info } from "lucide-react";
+import { BookOpen, Clock, DoorOpen, Info } from "lucide-react";
 import { PageTitle } from "@/components/student/UI";
 import { getStudentSession } from "@/lib/auth";
 import { getStudentCourses } from "@/lib/student-data";
 
 export const dynamic = "force-dynamic";
 
-const weekdays = ["จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์"];
+const weekdays = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"];
 
 export default async function CoursesPage() {
   const session = await getStudentSession();

@@ -236,12 +236,26 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- Face Details Extensions
+CREATE TABLE IF NOT EXISTS attendance_issue_attachments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  report_id INT UNSIGNED NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  image_mime VARCHAR(50) NOT NULL,
+  image_data MEDIUMBLOB NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_issue_attachment_report (report_id)
+);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS event_key VARCHAR(190) NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notification_event ON notifications (user_id, user_role, event_key);
+
 ALTER TABLE face_data ADD COLUMN IF NOT EXISTS registered_by_id INT UNSIGNED NULL;
 ALTER TABLE face_data ADD COLUMN IF NOT EXISTS registered_by_name VARCHAR(150) NULL;
 ALTER TABLE face_data ADD COLUMN IF NOT EXISTS registered_by_role VARCHAR(50) NULL;
 ALTER TABLE face_data ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) NULL;
 ALTER TABLE face_data ADD COLUMN IF NOT EXISTS device_name VARCHAR(150) NULL;
 ALTER TABLE face_data ADD COLUMN IF NOT EXISTS browser VARCHAR(100) NULL;
+ALTER TABLE face_data ADD COLUMN IF NOT EXISTS operating_system VARCHAR(100) NULL;
+ALTER TABLE face_data ADD COLUMN IF NOT EXISTS camera_type VARCHAR(150) NULL;
 
 -- Face Samples Pose Type (FRONT, LEFT, RIGHT, UP, DOWN, or NULL for legacy)
 ALTER TABLE face_samples ADD COLUMN IF NOT EXISTS pose_type VARCHAR(30) NULL;
@@ -283,4 +297,50 @@ CREATE TABLE IF NOT EXISTS scan_attempts (
   attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_scan_attempts_user (user_id, attempted_at),
   INDEX idx_scan_attempts_session (attendance_session_id)
+);
+
+-- One-time interactive liveness challenges. Raw camera frames are not retained.
+CREATE TABLE IF NOT EXISTS student_face_enrollment_challenges (
+  id CHAR(36) PRIMARY KEY,
+  token_hash CHAR(64) NOT NULL,
+  student_id INT UNSIGNED NOT NULL,
+  challenges_json JSON NOT NULL,
+  expires_at DATETIME(3) NOT NULL,
+  used_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uq_face_enrollment_token (token_hash),
+  INDEX idx_face_enrollment_student (student_id, created_at)
+);
+
+CREATE TABLE IF NOT EXISTS student_liveness_challenges (
+  id CHAR(36) PRIMARY KEY,
+  token_hash CHAR(64) NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  attendance_session_id BIGINT UNSIGNED NOT NULL,
+  challenges_json JSON NOT NULL,
+  expires_at DATETIME(3) NOT NULL,
+  used_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uq_student_liveness_token_hash (token_hash),
+  INDEX idx_student_liveness_owner (user_id, attendance_session_id, created_at),
+  INDEX idx_student_liveness_expiry (expires_at)
+);
+
+-- Audit-only evidence: never store camera frames or biometric embeddings here.
+CREATE TABLE IF NOT EXISTS student_scan_evidence (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  scan_attempt_id BIGINT UNSIGNED NULL,
+  liveness_challenge_id CHAR(36) NULL,
+  user_id INT UNSIGNED NOT NULL,
+  attendance_session_id BIGINT UNSIGNED NOT NULL,
+  liveness_result VARCHAR(50) NOT NULL,
+  liveness_score DECIMAL(5,4) NULL,
+  match_result VARCHAR(50) NULL,
+  similarity DECIMAL(6,5) NULL,
+  threshold_value DECIMAL(6,5) NULL,
+  evidence_json JSON NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  INDEX idx_student_scan_evidence_attempt (scan_attempt_id),
+  INDEX idx_student_scan_evidence_session (user_id, attendance_session_id, created_at),
+  INDEX idx_student_scan_evidence_challenge (liveness_challenge_id)
 );
