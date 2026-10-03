@@ -24,6 +24,13 @@ enum AttendanceStatus {
   LEAVE
 }
 
+enum SubjectRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
 model Teacher {
   id           Int              @id @default(autoincrement()) @db.UnsignedInt
   email        String           @unique @db.VarChar(255)
@@ -39,6 +46,7 @@ model Teacher {
   subjects     Subject[]
   sessions     CheckInSession[]
   notifications TeacherNotification[]
+  subjectRequests TeacherSubjectRequest[]
 
   @@map("teachers")
 }
@@ -71,6 +79,7 @@ model Classroom {
   subjects         Subject[]
   sessions         CheckInSession[]
   schedules        Schedule[]
+  subjectRequests  TeacherSubjectRequest[]
 
   @@index([advisorTeacherId], map: "idx_classroom_advisor")
   @@map("classrooms")
@@ -103,6 +112,32 @@ model Subject {
   @@index([teacherId], map: "idx_subject_teacher")
   @@index([classroomId], map: "idx_subject_classroom")
   @@map("subjects")
+}
+
+model TeacherSubjectRequest {
+  id                BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  teacherId         Int                  @map("teacher_id") @db.UnsignedInt
+  classroomId       Int                  @map("classroom_id") @db.UnsignedInt
+  subjectName       String               @map("subject_name") @db.VarChar(200)
+  subjectCode       String               @map("subject_code") @db.VarChar(30)
+  semester          Int                  @db.UnsignedTinyInt
+  academicYear      String               @map("academic_year") @db.VarChar(10)
+  description       String?              @db.VarChar(255)
+  schedulesJson     Json                 @map("schedules_json")
+  status            SubjectRequestStatus @default(PENDING)
+  adminRemark       String?              @map("admin_remark") @db.VarChar(500)
+  reviewedByAdminId Int?                 @map("reviewed_by_admin_id") @db.UnsignedInt
+  reviewedAt        DateTime?            @map("reviewed_at")
+  subjectId         Int?                 @map("subject_id") @db.UnsignedInt
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+  teacher           Teacher              @relation(fields: [teacherId], references: [id])
+  classroom         Classroom            @relation(fields: [classroomId], references: [id])
+
+  @@index([teacherId, createdAt], map: "idx_teacher_subject_request_teacher")
+  @@index([status, createdAt], map: "idx_teacher_subject_request_status")
+  @@index([subjectCode], map: "idx_teacher_subject_request_code")
+  @@map("teacher_subject_requests")
 }
 
 model Schedule {

@@ -18,6 +18,7 @@ import type {
   AttendanceRecord,
   AttendanceStatus,
 } from "./types";
+import { showActionSuccess } from "@/lib/sweet-alert";
 
 const labels: Record<AttendanceStatus, string> = {
   PRESENT: "มาเรียน",
@@ -148,6 +149,7 @@ export function AttendanceManager({
       });
       await search();
       setMessage(data.message || "เพิ่มข้อมูลแล้ว");
+      void showActionSuccess(data.message || "เพิ่มข้อมูลการเข้าเรียนแล้ว");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -173,6 +175,7 @@ export function AttendanceManager({
       if (!response.ok) throw new Error(data.message || "แก้ไขสถานะไม่สำเร็จ");
       await Promise.all([search(), openDetail(detail.record.id)]);
       setMessage(data.message || "แก้ไขสถานะแล้ว");
+      void showActionSuccess(data.message || "แก้ไขสถานะแล้ว");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {

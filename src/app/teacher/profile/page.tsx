@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ProfileClient } from "@/components/teacher/ProfileClient";
 import { getTeacherSession } from "@/lib/auth";
 import { getTeacherIdentity } from "@/lib/teacher-data";
+import "../../profile.css";
 
 export default async function Profile() {
   const session = await getTeacherSession();

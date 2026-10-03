@@ -10,7 +10,7 @@
 }
 .student-modal {
   width: min(720px, 100%);
-  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   overflow: auto;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -111,7 +111,7 @@
     padding: 10px;
   }
   .student-modal {
-    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
   }
   .student-form-grid {
     grid-template-columns: 1fr;
@@ -180,7 +180,7 @@
 }
 .student-import-modal {
   width: min(900px, 100%);
-  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   overflow: auto;
   border: 1px solid #e2e8f0;
   border-radius: 16px;

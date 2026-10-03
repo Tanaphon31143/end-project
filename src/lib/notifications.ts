@@ -85,7 +85,7 @@ export async function getStudentNotifications(
   const safePage = Number.isSafeInteger(page) ? Math.max(1, Math.min(page, 100000)) : 1;
   const offset = (safePage - 1) * safeLimit;
 
-  const [[items], [countRow], [totalRow]] = await Promise.all([
+  const [[items], [summaryRows]] = await Promise.all([
     db.execute<
       (RowDataPacket & {
         id: number;
@@ -113,26 +113,22 @@ export async function getStudentNotifications(
        LIMIT ${safeLimit} OFFSET ${offset}`,
       [studentId],
     ),
-    db.execute<(RowDataPacket & { unread: number })[]>(
-      `SELECT COUNT(*) unread FROM notifications
-       WHERE user_id = ? AND user_role = 'student' AND is_read = 0`,
-      [studentId],
-    ),
-    db.execute<(RowDataPacket & { total: number })[]>(
-      `SELECT COUNT(*) total FROM notifications
-       WHERE user_id = ? AND user_role = 'student'`,
+    db.execute<(RowDataPacket & { unread: number; total: number })[]>(
+      `SELECT COUNT(*) total,COALESCE(SUM(is_read = 0),0) unread
+       FROM notifications WHERE user_id = ? AND user_role = 'student'`,
       [studentId],
     ),
   ]);
 
-  const total = Number(totalRow[0]?.total || 0);
+  const summary = summaryRows[0];
+  const total = Number(summary?.total || 0);
 
   return {
     notifications: items.map((row) => ({
       ...row,
       isRead: Boolean(row.isRead),
     })),
-    unreadCount: Number(countRow[0]?.unread || 0),
+    unreadCount: Number(summary?.unread || 0),
     pagination: {
       page: safePage,
       limit: safeLimit,

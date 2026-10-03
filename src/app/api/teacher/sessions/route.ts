@@ -139,111 +139,127 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-  const auth = await requireTeacher();
-  if ("error" in auth) return auth.error;
-  const blocked = protectTeacherMutation(
-    request,
-    auth.teacher.id,
-    "session-close",
-    10,
-  );
-  if (blocked) return blocked;
-  const body = await request.json().catch(() => null);
-  let sessionId: bigint;
-  try {
-    if (!body || !/^[1-9]\d*$/.test(String(body.sessionId ?? ""))) throw new Error("INVALID_ID");
-    sessionId = BigInt(body.sessionId);
-  } catch {
-    return NextResponse.json(
-      { message: "รอบเช็คชื่อไม่ถูกต้อง" },
-      { status: 400 },
+    const auth = await requireTeacher();
+    if ("error" in auth) return auth.error;
+    const blocked = protectTeacherMutation(
+      request,
+      auth.teacher.id,
+      "session-close",
+      10,
     );
-  }
-  const session = await prisma.checkInSession.findFirst({
-    where: {
-      id: sessionId,
-      subject: { teacherId: auth.teacher.id },
-    },
-    include: { subject: true },
-  });
-  if (!session)
-    return NextResponse.json(
-      { message: "ไม่พบรอบที่เปิดอยู่หรือไม่มีสิทธิ์" },
-      { status: 404 },
-    );
-  if (session.status === "CLOSED")
-    return NextResponse.json({ message: "รอบเช็คชื่อนี้ปิดแล้ว", alreadyClosed: true, absentCreated: 0 });
-  const students = await prisma.student.findMany({
-    where: { classId: session.classroomId, status: "ACTIVE" },
-    select: { id: true },
-  });
-  let alreadyClosed = false;
-  let absentCreated = 0;
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const claimed = await tx.checkInSession.updateMany({
-      where: { id: session.id, status: "ACTIVE" },
-      data: { status: "CLOSED" },
-    });
-    if (!claimed.count) {
-      alreadyClosed = true;
-      return;
+    if (blocked) return blocked;
+    const body = await request.json().catch(() => null);
+    let sessionId: bigint;
+    try {
+      if (!body || !/^[1-9]\d*$/.test(String(body.sessionId ?? "")))
+        throw new Error("INVALID_ID");
+      sessionId = BigInt(body.sessionId);
+    } catch {
+      return NextResponse.json(
+        { message: "รอบเช็คชื่อไม่ถูกต้อง" },
+        { status: 400 },
+      );
     }
-    const existing = await tx.attendanceRecord.findMany({
+    const session = await prisma.checkInSession.findFirst({
       where: {
-        checkInSessionId: session.id,
-        studentId: { in: students.map((student) => student.id) },
+        id: sessionId,
+        subject: { teacherId: auth.teacher.id },
       },
-      select: { studentId: true },
+      include: { subject: true },
     });
-    const checked = new Set(existing.map((item) => item.studentId));
-    const missing = students.filter((student) => !checked.has(student.id));
-    absentCreated = missing.length;
-    if (missing.length) {
-      await tx.attendanceRecord.createMany({
-        data: missing.map((student) => ({
-          studentId: student.id,
-          subjectId: session.subjectId,
-          attendanceDate: session.sessionDate,
-          status: "ABSENT",
-          checkInSessionId: session.id,
-        })),
+    if (!session)
+      return NextResponse.json(
+        { message: "ไม่พบรอบที่เปิดอยู่หรือไม่มีสิทธิ์" },
+        { status: 404 },
+      );
+    if (session.status === "CLOSED")
+      return NextResponse.json({
+        message: "รอบเช็คชื่อนี้ปิดแล้ว",
+        alreadyClosed: true,
+        absentCreated: 0,
       });
-      const created = await tx.attendanceRecord.findMany({
-        where: { checkInSessionId: session.id, studentId: { in: missing.map((student) => student.id) } },
-        select: { id: true, studentId: true },
-      });
-      await tx.auditLog.createMany({
-        data: created.map((record) => ({
-          userId: auth.teacher.id,
-          action: "CREATE",
-          entity: "attendance_record",
-          entityId: String(record.id),
-          description: `ปิดรอบและบันทึกขาดเรียน นักเรียน ${record.studentId}`,
-          ...requestMeta(request),
-        })),
-      });
-    }
-    await tx.auditLog.create({
-      data: {
-        userId: auth.teacher.id,
-        action: "CLOSE",
-        entity: "check_in_session",
-        entityId: String(session.id),
-        description: `ปิดรอบเช็คชื่อ ${session.subject.subjectCode} และบันทึกขาดเรียน ${absentCreated} คน`,
-        ...requestMeta(request),
+    const students = await prisma.student.findMany({
+      where: { classId: session.classroomId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    let alreadyClosed = false;
+    let absentCreated = 0;
+    await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const claimed = await tx.checkInSession.updateMany({
+          where: { id: session.id, status: "ACTIVE" },
+          data: { status: "CLOSED" },
+        });
+        if (!claimed.count) {
+          alreadyClosed = true;
+          return;
+        }
+        const existing = await tx.attendanceRecord.findMany({
+          where: {
+            checkInSessionId: session.id,
+            studentId: { in: students.map((student) => student.id) },
+          },
+          select: { studentId: true },
+        });
+        const checked = new Set(existing.map((item) => item.studentId));
+        const missing = students.filter((student) => !checked.has(student.id));
+        absentCreated = missing.length;
+        if (missing.length) {
+          await tx.attendanceRecord.createMany({
+            data: missing.map((student) => ({
+              studentId: student.id,
+              subjectId: session.subjectId,
+              attendanceDate: session.sessionDate,
+              status: "ABSENT",
+              checkInSessionId: session.id,
+            })),
+          });
+          const created = await tx.attendanceRecord.findMany({
+            where: {
+              checkInSessionId: session.id,
+              studentId: { in: missing.map((student) => student.id) },
+            },
+            select: { id: true, studentId: true },
+          });
+          await tx.auditLog.createMany({
+            data: created.map((record) => ({
+              userId: auth.teacher.id,
+              action: "CREATE",
+              entity: "attendance_record",
+              entityId: String(record.id),
+              description: `ปิดรอบและบันทึกขาดเรียน นักเรียน ${record.studentId}`,
+              ...requestMeta(request),
+            })),
+          });
+        }
+        await tx.auditLog.create({
+          data: {
+            userId: auth.teacher.id,
+            action: "CLOSE",
+            entity: "check_in_session",
+            entityId: String(session.id),
+            description: `ปิดรอบเช็คชื่อ ${session.subject.subjectCode} และบันทึกขาดเรียน ${absentCreated} คน`,
+            ...requestMeta(request),
+          },
+        });
+        await tx.$executeRaw`INSERT INTO teacher_notifications(teacher_id,title,message,href,type) VALUES(${auth.teacher.id},${"ปิดรอบเช็คชื่อแล้ว"},${`${session.subject.subjectCode} บันทึกขาดเรียน ${absentCreated} คน`},${`/teacher/history/${session.id}`},${"SESSION"})`;
       },
-    });
-    await tx.$executeRaw`INSERT INTO teacher_notifications(teacher_id,title,message,href,type) VALUES(${auth.teacher.id},${"ปิดรอบเช็คชื่อแล้ว"},${`${session.subject.subjectCode} บันทึกขาดเรียน ${absentCreated} คน`},${`/teacher/history/${session.id}`},${"SESSION"})`;
-  }, { maxWait: 10_000, timeout: 30_000 });
-  if (alreadyClosed)
-    return NextResponse.json(
-      { message: "รอบเช็คชื่อนี้ถูกปิดแล้ว", alreadyClosed: true, absentCreated: 0 },
+      { maxWait: 10_000, timeout: 30_000 },
     );
-  return NextResponse.json({ message: "ปิดรอบเช็คชื่อแล้ว", absentCreated });
+    if (alreadyClosed)
+      return NextResponse.json({
+        message: "รอบเช็คชื่อนี้ถูกปิดแล้ว",
+        alreadyClosed: true,
+        absentCreated: 0,
+      });
+    return NextResponse.json({ message: "ปิดรอบเช็คชื่อแล้ว", absentCreated });
   } catch (error) {
     console.error("Close teacher session failed", error);
     return NextResponse.json(
-      { message: "ปิดรอบเช็คชื่อไม่สำเร็จ กรุณาลองอีกครั้ง หากยังพบปัญหาให้ติดต่อผู้ดูแลระบบ" },
+      {
+        message:
+          "ปิดรอบเช็คชื่อไม่สำเร็จ กรุณาลองอีกครั้ง หากยังพบปัญหาให้ติดต่อผู้ดูแลระบบ",
+      },
       { status: 500 },
     );
   }

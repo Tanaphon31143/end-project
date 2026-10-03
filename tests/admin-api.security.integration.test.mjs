@@ -21,7 +21,7 @@ async function roleCookie(role) {
 }
 
 test("Admin APIs ปฏิเสธ Anonymous, Teacher และ Student", { skip: !enabled }, async () => {
-  const routes = ["/api/users", "/api/teachers", "/api/students", "/api/subjects", "/api/classes", "/api/faces", "/api/attendance", "/api/admin/reports", "/api/admin/settings"];
+  const routes = ["/api/users", "/api/teachers", "/api/students", "/api/subjects", "/api/classes", "/api/faces", "/api/attendance", "/api/admin/reports", "/api/admin/settings", "/api/admin/notifications"];
   const teacher = await roleCookie("teacher");
   const student = await roleCookie("student");
   for (const route of routes) {
@@ -33,7 +33,23 @@ test("Admin APIs ปฏิเสธ Anonymous, Teacher และ Student", { ski
 
 test("Admin session เรียก Admin APIs แบบอ่านได้", { skip: !enabled }, async () => {
   const admin = await roleCookie("admin");
-  for (const route of ["/api/users", "/api/teachers", "/api/students", "/api/subjects", "/api/classes", "/api/faces", "/api/attendance", "/api/admin/reports", "/api/admin/settings"]) {
+  for (const route of ["/api/users", "/api/teachers", "/api/students", "/api/subjects", "/api/classes", "/api/faces", "/api/attendance", "/api/admin/reports", "/api/admin/settings", "/api/admin/notifications"]) {
     assert.equal((await fetch(`${baseUrl}${route}`, { headers: { cookie: admin } })).status, 200, `${route} ต้องอนุญาต Admin`);
+  }
+});
+
+test("การแจ้งเตือน Admin รวมคำขอเปิดรายวิชาที่รออนุมัติ", { skip: !enabled }, async () => {
+  const parsed = new URL(process.env.DATABASE_URL);
+  const connection = await mysql.createConnection({ host: parsed.hostname, port: Number(parsed.port || 3306), user: decodeURIComponent(parsed.username), password: decodeURIComponent(parsed.password), database: parsed.pathname.slice(1), ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" } });
+  try {
+    const [[row]] = await connection.query("SELECT COUNT(*) total FROM teacher_subject_requests WHERE status='PENDING'");
+    const response = await fetch(`${baseUrl}/api/admin/notifications`, { headers: { cookie: await roleCookie("admin") } });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    const subjectRequests = body.requests.filter((item) => item.kind === "SUBJECT_REQUEST");
+    assert.equal(subjectRequests.length, Number(row.total));
+    assert.ok(body.pendingCount >= subjectRequests.length);
+  } finally {
+    await connection.end();
   }
 });

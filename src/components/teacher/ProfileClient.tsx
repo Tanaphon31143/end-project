@@ -1,22 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Camera, LoaderCircle, LockKeyhole, Save } from "lucide-react";
+import { LoaderCircle, Pencil, Save, UserRound, X } from "lucide-react";
 import type { TeacherIdentity } from "@/lib/teacher-data";
-
-type Notice = { tone: "success" | "error"; text: string } | null;
-
-async function updateProfile(payload: Record<string, string>) {
-  const response = await fetch("/api/teacher/profile", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "บันทึกข้อมูลไม่สำเร็จ");
-}
+import {
+  ProfileAccountCard,
+  ProfilePageHeading,
+  ProfileReadOnlyField,
+  ProfileSection,
+} from "@/components/profile/ProfilePrimitives";
+import { ProfileSummaryCard } from "@/components/profile/ProfileSummaryCard";
+import { PasswordChangeCard } from "@/components/profile/PasswordChangeCard";
+import { profileErrorText } from "@/components/profile/profileFeedback";
+import { showActionSuccess } from "@/lib/sweet-alert";
 
 export function ProfileClient({
   initialTeacher,
@@ -24,237 +21,241 @@ export function ProfileClient({
   initialTeacher: TeacherIdentity;
 }) {
   const router = useRouter();
-  const [savingContact, setSavingContact] = useState(false);
-  const [savingPassword, setSavingPassword] = useState(false);
-  const [contactNotice, setContactNotice] = useState<Notice>(null);
-  const [passwordNotice, setPasswordNotice] = useState<Notice>(null);
-  const [uploading, setUploading] = useState(false);
+  const department =
+    initialTeacher.position === "ครูผู้สอน"
+      ? "ไม่พบข้อมูล"
+      : initialTeacher.position;
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState({
+    name: initialTeacher.name,
+    email: initialTeacher.email,
+    phone: initialTeacher.phone,
+  });
+  const [draft, setDraft] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const profileInitials =
+    saved.name
+      .replace(/^(นาย|นางสาว|นาง)/, "")
+      .trim()
+      .slice(0, 2) || "ครู";
 
-  async function uploadProfile(file?: File) {
-    if (!file) return;
-    setUploading(true);
-    setContactNotice(null);
-    const form = new FormData();
-    form.set("image", file);
+  function cancel() {
+    setDraft(saved);
+    setEditing(false);
+    setNotice(null);
+  }
+
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice(null);
     try {
+      const normalizedDraft = {
+        ...draft,
+        name: draft.name.trim().replace(/\s+/g, " "),
+        email: draft.email.trim(),
+        phone: draft.phone.trim(),
+      };
       const response = await fetch("/api/teacher/profile", {
-        method: "POST",
-        body: form,
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(normalizedDraft),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "เปลี่ยนรูปไม่สำเร็จ");
-      setContactNotice({ tone: "success", text: data.message });
+      const result = (await response.json()) as {
+        message?: string;
+        profile?: typeof normalizedDraft;
+      };
+      if (!response.ok)
+        throw new Error(result.message || "บันทึกข้อมูลไม่สำเร็จ");
+      const nextProfile = result.profile ?? normalizedDraft;
+      setSaved(nextProfile);
+      setDraft(nextProfile);
+      setEditing(false);
+      setNotice({ tone: "success", text: "บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว" });
+      void showActionSuccess(
+        result.message || "บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว",
+      );
       router.refresh();
     } catch (error) {
-      setContactNotice({
+      setNotice({
         tone: "error",
-        text: error instanceof Error ? error.message : "เปลี่ยนรูปไม่สำเร็จ",
+        text: profileErrorText(error, "บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่"),
       });
     } finally {
-      setUploading(false);
-    }
-  }
-
-  async function saveContact(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingContact(true);
-    setContactNotice(null);
-    const values = new FormData(event.currentTarget);
-    try {
-      await updateProfile({
-        email: String(values.get("email") ?? ""),
-        phone: String(values.get("phone") ?? ""),
-      });
-      setContactNotice({
-        tone: "success",
-        text: "บันทึกข้อมูลติดต่อเรียบร้อยแล้ว",
-      });
-    } catch (error) {
-      setContactNotice({
-        tone: "error",
-        text: error instanceof Error ? error.message : "บันทึกข้อมูลไม่สำเร็จ",
-      });
-    } finally {
-      setSavingContact(false);
-    }
-  }
-
-  async function savePassword(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingPassword(true);
-    setPasswordNotice(null);
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    try {
-      await updateProfile({
-        currentPassword: String(values.get("currentPassword") ?? ""),
-        newPassword: String(values.get("newPassword") ?? ""),
-        confirmPassword: String(values.get("confirmPassword") ?? ""),
-      });
-      form.reset();
-      setPasswordNotice({
-        tone: "success",
-        text: "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว",
-      });
-    } catch (error) {
-      setPasswordNotice({
-        tone: "error",
-        text:
-          error instanceof Error ? error.message : "เปลี่ยนรหัสผ่านไม่สำเร็จ",
-      });
-    } finally {
-      setSavingPassword(false);
+      setBusy(false);
     }
   }
 
   return (
-    <>
-      <div className="page-head">
-        <div>
-          <h2>โปรไฟล์ของฉัน</h2>
-          <p>จัดการข้อมูลส่วนตัวและความปลอดภัยของบัญชี</p>
-        </div>
-      </div>
-      <div className="profile-grid">
-        <aside className="panel profile-card">
-          <div className="profile-photo">
-            {initialTeacher.hasProfileImage ? (
-              <Image
-                src="/api/teacher/profile-image"
-                alt="รูปโปรไฟล์ครู"
-                width={112}
-                height={112}
-                unoptimized
-              />
-            ) : (
-              initialTeacher.initials
-            )}
-          </div>
-          <h3>{initialTeacher.name}</h3>
-          <p>{initialTeacher.position}</p>
-          <p>รหัสครู {initialTeacher.code}</p>
-          <label
-            className={`button secondary profile-upload ${uploading ? "disabled" : ""}`}
+    <div className="account-profile teacher-account-profile">
+      <ProfilePageHeading />
+      <div className="account-profile-layout">
+        <ProfileSummaryCard
+          name={saved.name}
+          role="ครูผู้สอน"
+          code={initialTeacher.code}
+          context={department}
+          initials={profileInitials}
+          hasProfileImage={initialTeacher.hasProfileImage}
+          imageUrl="/api/teacher/profile-image"
+          uploadUrl="/api/teacher/profile"
+        />
+        <div className="account-profile-main">
+          <ProfileSection
+            title="ข้อมูลส่วนตัว"
+            description="ข้อมูลประจำตัวและช่องทางติดต่อ"
+            icon={<UserRound size={20} />}
           >
-            <Camera size={16} />
-            {uploading ? "กำลังอัปโหลด" : "เปลี่ยนรูปโปรไฟล์"}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              disabled={uploading}
-              onChange={(event) => {
-                void uploadProfile(event.target.files?.[0]);
-                event.target.value = "";
-              }}
-            />
-          </label>
-        </aside>
-        <div className="stack">
-          <form className="panel" onSubmit={saveContact}>
-            <div className="panel-head">
-              <div>
-                <h3>ข้อมูลส่วนตัว</h3>
-                <span className="muted">
-                  ชื่อและรหัสครูแก้ไขได้โดยผู้ดูแลระบบเท่านั้น
-                </span>
-              </div>
-            </div>
-            <div className="form-grid">
-              <div className="field full">
-                <label>ชื่อ–นามสกุล</label>
-                <input value={initialTeacher.name} disabled />
-              </div>
-              <div className="field">
-                <label htmlFor="teacher-email">อีเมล</label>
-                <input
-                  id="teacher-email"
-                  name="email"
-                  type="email"
-                  defaultValue={initialTeacher.email}
-                  required
+            <form className="account-profile-form" onSubmit={save}>
+              <div className="account-profile-fields">
+                <div className="account-profile-field">
+                  <label
+                    className="account-profile-field-label"
+                    htmlFor="teacher-profile-name"
+                  >
+                    ชื่อ-นามสกุล
+                  </label>
+                  {editing ? (
+                    <input
+                      id="teacher-profile-name"
+                      type="text"
+                      autoComplete="name"
+                      required
+                      maxLength={150}
+                      value={draft.name}
+                      onChange={(event) =>
+                        setDraft({ ...draft, name: event.target.value })
+                      }
+                    />
+                  ) : (
+                    <div className="account-profile-readonly">
+                      <span>{saved.name || "ไม่พบข้อมูล"}</span>
+                    </div>
+                  )}
+                </div>
+                <ProfileReadOnlyField
+                  label="รหัสครู"
+                  value={initialTeacher.code}
                 />
-              </div>
-              <div className="field">
-                <label htmlFor="teacher-phone">เบอร์โทร</label>
-                <input
-                  id="teacher-phone"
-                  name="phone"
-                  defaultValue={initialTeacher.phone}
+                <div className="account-profile-field">
+                  <label
+                    className="account-profile-field-label"
+                    htmlFor="teacher-profile-email"
+                  >
+                    อีเมล
+                  </label>
+                  {editing ? (
+                    <input
+                      id="teacher-profile-email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={draft.email}
+                      onChange={(event) =>
+                        setDraft({ ...draft, email: event.target.value })
+                      }
+                    />
+                  ) : (
+                    <div className="account-profile-readonly">
+                      <span>{saved.email || "ไม่พบข้อมูล"}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="account-profile-field">
+                  <label
+                    className="account-profile-field-label"
+                    htmlFor="teacher-profile-phone"
+                  >
+                    เบอร์โทรศัพท์
+                  </label>
+                  {editing ? (
+                    <input
+                      id="teacher-profile-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      maxLength={30}
+                      value={draft.phone}
+                      onChange={(event) =>
+                        setDraft({ ...draft, phone: event.target.value })
+                      }
+                    />
+                  ) : (
+                    <div className="account-profile-readonly">
+                      <span>{saved.phone || "ไม่พบข้อมูล"}</span>
+                    </div>
+                  )}
+                </div>
+                <ProfileReadOnlyField
+                  label="กลุ่มสาระ / แผนก"
+                  value={department}
                 />
+                <ProfileReadOnlyField label="สถานะบัญชี" value="ใช้งานอยู่" />
               </div>
-            </div>
-            {contactNotice && (
-              <p className={`form-message ${contactNotice.tone}`}>
-                {contactNotice.text}
+              <p className="account-profile-help">
+                รหัสครู กลุ่มสาระ และสถานะบัญชีสามารถแก้ไขได้โดยผู้ดูแลระบบเท่านั้น
               </p>
-            )}
-            <div className="form-actions">
-              <button className="button primary" disabled={savingContact}>
-                {savingContact ? (
-                  <LoaderCircle className="spin" size={16} />
+              {notice && (
+                <p
+                  className={`account-profile-notice ${notice.tone}`}
+                  role={notice.tone === "error" ? "alert" : "status"}
+                >
+                  {notice.text}
+                </p>
+              )}
+              <div className="account-profile-actions">
+                {editing ? (
+                  <>
+                    <button
+                      className="account-profile-button secondary"
+                      type="button"
+                      onClick={cancel}
+                      disabled={busy}
+                    >
+                      <X size={17} />
+                      ยกเลิก
+                    </button>
+                    <button
+                      className="account-profile-button primary"
+                      type="submit"
+                      disabled={busy}
+                    >
+                      {busy ? (
+                        <LoaderCircle size={17} className="spin" />
+                      ) : (
+                        <Save size={17} />
+                      )}
+                      {busy ? "กำลังบันทึก…" : "บันทึกการเปลี่ยนแปลง"}
+                    </button>
+                  </>
                 ) : (
-                  <Save size={16} />
+                  <button
+                    className="account-profile-button secondary"
+                    type="button"
+                    onClick={() => {
+                      setDraft(saved);
+                      setEditing(true);
+                      setNotice(null);
+                    }}
+                  >
+                    <Pencil size={17} />
+                    แก้ไขข้อมูล
+                  </button>
                 )}
-                {savingContact ? "กำลังบันทึก" : "บันทึกการเปลี่ยนแปลง"}
-              </button>
-            </div>
-          </form>
-          <form className="panel" onSubmit={savePassword}>
-            <div className="panel-head">
-              <h3>เปลี่ยนรหัสผ่าน</h3>
-            </div>
-            <div className="form-grid">
-              <div className="field full">
-                <label htmlFor="current-password">รหัสผ่านเดิม</label>
-                <input
-                  id="current-password"
-                  name="currentPassword"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                />
               </div>
-              <div className="field">
-                <label htmlFor="new-password">รหัสผ่านใหม่</label>
-                <input
-                  id="new-password"
-                  name="newPassword"
-                  type="password"
-                  minLength={8}
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="confirm-password">ยืนยันรหัสผ่านใหม่</label>
-                <input
-                  id="confirm-password"
-                  name="confirmPassword"
-                  type="password"
-                  minLength={8}
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-            </div>
-            {passwordNotice && (
-              <p className={`form-message ${passwordNotice.tone}`}>
-                {passwordNotice.text}
-              </p>
-            )}
-            <div className="form-actions">
-              <button className="button primary" disabled={savingPassword}>
-                {savingPassword ? (
-                  <LoaderCircle className="spin" size={16} />
-                ) : (
-                  <LockKeyhole size={16} />
-                )}
-                {savingPassword ? "กำลังเปลี่ยน" : "เปลี่ยนรหัสผ่าน"}
-              </button>
-            </div>
-          </form>
+            </form>
+          </ProfileSection>
+          <PasswordChangeCard role="teacher" />
         </div>
       </div>
-    </>
+      <ProfileAccountCard
+        role="ครูผู้สอน"
+        code={initialTeacher.code}
+        context={department}
+      />
+    </div>
   );
 }

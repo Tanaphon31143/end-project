@@ -1,8 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, KeyRound, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  KeyRound,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Badge, PersonCell } from "@/components/admin/AdminPage";
+import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 import {
   EMPTY_USER,
   ROLE_LABELS,
@@ -13,6 +24,7 @@ import {
 
 type ModalMode = "create" | "view" | "edit" | "password";
 type Errors = Partial<Record<keyof UserFormValue, string>>;
+const USERS_PER_PAGE = 15;
 
 function roleTone(role: UserRole) {
   return role === "admin" ? "purple" : role === "teacher" ? "blue" : "gray";
@@ -26,6 +38,7 @@ export default function UsersManager({
   const [users, setUsers] = useState(initialUsers);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<UserRole | "">("");
+  const [page, setPage] = useState(1);
   const [modal, setModal] = useState<ModalMode | null>(null);
   const [selected, setSelected] = useState<AdminUserRecord | null>(null);
   const [value, setValue] = useState<UserFormValue>(EMPTY_USER);
@@ -47,6 +60,17 @@ export default function UsersManager({
       return matchesQuery && (!role || user.role === role);
     });
   }, [query, role, users]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filtered.length / USERS_PER_PAGE),
+  );
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = filtered.length
+    ? (currentPage - 1) * USERS_PER_PAGE + 1
+    : 0;
+  const pageEnd = Math.min(currentPage * USERS_PER_PAGE, filtered.length);
+  const visibleUsers = filtered.slice(pageStart ? pageStart - 1 : 0, pageEnd);
 
   function notify(message: string, tone: "success" | "error") {
     setToast({ message, tone });
@@ -118,7 +142,7 @@ export default function UsersManager({
         throw new Error(data.message || "บันทึกข้อมูลไม่สำเร็จ");
       await reload();
       setModal(null);
-      notify(data.message || "บันทึกข้อมูลสำเร็จ", "success");
+      void showActionSuccess(data.message || "บันทึกข้อมูลสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
@@ -130,12 +154,12 @@ export default function UsersManager({
   }
 
   async function remove(user: AdminUserRecord) {
-    if (
-      !window.confirm(
-        `ยืนยันการลบบัญชี ${user.name}? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
-      )
-    )
-      return;
+    const confirmed = await confirmDanger({
+      title: "ลบบัญชีผู้ใช้งาน?",
+      text: `${user.name} จะไม่สามารถเข้าสู่ระบบได้ และการดำเนินการนี้ย้อนกลับไม่ได้`,
+      confirmText: "ลบบัญชี",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await fetch(
@@ -145,7 +169,7 @@ export default function UsersManager({
       const data = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(data.message || "ลบบัญชีไม่สำเร็จ");
       setUsers((current) => current.filter((item) => item.id !== user.id));
-      notify(data.message || "ลบบัญชีสำเร็จ", "success");
+      void showActionSuccess(data.message || "ลบบัญชีสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
@@ -186,13 +210,19 @@ export default function UsersManager({
             aria-label="ค้นหาผู้ใช้งาน"
             placeholder="ค้นหาชื่อ อีเมล หรือรหัสผู้ใช้"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
           />
         </label>
         <select
           aria-label="บทบาทผู้ใช้งาน"
           value={role}
-          onChange={(event) => setRole(event.target.value as UserRole | "")}
+          onChange={(event) => {
+            setRole(event.target.value as UserRole | "");
+            setPage(1);
+          }}
         >
           <option value="">ทุกบทบาท</option>
           <option value="admin">Admin</option>
@@ -204,6 +234,7 @@ export default function UsersManager({
           onClick={() => {
             setQuery("");
             setRole("");
+            setPage(1);
           }}
         >
           ล้างตัวกรอง
@@ -214,10 +245,10 @@ export default function UsersManager({
           <div>
             <h2>รายชื่อผู้ใช้งาน</h2>
             <p>
-              แสดง {filtered.length} จาก {users.length} บัญชี
+              แสดง {pageStart}–{pageEnd} จาก {filtered.length} บัญชี
             </p>
           </div>
-          <span className="row-count">ทั้งหมด {filtered.length} รายการ</span>
+          <span className="row-count">15 รายการต่อหน้า</span>
         </div>
         <div className="admin-data-wrap">
           <table>
@@ -232,7 +263,7 @@ export default function UsersManager({
             </thead>
             <tbody>
               {filtered.length ? (
-                filtered.map((user) => (
+                visibleUsers.map((user) => (
                   <tr key={user.id}>
                     <td>
                       <b>{user.code || user.id}</b>
@@ -300,6 +331,34 @@ export default function UsersManager({
             </tbody>
           </table>
         </div>
+        {filtered.length > 0 && (
+          <nav className="admin-pagination" aria-label="หน้ารายชื่อผู้ใช้งาน">
+            <span className="admin-pagination-meta" aria-live="polite">
+              รายการที่ {pageStart}–{pageEnd} จากทั้งหมด {filtered.length}
+            </span>
+            <div className="admin-pagination-controls">
+              <button
+                type="button"
+                aria-label="ไปหน้าก่อนหน้า"
+                disabled={currentPage === 1}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span>
+                หน้า {currentPage} จาก {totalPages}
+              </span>
+              <button
+                type="button"
+                aria-label="ไปหน้าถัดไป"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </nav>
+        )}
       </section>
 
       {modal && (

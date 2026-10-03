@@ -24,7 +24,11 @@
   background: #ffffff;
   box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.22);
   pointer-events: none;
-  transform: translate3d(calc(var(--pointer-x, 50vw) - 50%), calc(var(--pointer-y, 50vh) - 50%), 0);
+  transform: translate3d(
+    calc(var(--pointer-x, 50vw) - 50%),
+    calc(var(--pointer-y, 50vh) - 50%),
+    0
+  );
 }
 
 .pointerOrbBack {
@@ -32,14 +36,23 @@
 }
 
 .pointerOrbFront {
-  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease, border 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 180ms ease,
+    border 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .page:has([data-cursor-target]:hover) .pointerOrbFront {
   border: 1px solid #ffffff;
   background: transparent;
   box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.2);
-  transform: translate3d(calc(var(--pointer-x, 50vw) - 50%), calc(var(--pointer-y, 50vh) - 50%), 0) scale(5.25);
+  transform: translate3d(
+      calc(var(--pointer-x, 50vw) - 50%),
+      calc(var(--pointer-y, 50vh) - 50%),
+      0
+    )
+    scale(5.25);
 }
 
 .newsPanel {
@@ -276,7 +289,9 @@
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
-  transition: color 160ms ease, transform 160ms ease;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
   cursor: pointer;
 }
 
@@ -291,7 +306,9 @@
   font: inherit;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .fieldGroup input::placeholder {
@@ -299,8 +316,8 @@
 }
 
 .fieldGroup input:not([type="checkbox"]):focus {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(16, 16, 16, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
 
 .fieldGroup input[aria-invalid="true"] {
@@ -327,7 +344,9 @@
   font-size: 12px;
   font-weight: 650;
   transform: translateY(-50%);
-  transition: color 160ms ease, transform 160ms ease;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
   cursor: pointer;
 }
 
@@ -410,7 +429,10 @@
   font-size: 14px;
   font-weight: 650;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .primaryButton {
@@ -419,10 +441,17 @@
   color: #ffffff;
 }
 
-.primaryButton:hover {
-  background: #383838;
-  border-color: #383838;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .primaryButton:hover {
+    background: #383838;
+    border-color: #383838;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+  }
+}
+
+.primaryButton:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .googleButton:hover {
@@ -442,7 +471,18 @@
 .primaryButton:disabled {
   opacity: 0.65;
   cursor: wait;
+  pointer-events: none;
   transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .googleButton,
+  .forgotLink,
+  .passwordToggle {
+    transition: none;
+    transform: none !important;
+  }
 }
 
 .googleButton {

@@ -1,103 +1,51 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarCheck, Clock3, Percent, UserMinus, UserX } from "lucide-react";
-import AttendanceCharts from "@/components/student/AttendanceCharts";
-import { PageTitle, StatCard } from "@/components/student/UI";
+import { ChevronRight } from "lucide-react";
+import AttendanceFilters from "@/components/student/AttendanceFilters";
+import AttendanceOverview from "@/components/student/AttendanceOverview";
 import { getStudentSession } from "@/lib/auth";
 import { getStudentStatistics } from "@/lib/student-data";
+import type { AttendanceStatus } from "@/lib/attendance-stats";
+
 export const dynamic = "force-dynamic";
-export default async function Statistics() {
+
+type StatisticsSearchParams = Promise<{
+  term?: string;
+  semester?: string;
+  academicYear?: string;
+  subject?: string;
+  from?: string;
+  to?: string;
+  status?: string;
+}>;
+
+export default async function Statistics({ searchParams }: { searchParams: StatisticsSearchParams }) {
   const session = await getStudentSession();
   if (!session) redirect("/");
-  const data = await getStudentStatistics(session.id),
-    s = data.summary,
-    p = (n: number) =>
-      s.total ? `${((n * 100) / s.total).toFixed(1)}%` : "0%";
+  const query = await searchParams;
+  const [termSemester, termAcademicYear] = (query.term || "").split("|");
+  const data = await getStudentStatistics(session.id, {
+    semester: Number(termSemester || query.semester) || undefined,
+    academicYear: termAcademicYear || query.academicYear,
+    subjectId: Number(query.subject) || undefined,
+    from: query.from,
+    to: query.to,
+  });
+  if (!data) redirect("/");
+  const selectedTerm = data.filters.semester && data.filters.academicYear ? `${data.filters.semester}|${data.filters.academicYear}` : "";
+  const statusMap: Record<string, AttendanceStatus> = { present: "PRESENT", late: "LATE", leave: "LEAVE", absent: "ABSENT" };
+  const selectedStatus = query.status ? statusMap[query.status] : undefined;
+
   return (
-    <>
-      <PageTitle
-        eyebrow="ข้อมูลการเข้าเรียนจริง"
-        title="สถิติการเข้าเรียน"
-        description="ภาพรวมและแนวโน้มจากรายการเช็คชื่อของคุณ"
-      />
-      <div className="grid stats-grid">
-        <StatCard
-          label="มาเรียน"
-          value={s.present}
-          detail={p(s.present)}
-          icon={CalendarCheck}
-          tone="green"
-        />
-        <StatCard
-          label="มาสาย"
-          value={s.late}
-          detail={p(s.late)}
-          icon={Clock3}
-          tone="orange"
-        />
-        <StatCard
-          label="ขาด"
-          value={s.absent}
-          detail={p(s.absent)}
-          icon={UserX}
-          tone="red"
-        />
-        <StatCard
-          label="ลา"
-          value={s.leave}
-          detail={p(s.leave)}
-          icon={UserMinus}
-          tone="purple"
-        />
-        <StatCard
-          label="อัตราเข้าเรียน"
-          value={`${s.rate}%`}
-          detail={s.rate >= 80 ? "เกณฑ์ดี" : "ควรปรับปรุง"}
-          icon={Percent}
-        />
+    <div className="attendance-statistics">
+      <nav className="statistics-breadcrumb" aria-label="เส้นทางนำทาง">
+        <Link href="/student/dashboard">หน้าหลัก</Link><ChevronRight aria-hidden="true" /><span aria-current="page">สถิติการเข้าเรียน</span>
+      </nav>
+      <div className="statistics-page-head">
+        <header className="statistics-heading"><div><h1>สถิติการเข้าเรียน</h1><p>ติดตามภาพรวมและแนวโน้มการเข้าเรียนของคุณ</p></div></header>
+        <AttendanceFilters selectedTerm={selectedTerm} selectedSubject={data.filters.subjectId} from={data.filters.from} to={data.filters.to} terms={data.options.terms} subjects={data.options.subjects} status={query.status} />
       </div>
-      <AttendanceCharts
-        monthly={data.monthly}
-        weekly={data.weekly}
-        subjects={data.subjects}
-      />
-      <section className="card summary-table">
-        <div className="section-head">
-          <h2>สรุปตามรายวิชา</h2>
-        </div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>รายวิชา</th>
-                <th>ทั้งหมด</th>
-                <th>มาเรียน</th>
-                <th>สาย</th>
-                <th>ขาด</th>
-                <th>ลา</th>
-                <th>อัตราเข้าเรียน</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.subjects.map((r) => (
-                <tr key={r.name}>
-                  <td>
-                    <strong>{r.name}</strong>
-                  </td>
-                  <td>{r.total}</td>
-                  <td>{r.present}</td>
-                  <td>{r.late}</td>
-                  <td>{r.absent}</td>
-                  <td>{r.leave}</td>
-                  <td>{r.value}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!data.subjects.length && (
-            <p className="empty-note">ยังไม่มีข้อมูลสำหรับสรุปตามรายวิชา</p>
-          )}
-        </div>
-      </section>
-    </>
+      <AttendanceOverview summary={data.summary} subjects={data.subjects} attendanceDays={data.attendanceDays} selectedSubject={data.filters.subjectId} initialStatus={selectedStatus} />
+    </div>
   );
 }

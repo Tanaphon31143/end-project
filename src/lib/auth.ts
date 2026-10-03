@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 export type AppRole = "admin" | "teacher" | "student";
 export type AppSession = { id: number; role: AppRole; name: string; email?: string };
@@ -28,7 +29,7 @@ export function decodeSignedSession(value?: string): AppSession | null {
   } catch { return null; }
 }
 
-export async function getSession(){const store=await cookies();return decodeSignedSession(store.get("school_os_session")?.value)}
+export const getSession = cache(async () => {const store=await cookies();return decodeSignedSession(store.get("school_os_session")?.value)});
 export async function getTeacherSession(){const session=await getSession();return session?.role==="teacher"?session:null}
 export async function getAdminSession(){const session=await getSession();return session?.role==="admin"?session:null}
 export async function getStudentSession(){const session=await getSession();return session?.role==="student"?session:null}

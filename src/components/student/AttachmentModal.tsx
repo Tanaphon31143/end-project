@@ -57,7 +57,8 @@ export default function AttachmentModal({
               <h3>{attachment.name || "เอกสารหลักฐาน"}</h3>
               <p>
                 {attachment.mime} · {formatFileSize(attachment.size)}
-                {attachment.uploadDate && ` · อัปโหลดเมื่อ ${attachment.uploadDate}`}
+                {attachment.uploadDate &&
+                  ` · อัปโหลดเมื่อ ${attachment.uploadDate}`}
               </p>
             </div>
           </div>

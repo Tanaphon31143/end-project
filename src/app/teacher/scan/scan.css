@@ -81,7 +81,9 @@
   min-height: 39px;
   border-radius: 9px;
   white-space: nowrap;
-  transition: background 180ms ease, transform 180ms ease;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
 }
 
 .scan-create-button:hover {
@@ -128,7 +130,10 @@
   border: 1px solid #e4ebf4;
   border-radius: 12px;
   background: #fbfcfe;
-  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
 }
 
 .scan-session-row.active {
@@ -204,26 +209,72 @@
   color: #5f7799;
 }
 
-.scan-skeleton-heading { width: 220px; height: 28px; }
-.scan-skeleton-subtitle { width: 290px; height: 14px; margin-top: 8px; }
-.scan-skeleton-row { width: 100%; height: 78px; margin-top: 10px; }
+.scan-skeleton-heading {
+  width: 220px;
+  height: 28px;
+}
+.scan-skeleton-subtitle {
+  width: 290px;
+  height: 14px;
+  margin-top: 8px;
+}
+.scan-skeleton-row {
+  width: 100%;
+  height: 78px;
+  margin-top: 10px;
+}
 
 @media (max-width: 640px) {
-  .scan-index-panel { padding: 16px; }
-  .scan-index-panel-head { align-items: flex-start; flex-wrap: wrap; }
-  .scan-create-button { width: 100%; }
+  .scan-index-panel {
+    padding: 16px;
+  }
+  .scan-index-panel-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .scan-create-button {
+    width: 100%;
+  }
   .scan-session-row.active,
-  .scan-session-row.closed { grid-template-columns: minmax(0, 1fr) auto; gap: 7px 10px; }
-  .scan-session-row.active .scan-session-time { grid-column: 1; grid-row: 1; }
-  .scan-session-row.active .scan-session-copy { grid-column: 1; grid-row: 2; }
-  .scan-session-row.active .scan-session-status { grid-column: 2; grid-row: 1; }
-  .scan-session-row.active .scan-session-arrow { grid-column: 2; grid-row: 2; justify-self: end; }
-  .scan-session-row.closed .scan-session-copy { grid-column: 1; grid-row: 1 / 3; }
-  .scan-session-row.closed .scan-session-status { grid-column: 2; grid-row: 1; }
-  .scan-session-row.closed .scan-session-arrow { grid-column: 2; grid-row: 2; justify-self: end; }
+  .scan-session-row.closed {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 10px;
+  }
+  .scan-session-row.active .scan-session-time {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .scan-session-row.active .scan-session-copy {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .scan-session-row.active .scan-session-status {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .scan-session-row.active .scan-session-arrow {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+  .scan-session-row.closed .scan-session-copy {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  .scan-session-row.closed .scan-session-status {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .scan-session-row.closed .scan-session-arrow {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .scan-create-button,
-  .scan-session-row { transition-duration: .01ms; }
+  .scan-session-row {
+    transition-duration: 0.01ms;
+  }
 }

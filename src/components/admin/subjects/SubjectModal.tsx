@@ -115,8 +115,8 @@ export default function SubjectModal({
       const data = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(data.message || "บันทึกไม่สำเร็จ");
       await onSaved();
-      onToast(data.message || "บันทึกรายวิชาสำเร็จ", "success");
       onClose();
+      onToast(data.message || "บันทึกรายวิชาสำเร็จ", "success");
     } catch (error) {
       onToast(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",

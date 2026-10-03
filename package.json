@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:admin-schema": "node --env-file=.env.local scripts/apply-admin-schema.mjs",
     "db:teacher-schedules": "node --env-file=.env.local scripts/migrate-teacher-schedules.mjs",
+    "db:teacher-subject-requests": "node --env-file=.env.local scripts/migrate-teacher-subject-requests.mjs",
     "db:calibrate-faces": "node --env-file=.env.local scripts/calibrate-face-threshold.mjs",
     "db:student-round1": "node --env-file=.env.local scripts/migrate-student-round1.mjs",
     "db:student-round2": "node --env-file=.env.local scripts/migrate-student-round2.mjs",
@@ -40,6 +41,7 @@
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
     "sharp": "^0.35.4",
+    "sweetalert2": "^11.26.25",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

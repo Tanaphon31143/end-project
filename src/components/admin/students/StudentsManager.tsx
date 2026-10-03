@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Eye, Pencil, Save, Search, Trash2, X } from "lucide-react";
 import { Badge, PersonCell } from "@/components/admin/AdminPage";
+import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 import StudentAddDropdown from "./StudentAddDropdown";
 import {
   EMPTY_STUDENT,
@@ -146,7 +147,7 @@ export default function StudentsManager({
         throw new Error(data.message || "บันทึกข้อมูลไม่สำเร็จ");
       await reload();
       setMode(null);
-      notify(data.message || "บันทึกข้อมูลสำเร็จ", "success");
+      void showActionSuccess(data.message || "บันทึกข้อมูลสำเร็จ");
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -155,12 +156,12 @@ export default function StudentsManager({
   }
 
   async function remove(student: StudentRecord) {
-    if (
-      !window.confirm(
-        `ยืนยันการลบนักเรียน ${student.fullName}? ข้อมูลใบหน้าของนักเรียนจะถูกลบด้วย`,
-      )
-    )
-      return;
+    const confirmed = await confirmDanger({
+      title: "ลบข้อมูลนักเรียน?",
+      text: `${student.fullName} และข้อมูลใบหน้าที่ลงทะเบียนไว้จะถูกลบออกจากระบบ`,
+      confirmText: "ลบนักเรียน",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/students?id=${student.databaseId}`, {
@@ -171,7 +172,7 @@ export default function StudentsManager({
       setStudents((current) =>
         current.filter((item) => item.databaseId !== student.databaseId),
       );
-      notify(data.message || "ลบนักเรียนสำเร็จ", "success");
+      void showActionSuccess(data.message || "ลบนักเรียนสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",

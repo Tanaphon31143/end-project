@@ -8,6 +8,7 @@ import {
   analyzeVideoFrame,
   getFaceEngine,
 } from "@/lib/face-recognition";
+import { showActionSuccess } from "@/lib/sweet-alert";
 import type { FacePoseType, FaceSample, FaceStudentOption } from "./types";
 
 const poseOptions: Array<{ value: FacePoseType; label: string }> = [
@@ -92,12 +93,19 @@ export default function FaceEnrollmentModal({
     setMessage("กำลังตรวจสอบและสร้าง Face Embedding...");
     try {
       const sample = await analyzeVideoFrame(videoRef.current);
-      setSamples((current) => [...current, { ...sample, poseType: capturePose }]);
+      setSamples((current) => [
+        ...current,
+        { ...sample, poseType: capturePose },
+      ]);
       const nextPose = poseOptions.find(
-        (option) => option.value !== capturePose && !samples.some((item) => item.poseType === option.value),
+        (option) =>
+          option.value !== capturePose &&
+          !samples.some((item) => item.poseType === option.value),
       );
       if (nextPose) setCapturePose(nextPose.value);
-      setMessage(`บันทึกภาพมุม ${poseOptions.find((item) => item.value === capturePose)?.label} แล้ว`);
+      setMessage(
+        `บันทึกภาพมุม ${poseOptions.find((item) => item.value === capturePose)?.label} แล้ว`,
+      );
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "ประมวลผลใบหน้าไม่สำเร็จ",
@@ -175,15 +183,18 @@ export default function FaceEnrollmentModal({
       if (!response.ok)
         throw new Error(data.message || "บันทึกข้อมูลใบหน้าไม่สำเร็จ");
       stopCamera();
-      await onSaved(data.message || "บันทึกข้อมูลใบหน้าสำเร็จ");
+      const successMessage = data.message || "บันทึกข้อมูลใบหน้าสำเร็จ";
+      await onSaved(successMessage);
       onClose();
+      void showActionSuccess(successMessage);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {
       setBusy(false);
     }
   }
-  const posesComplete = samples.length >= 3 &&
+  const posesComplete =
+    samples.length >= 3 &&
     samples.every((sample) => sample.poseType) &&
     samples.some((sample) => sample.poseType === "FRONT") &&
     new Set(samples.map((sample) => sample.poseType)).size === samples.length;
@@ -246,13 +257,17 @@ export default function FaceEnrollmentModal({
                 <select
                   value={capturePose}
                   disabled={busy}
-                  onChange={(event) => setCapturePose(event.target.value as FacePoseType)}
+                  onChange={(event) =>
+                    setCapturePose(event.target.value as FacePoseType)
+                  }
                 >
                   {poseOptions.map((option) => (
                     <option
                       key={option.value}
                       value={option.value}
-                      disabled={samples.some((sample) => sample.poseType === option.value)}
+                      disabled={samples.some(
+                        (sample) => sample.poseType === option.value,
+                      )}
                     >
                       {option.label}
                     </option>
@@ -333,9 +348,13 @@ export default function FaceEnrollmentModal({
                     disabled={busy}
                     onChange={(event) => {
                       const poseType = event.target.value as FacePoseType;
-                      setSamples((current) => current.map((sample, sampleIndex) =>
-                        sampleIndex === index ? { ...sample, poseType } : sample,
-                      ));
+                      setSamples((current) =>
+                        current.map((sample, sampleIndex) =>
+                          sampleIndex === index
+                            ? { ...sample, poseType }
+                            : sample,
+                        ),
+                      );
                     }}
                   >
                     <option value="">ระบุมุมภาพ</option>

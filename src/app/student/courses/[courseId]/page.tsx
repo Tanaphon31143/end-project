@@ -143,7 +143,14 @@ export default async function CourseDetailPage({
               <span>วันและเวลาเรียน</span>
               <strong>
                 {course.days.length
-                  ? `${course.days.join(", ")} ${course.startTime}–${course.endTime}`
+                  ? (course.schedules.length
+                      ? course.schedules
+                          .map(
+                            (schedule) =>
+                              `${schedule.day} ${schedule.startTime}–${schedule.endTime}`,
+                          )
+                          .join(" · ")
+                      : `${course.days.join(", ")} ${course.startTime}–${course.endTime}`)
                   : "ยังไม่กำหนด"}
               </strong>
             </div>

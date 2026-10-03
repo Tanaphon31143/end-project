@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { StatCard as SharedStatCard } from "@/components/portal/StatCard";
 export function PageTitle({
   eyebrow,
   title,
@@ -35,16 +36,14 @@ export function StatCard({
   tone?: string;
 }) {
   return (
-    <article className="card stat-card">
-      <div className={`stat-icon ${tone}`}>
-        <Icon size={21} />
-      </div>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-        <small>{detail}</small>
-      </div>
-    </article>
+    <SharedStatCard
+      label={label}
+      value={value}
+      detail={detail}
+      tone={tone}
+      icon={Icon}
+      className="card"
+    />
   );
 }
 export function Badge({ children }: { children: string }) {

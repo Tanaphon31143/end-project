@@ -4,15 +4,15 @@ type Props = { icon: IconComponent; title: string; value: string; unit: string; 
 
 export function StatCard({ icon: Icon, title, value, unit, note, tone }: Props) {
   return (
-    <article className="admin-stat-card">
+    <article className={`admin-stat-card stat-tone-${tone}`}>
       <div className="stat-card-main">
+        <div className={`stat-icon stat-icon-${tone}`}><Icon size={22} strokeWidth={2.2} /></div>
         <div className="stat-card-copy">
           <p className="stat-card-title">{title}</p>
           <p className="stat-card-value"><strong>{value}</strong><span>{unit}</span></p>
         </div>
-        <div className={`stat-icon stat-icon-${tone}`}><Icon size={22} strokeWidth={2.2} /></div>
       </div>
-      <p className="stat-card-note">{note}</p>
+      <div className="stat-card-note"><span aria-hidden="true">→</span>{note}</div>
     </article>
   );
 }

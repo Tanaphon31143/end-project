@@ -1,13 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { SidebarItem } from "@/components/portal/SidebarItem";
+import type { RefObject } from "react";
 import {
   BarChart3,
   BookOpen,
   CalendarDays,
-  ChevronsLeft,
   ClipboardCheck,
   GraduationCap,
   House,
@@ -23,10 +24,10 @@ import {
 export const adminNavigation = [
   ["แดชบอร์ด", House, "/admin/dashboard"],
   ["จัดการผู้ใช้งาน", Users, "/admin/users"],
-  ["ข้อมูลนักเรียน", GraduationCap, "/admin/students"],
-  ["ข้อมูลครู", UserRound, "/admin/teachers"],
-  ["รายวิชา", BookOpen, "/admin/subjects"],
-  ["ชั้นเรียน", School, "/admin/classes"],
+  ["จัดการนักเรียน", GraduationCap, "/admin/students"],
+  ["จัดการครู", UserRound, "/admin/teachers"],
+  ["จัดการชั้นเรียน", School, "/admin/classes"],
+  ["จัดการวิชา", BookOpen, "/admin/subjects"],
   ["ข้อมูลใบหน้า", ScanFace, "/admin/faces"],
   ["เช็คชื่อ", ClipboardCheck, "/admin/attendance/check-in"],
   ["ข้อมูลการเข้าเรียน", CalendarDays, "/admin/attendance"],
@@ -38,12 +39,12 @@ export function Sidebar({
   open,
   collapsed,
   onClose,
-  onCollapse,
+  sidebarRef,
 }: {
   open: boolean;
   collapsed: boolean;
   onClose: () => void;
-  onCollapse: () => void;
+  sidebarRef: RefObject<HTMLElement | null>;
 }) {
   const pathname = usePathname();
   return (
@@ -54,7 +55,12 @@ export function Sidebar({
         onClick={onClose}
       />
       <aside
+        ref={sidebarRef}
+        id="admin-navigation"
         className={`admin-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? "true" : undefined}
+        aria-label="แถบเมนูผู้ดูแลระบบ"
       >
         <button className="sidebar-x" onClick={onClose} aria-label="ปิดเมนู">
           <X size={21} />
@@ -70,9 +76,9 @@ export function Sidebar({
             />
           </div>
           <div className="brand-copy">
-            <strong>ระบบเช็คชื่อ</strong>
-            <span>ด้วยการสแกนใบหน้า</span>
-            <small>โรงเรียนขุขันธ์</small>
+            <strong>โรงเรียนขุขันธ์</strong>
+            <span>Khukhan School</span>
+            <small>ADMINISTRATOR</small>
           </div>
         </div>
         <nav aria-label="เมนูหลัก">
@@ -82,31 +88,30 @@ export function Sidebar({
                 ? pathname === href
                 : pathname === href || pathname.startsWith(`${href}/`);
             return (
-              <Link
+              <SidebarItem
                 key={label}
                 href={href}
-                className={active ? "active" : ""}
-                title={label}
+                label={label}
+                icon={Icon}
+                iconSize={21}
+                strokeWidth={2.15}
+                active={active}
                 onClick={onClose}
-              >
-                <Icon size={19} />
-                <span>{label}</span>
-              </Link>
+              />
             );
           })}
         </nav>
         <div className="sidebar-bottom">
-          <Link href="/" title="ออกจากระบบ">
-            <LogOut size={19} />
+          <div className="sidebar-school-card">
+            <span className="sidebar-school-logo" aria-hidden="true">
+              <Image src="/school-logo.jpg" alt="" width={42} height={42} />
+            </span>
+            <div><strong>โรงเรียนขุขันธ์</strong><span>อำเภอขุขันธ์ จังหวัดศรีสะเกษ</span></div>
+          </div>
+          <Link className="portal-sidebar-logout" href="/" title="ออกจากระบบ">
+            <LogOut className="portal-sidebar-icon" size={19} />
             <span>ออกจากระบบ</span>
           </Link>
-          <button
-            onClick={onCollapse}
-            aria-label={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
-            title={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
-          >
-            <ChevronsLeft size={19} />
-          </button>
         </div>
       </aside>
     </>

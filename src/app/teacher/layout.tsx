@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { TeacherShell } from "@/components/teacher/TeacherShell";
 import { getTeacherSession } from "@/lib/auth";
-import { getTeacherIdentity, getTeacherNotifications } from "@/lib/teacher-data";
+import {
+  getTeacherIdentity,
+  getTeacherNotifications,
+} from "@/lib/teacher-data";
 import "./teacher.css";
 import "./teacher-dashboard.css";
+import "../portal-ui.css";
+import "../responsive.css";
 export const metadata: Metadata = {
   title: "ระบบสำหรับครู | School OS",
   description: "ระบบเช็คชื่อด้วยการสแกนใบหน้าสำหรับครูผู้สอน",
@@ -24,5 +29,9 @@ export default async function TeacherLayout({
     }),
   ]);
   if (!identity) redirect("/");
-  return <TeacherShell identity={identity} notifications={notifications}>{children}</TeacherShell>;
+  return (
+    <TeacherShell identity={identity} notifications={notifications}>
+      {children}
+    </TeacherShell>
+  );
 }

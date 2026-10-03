@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Clock3, MapPin, Users } from "lucide-react";
+import { CalendarDays, MapPin, Users } from "lucide-react";
 export type Course = {
   id: number;
   code: string;
@@ -31,10 +31,6 @@ export function CourseCard({
         <p>
           <CalendarDays />
           {course.day}
-        </p>
-        <p>
-          <Clock3 />
-          {course.time} น.
         </p>
         <p>
           <Users />

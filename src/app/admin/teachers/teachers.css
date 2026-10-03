@@ -83,11 +83,69 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.teacher-save-toast {
+  position: fixed;
+  top: 92px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(360px, calc(100vw - 32px));
+  min-height: 46px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  animation: teacher-toast-in 180ms ease-out;
+}
+.teacher-save-toast.success {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
+}
+.teacher-save-toast.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.teacher-save-toast > span {
+  min-width: 0;
+  flex: 1;
+}
+.teacher-save-toast > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -2px -3px -2px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+}
+.teacher-save-toast > button:hover {
+  background: rgba(15, 23, 42, 0.08);
+}
+@keyframes teacher-toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @media (max-width: 640px) {
   .teacher-subject-list {
     grid-template-columns: 1fr;
   }
   .teacher-workload {
     max-width: 180px;
+  }
+  .teacher-save-toast {
+    top: 76px;
+    right: 16px;
   }
 }

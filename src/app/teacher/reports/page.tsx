@@ -8,5 +8,9 @@ export default async function Reports() {
   const session = await getTeacherSession();
   if (!session) redirect("/");
   const courses = await getTeacherCourses(session.id);
-  return <ReportsClient courses={courses.map(({ id, code, name }) => ({ id, code, name }))} />;
+  return (
+    <ReportsClient
+      courses={courses.map(({ id, code, name }) => ({ id, code, name }))}
+    />
+  );
 }

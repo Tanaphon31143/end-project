@@ -139,7 +139,7 @@
 .admin-modal {
   overflow: hidden;
   width: min(700px, 100%);
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 24px 70px #0004;
@@ -329,7 +329,7 @@
     padding: 10px;
   }
   .admin-modal {
-    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
   }
   .attendance-form,
   .attendance-detail-grid {

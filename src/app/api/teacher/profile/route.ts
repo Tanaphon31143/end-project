@@ -32,12 +32,26 @@ export async function PATCH(request: Request) {
   });
   if (!teacher)
     return NextResponse.json({ message: "ไม่พบบัญชีครู" }, { status: 404 });
+  const fullName =
+    body.name === undefined
+      ? undefined
+      : String(body.name).trim().replace(/\s+/g, " ");
   const email =
     body.email === undefined
       ? undefined
       : String(body.email).trim().toLowerCase();
   const phone =
     body.phone === undefined ? undefined : String(body.phone).trim();
+  if (fullName !== undefined && !fullName)
+    return NextResponse.json(
+      { message: "กรุณากรอกชื่อ-นามสกุล" },
+      { status: 400 },
+    );
+  if (fullName !== undefined && fullName.length > 150)
+    return NextResponse.json(
+      { message: "ชื่อ-นามสกุลยาวเกิน 150 ตัวอักษร" },
+      { status: 400 },
+    );
   if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return NextResponse.json(
       { message: "รูปแบบอีเมลไม่ถูกต้อง" },
@@ -68,6 +82,7 @@ export async function PATCH(request: Request) {
       await tx.teacher.update({
         where: { id: teacher.id },
         data: {
+          ...(fullName !== undefined ? { fullName } : {}),
           ...(email ? { email } : {}),
           ...(phone !== undefined ? { phone: phone || null } : {}),
           ...(body.newPassword
@@ -83,7 +98,7 @@ export async function PATCH(request: Request) {
           entityId: String(teacher.id),
           description: body.newPassword
             ? "เปลี่ยนรหัสผ่านบัญชีครู"
-            : "อัปเดตข้อมูลติดต่อ",
+            : "อัปเดตข้อมูลส่วนตัวครู",
           ...requestMeta(request),
         },
       });
@@ -96,7 +111,14 @@ export async function PATCH(request: Request) {
       );
     throw error;
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    profile: {
+      name: fullName ?? teacher.fullName,
+      email: email ?? teacher.email,
+      phone: phone ?? teacher.phone ?? "",
+    },
+  });
 }
 
 export async function POST(request: Request) {

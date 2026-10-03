@@ -1,10 +1,27 @@
 import 'server-only';
 import { db } from './db';
 
+type NotificationSyncState = {
+  expiresAt: number;
+  promise: Promise<void>;
+};
+
+const globalForNotificationSync = globalThis as typeof globalThis & {
+  studentNotificationSyncs?: Map<number, NotificationSyncState>;
+};
+
+const studentNotificationSyncs =
+  globalForNotificationSync.studentNotificationSyncs ??
+  new Map<number, NotificationSyncState>();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForNotificationSync.studentNotificationSyncs = studentNotificationSyncs;
+}
+
 /** Materialize current student events at polling time. Unique keys make concurrent polls idempotent.
  * This covers both the teacher Prisma routes and the admin SQL routes using their committed data.
  */
-export async function syncStudentNotificationEvents(studentId: number) {
+async function materializeStudentNotificationEvents(studentId: number) {
   await db.execute(`INSERT INTO notifications
     (user_id,user_role,type,title,message,related_entity_type,related_entity_id,action_url,event_key)
     SELECT ?, 'student', e.type, e.title, e.message, e.entity, e.entityId, e.url, e.eventKey
@@ -59,4 +76,26 @@ export async function syncStudentNotificationEvents(studentId: number) {
     )
     ON DUPLICATE KEY UPDATE id=id`,
     [studentId, studentId, studentId, studentId, studentId, studentId, studentId, studentId]);
+}
+
+/**
+ * Collapse the server render and immediate client hydration poll into one sync.
+ * Notifications are still refreshed by the existing 30-second browser poll.
+ */
+export async function syncStudentNotificationEvents(studentId: number) {
+  const now = Date.now();
+  const current = studentNotificationSyncs.get(studentId);
+  if (current && current.expiresAt > now) return current.promise;
+
+  const promise = materializeStudentNotificationEvents(studentId).catch(
+    (error) => {
+      studentNotificationSyncs.delete(studentId);
+      throw error;
+    },
+  );
+  studentNotificationSyncs.set(studentId, {
+    expiresAt: now + 5_000,
+    promise,
+  });
+  return promise;
 }

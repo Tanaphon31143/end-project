@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ChevronDown, FileSpreadsheet, Plus, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import StudentImportModal from "./StudentImportModal";
+import { RippleButton } from "@/components/portal/RippleButton";
 type Room = { id: number; name: string; level: string };
 export default function StudentAddDropdown({
   classrooms,
@@ -16,14 +17,14 @@ export default function StudentAddDropdown({
   const router = useRouter();
   return (
     <div className="student-add-launcher">
-      <button
+      <RippleButton
         className="admin-button primary"
         onClick={() => setOpen((x) => !x)}
       >
         <Plus size={18} />
         เพิ่มนักเรียน
         <ChevronDown size={15} />
-      </button>
+      </RippleButton>
       {open && (
         <div className="student-add-menu">
           <button

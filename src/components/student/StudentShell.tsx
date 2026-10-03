@@ -6,13 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import NotificationBell from "./NotificationBell";
 import { useStudentToast } from "./StudentToast";
+import { SidebarItem } from "@/components/portal/SidebarItem";
+import { useResponsiveOverlay } from "@/components/portal/useResponsiveOverlay";
 import {
   Bell,
   BookOpen,
   Camera,
   ChartNoAxesCombined,
   ChevronDown,
-  ChevronsLeft,
   CircleUserRound,
   Clock3,
   FileWarning,
@@ -27,11 +28,11 @@ import {
 import type { StudentIdentity } from "@/lib/student-data";
 
 const menu = [
-  ["/student/dashboard", "แดชบอร์ด", LayoutDashboard],
+  ["/student/dashboard", "หน้าแรก", LayoutDashboard],
   ["/student/profile", "ข้อมูลส่วนตัว", UserRound],
   ["/student/face", "ข้อมูลใบหน้า", ScanFace],
   ["/student/courses", "รายวิชาของฉัน", BookOpen],
-  ["/student/attendance/scan", "เช็คชื่อ", Camera],
+  ["/student/attendance/scan", "เช็คชื่อเข้าเรียน", Camera],
   ["/student/attendance/history", "ประวัติการเข้าเรียน", Clock3],
   ["/student/attendance/statistics", "สถิติการเข้าเรียน", ChartNoAxesCombined],
   ["/student/attendance/report", "แจ้งปัญหาการเช็คชื่อ", FileWarning],
@@ -54,46 +55,40 @@ export default function StudentShell({
   const profileRef = useRef<HTMLDivElement>(null);
   const profileTriggerRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
-    const query = window.matchMedia('(max-width: 720px)');
+    const query = window.matchMedia("(max-width: 1023px)");
     const update = () => setMobile(query.matches);
     update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
   }, []);
   const notify = useStudentToast();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  useEffect(() => {
-    if (!drawer) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const sidebar = sidebarRef.current;
-    const items = () => Array.from(sidebar?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') || []).filter(el => el.getClientRects().length > 0);
-    items()[0]?.focus();
-    function keydown(event: KeyboardEvent) {
-      if (event.key === 'Escape') { event.preventDefault(); setDrawer(false); }
-      if (event.key !== 'Tab') return;
-      const list = items(), first = list[0], last = list.at(-1);
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    }
-    const resize = () => { if (window.innerWidth > 720) setDrawer(false); };
-    document.addEventListener('keydown', keydown);
-    window.addEventListener('resize', resize);
-    return () => { document.removeEventListener('keydown', keydown); window.removeEventListener('resize', resize); previous?.focus(); };
-  }, [drawer]);
+  useResponsiveOverlay({
+    open: drawer,
+    onClose: () => setDrawer(false),
+    containerRef: sidebarRef,
+    triggerRef: menuTriggerRef,
+    mediaQuery: "(max-width: 1023px)",
+    trapFocus: true,
+  });
 
   async function logout() {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
       const response = await fetch("/api/logout", { method: "POST" });
-      if (!response.ok) throw new Error('logout failed');
+      if (!response.ok) throw new Error("logout failed");
       router.push("/");
       router.refresh();
-    } catch { notify("ออกจากระบบไม่สำเร็จ กรุณาลองใหม่", "error"); }
-    finally { setLoggingOut(false); }
+    } catch {
+      notify("ออกจากระบบไม่สำเร็จ กรุณาลองใหม่", "error");
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   // Close profile and drawer on route change
@@ -134,7 +129,9 @@ export default function StudentShell({
 
   return (
     <div className={`student-shell ${collapsed ? "is-collapsed" : ""}`}>
-      <a className="student-skip-link" href="#student-main">ข้ามไปยังเนื้อหา</a>
+      <a className="student-skip-link" href="#student-main">
+        ข้ามไปยังเนื้อหา
+      </a>
       {drawer && (
         <button
           className="student-overlay"
@@ -142,7 +139,15 @@ export default function StudentShell({
           onClick={() => setDrawer(false)}
         />
       )}
-      <aside ref={sidebarRef} id="student-navigation" inert={mobile && !drawer} className={`student-sidebar ${drawer ? "is-open" : ""}`}>
+      <aside
+        ref={sidebarRef}
+        id="student-navigation"
+        inert={mobile && !drawer}
+        className={`student-sidebar ${drawer ? "is-open" : ""}`}
+        role={drawer ? "dialog" : undefined}
+        aria-modal={drawer ? "true" : undefined}
+        aria-label="แถบเมนูนักเรียน"
+      >
         <div className="student-brand">
           <span className="student-logo">
             <Image
@@ -154,9 +159,9 @@ export default function StudentShell({
             />
           </span>
           <div className="student-brand-copy">
-            <strong>ระบบเช็คชื่อ</strong>
-            <span>ด้วยการสแกนใบหน้า</span>
-            <small>โรงเรียนขุขันธ์</small>
+            <strong>โรงเรียนขุขันธ์</strong>
+            <span>Khukhan School</span>
+            <small>STUDENT</small>
           </div>
           <button
             className="student-mobile-close"
@@ -172,37 +177,42 @@ export default function StudentShell({
         </div>
         <nav className="student-nav" aria-label="เมนูนักเรียน">
           {menu.map(([href, label, Icon]) => (
-            <Link
+            <SidebarItem
               href={href}
               key={href}
-              title={label}
-              aria-current={pathname === href || pathname.startsWith(href + '/') ? "page" : undefined}
-              className={pathname === href ? "active" : ""}
+              label={label}
+              icon={Icon}
+              iconSize={21}
+              strokeWidth={2.15}
+              active={pathname === href || pathname.startsWith(href + "/")}
               onClick={() => setDrawer(false)}
-            >
-              <Icon size={20} />
-              <span>{label}</span>
-            </Link>
+            />
           ))}
         </nav>
         <div className="student-sidebar-footer">
-          <button className="student-logout" onClick={logout} disabled={loggingOut}>
-            <LogOut size={20} />
-            <span>ออกจากระบบ</span>
-          </button>
           <button
-            className="student-collapse"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
-            title={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
+            className="student-logout portal-sidebar-logout"
+            onClick={logout}
+            disabled={loggingOut}
           >
-            <ChevronsLeft size={19} />
+            <LogOut className="portal-sidebar-icon" size={20} />
+            <span>ออกจากระบบ</span>
           </button>
         </div>
       </aside>
       <div className="student-workspace" inert={drawer}>
         <header className="student-header">
           <button
+            className="student-menu-button desktop"
+            onClick={() => setCollapsed((value) => !value)}
+            aria-label={collapsed ? "ขยายแถบเมนู" : "ย่อแถบเมนู"}
+            aria-expanded={!collapsed}
+            aria-controls="student-navigation"
+          >
+            <Menu size={22} />
+          </button>
+          <button
+            ref={menuTriggerRef}
             className="student-menu-button mobile"
             onClick={() => setDrawer(true)}
             aria-label="เปิดเมนู"
@@ -267,7 +277,9 @@ export default function StudentShell({
             </div>
           </div>
         </header>
-        <main id="student-main" tabIndex={-1} className="student-content">{children}</main>
+        <main id="student-main" tabIndex={-1} className="student-content">
+          {children}
+        </main>
       </div>
     </div>
   );

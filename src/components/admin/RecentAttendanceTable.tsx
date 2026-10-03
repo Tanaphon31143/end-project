@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UsersRound } from "lucide-react";
 type Row = {
   id: string;
   name: string;
@@ -10,14 +11,14 @@ export function RecentAttendanceTable({ rows }: { rows: Row[] }) {
   return (
     <section className="dashboard-card table-card">
       <div className="card-head">
-        <div>
-          <h2>รายการเข้าเรียนล่าสุด</h2>
-          <p>ข้อมูลล่าสุดจากฐานข้อมูล</p>
+        <div className="dashboard-section-title">
+          <span className="section-icon violet"><UsersRound size={18} /></span>
+          <div>
+            <h2>รายการเข้าเรียนล่าสุด</h2>
+            <p>ข้อมูลล่าสุดจากฐานข้อมูล</p>
+          </div>
         </div>
-        <span className="live">
-          <i />
-          ข้อมูลจริง
-        </span>
+        <Link className="card-head-link" href="/admin/attendance">ดูทั้งหมด</Link>
       </div>
       <div className="attendance-table-wrap">
         <table>
@@ -61,9 +62,6 @@ export function RecentAttendanceTable({ rows }: { rows: Row[] }) {
           </tbody>
         </table>
       </div>
-      <Link className="view-all" href="/admin/attendance">
-        ดูทั้งหมด <span>→</span>
-      </Link>
     </section>
   );
 }

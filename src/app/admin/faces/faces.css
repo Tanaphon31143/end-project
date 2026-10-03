@@ -22,7 +22,7 @@
 .face-enroll-body,
 .face-test-body {
   overflow-y: auto;
-  max-height: calc(100vh - 190px);
+  max-height: calc(100dvh - 190px);
   padding: 5px 22px 14px;
 }
 .face-student-select {

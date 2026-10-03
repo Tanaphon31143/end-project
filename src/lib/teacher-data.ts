@@ -1,6 +1,7 @@
 import "server-only";
 import type { AttendanceStatus } from "@prisma/client";
 import type { RowDataPacket } from "mysql2/promise";
+import { cache } from "react";
 import { db } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 
@@ -29,7 +30,7 @@ function lastWeekdays(count: number) {
   return dates;
 }
 
-export async function getTeacherCourses(teacherId: number) {
+async function loadTeacherCourses(teacherId: number) {
   const dayNames = [
     "",
     "วันจันทร์",
@@ -40,19 +41,20 @@ export async function getTeacherCourses(teacherId: number) {
     "วันเสาร์",
     "วันอาทิตย์",
   ];
-  const subjects = await prisma.subject.findMany({
-    where: { teacherId, isActive: true },
-    include: {
-      classroom: {
-        select: {
-          id: true,
-          name: true,
-          _count: { select: { students: { where: { status: "ACTIVE" } } } },
+  const subjectsPromise = prisma.subject.findMany({
+      where: { teacherId, isActive: true },
+      include: {
+        classroom: {
+          select: {
+            id: true,
+            name: true,
+            level: true,
+            _count: { select: { students: { where: { status: "ACTIVE" } } } },
+          },
         },
       },
-    },
-    orderBy: { subjectCode: "asc" },
-  });
+      orderBy: { subjectCode: "asc" },
+    });
   type ScheduleRow = RowDataPacket & {
     id: number;
     subjectId: number;
@@ -61,19 +63,23 @@ export async function getTeacherCourses(teacherId: number) {
     startTime: string;
     endTime: string;
   };
-  let scheduleRows: ScheduleRow[] = [];
-  try {
-    const [rows] = await db.execute<ScheduleRow[]>(
+  const scheduleRowsPromise = db
+    .execute<ScheduleRow[]>(
       `SELECT sc.id,sc.subject_id subjectId,sc.day_of_week dayOfWeek,sc.period_name periodName,TIME_FORMAT(sc.start_time,'%H:%i') startTime,TIME_FORMAT(sc.end_time,'%H:%i') endTime FROM schedules sc JOIN subjects sb ON sb.id=sc.subject_id WHERE sb.teacher_id=? AND sc.is_active=1 ORDER BY sc.day_of_week,sc.start_time`,
       [teacherId],
-    );
-    scheduleRows = rows;
-  } catch (error) {
-    console.warn(
-      "Schedules are not migrated yet; using legacy subject times",
-      error,
-    );
-  }
+    )
+    .then(([rows]) => rows)
+    .catch((error): ScheduleRow[] => {
+      console.warn(
+        "Schedules are not migrated yet; using legacy subject times",
+        error,
+      );
+      return [];
+    });
+  const [subjects, scheduleRows] = await Promise.all([
+    subjectsPromise,
+    scheduleRowsPromise,
+  ]);
   return subjects.map((subject) => {
     const schedules = scheduleRows
       .filter((schedule) => schedule.subjectId === subject.id)
@@ -91,6 +97,12 @@ export async function getTeacherCourses(teacherId: number) {
       code: subject.subjectCode,
       name: subject.subjectName,
       room: subject.classroom?.name ?? "ยังไม่กำหนด",
+      gradeLevel: subject.gradeLevel ?? subject.classroom?.level ?? "ยังไม่ระบุ",
+      location: subject.location ?? "",
+      semester: subject.semester,
+      academicYear: subject.academicYear,
+      description: subject.description ?? "",
+      attendanceMode: subject.attendanceMode,
       classroomId: subject.classroomId,
       day: schedules.length
         ? [...new Set(schedules.map((item) => item.day))].join(", ")
@@ -108,26 +120,13 @@ export async function getTeacherCourses(teacherId: number) {
   });
 }
 
+export const getTeacherCourses = cache(loadTeacherCourses);
+
 export async function getTeacherDashboard(teacherId: number) {
   const todayKey = bangkokDate(),
     today = dateValue(todayKey);
-  const teacher = await prisma.teacher.findUnique({
-    where: { id: teacherId },
-    select: { fullName: true },
-  });
-  const courses = await getTeacherCourses(teacherId);
-  const subjectIds = courses.map((course) => course.id);
-  const classroomIds = [
-    ...new Set(
-      courses
-        .map((course) => course.classroomId)
-        .filter((id): id is number => id !== null),
-    ),
-  ];
-  const [studentCount, sessions, todayAttendance] = await Promise.all([
-    prisma.student.count({
-      where: { status: "ACTIVE", classId: { in: classroomIds } },
-    }),
+  const [courses, sessions, todayAttendance] = await Promise.all([
+    getTeacherCourses(teacherId),
     prisma.checkInSession.findMany({
       where: { sessionDate: today, subject: { teacherId } },
       include: {
@@ -140,6 +139,32 @@ export async function getTeacherDashboard(teacherId: number) {
       where: { attendanceDate: today, subject: { teacherId } },
       select: { status: true },
     }),
+  ]);
+  const subjectIds = courses.map((course) => course.id);
+  const classroomIds = [
+    ...new Set(
+      courses
+        .map((course) => course.classroomId)
+        .filter((id): id is number => id !== null),
+    ),
+  ];
+  const days = lastWeekdays(10);
+  const [studentCount, history] = await Promise.all([
+    prisma.student.count({
+      where: { status: "ACTIVE", classId: { in: classroomIds } },
+    }),
+    subjectIds.length
+      ? prisma.attendanceRecord.findMany({
+          where: {
+            subjectId: { in: subjectIds },
+            attendanceDate: {
+              gte: dateValue(days[0]),
+              lte: dateValue(days.at(-1)!),
+            },
+          },
+          select: { attendanceDate: true, status: true },
+        })
+      : Promise.resolve([]),
   ]);
   const counts: Record<AttendanceStatus, number> = {
     PRESENT: 0,
@@ -181,7 +206,8 @@ export async function getTeacherDashboard(teacherId: number) {
           : "active";
     return {
       id: String(session.id),
-      time: start,
+      href: `/teacher/scan/${session.id}`,
+      time: `${start} - ${timeText(session.endTime)}`,
       code: session.subject.subjectCode,
       name: `${session.subject.subjectName} ${session.subject.classroom?.name ?? ""}`,
       subjectName: session.subject.subjectName,
@@ -196,37 +222,76 @@ export async function getTeacherDashboard(teacherId: number) {
             : "ยังไม่เริ่ม",
     };
   });
-  const days = lastWeekdays(6);
-  const history = subjectIds.length
-    ? await prisma.attendanceRecord.findMany({
-        where: {
-          subjectId: { in: subjectIds },
-          attendanceDate: {
-            gte: dateValue(days[0]),
-            lte: dateValue(days.at(-1)!),
-          },
-        },
-        select: { attendanceDate: true, status: true },
-      })
-    : [];
-  const chart = days.map((date) => {
+  const chartWindow = days.map((date) => {
     const daily = history.filter(
       (item) => bangkokDate(item.attendanceDate) === date,
     );
     return {
       day: new Intl.DateTimeFormat("th-TH", {
-        day: "numeric",
-        month: "short",
+        weekday: "long",
         timeZone: "UTC",
       }).format(dateValue(date)),
       present: daily.filter((item) => item.status === "PRESENT").length,
       late: daily.filter((item) => item.status === "LATE").length,
       absent: daily.filter((item) => item.status === "ABSENT").length,
       leave: daily.filter((item) => item.status === "LEAVE").length,
+      total: daily.length,
+      attendanceRate: daily.length
+        ? Number(
+            ((daily.filter((item) => item.status === "PRESENT" || item.status === "LATE").length / daily.length) * 100).toFixed(1),
+          )
+        : 0,
     };
   });
+  const bangkokWeekday = (() => {
+    const day = dateValue(todayKey).getUTCDay();
+    return day === 0 ? 7 : day;
+  })();
+  const matchedSessionIds = new Set<string>();
+  const scheduleRows = courses.flatMap((course) =>
+    course.schedules
+      .filter((schedule) => schedule.dayOfWeek === bangkokWeekday)
+      .map((schedule) => {
+        const session = sessions.find(
+          (item) =>
+            item.subjectId === course.id &&
+            timeText(item.startTime) === schedule.startTime,
+        );
+        if (session) matchedSessionIds.add(String(session.id));
+        const sessionRow = sessionRows.find(
+          (item) => item.id === String(session?.id ?? ""),
+        );
+        return (
+          sessionRow ?? {
+            id: `schedule-${schedule.id}`,
+            href: "/teacher/courses",
+            time: `${schedule.startTime} - ${schedule.endTime}`,
+            code: course.code,
+            name: course.name,
+            subjectName: course.name,
+            room: course.room,
+            count: `0/${course.students}`,
+            status: "upcoming",
+            label: "ยังไม่เริ่ม",
+          }
+        );
+      }),
+  );
+  const todayRows = [
+    ...scheduleRows,
+    ...sessionRows.filter((item) => !matchedSessionIds.has(item.id)),
+  ].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  const chart = chartWindow.slice(-5);
+  const previousChart = chartWindow.slice(0, 5);
+  const averageRate = (items: typeof chart) => {
+    const recorded = items.filter((item) => item.total > 0);
+    return recorded.length
+      ? recorded.reduce((sum, item) => sum + item.attendanceRate, 0) / recorded.length
+      : 0;
+  };
+  const currentAverage = averageRate(chart);
+  const previousAverage = averageRate(previousChart);
   return {
-    teacherName: teacher?.fullName ?? "คุณครู",
     courses: courses.length,
     students: studentCount,
     counts,
@@ -236,8 +301,14 @@ export async function getTeacherDashboard(teacherId: number) {
       absent: percent(counts.ABSENT),
       leave: percent(counts.LEAVE),
     },
-    sessions: sessionRows,
+    sessions: todayRows,
     chart,
+    weeklySummary: {
+      average: Number(currentAverage.toFixed(1)),
+      change: previousAverage
+        ? Number((currentAverage - previousAverage).toFixed(1))
+        : null,
+    },
   };
 }
 
@@ -252,7 +323,7 @@ export type TeacherIdentity = {
   hasProfileImage: boolean;
 };
 
-export async function getTeacherIdentity(
+async function loadTeacherIdentity(
   teacherId: number,
 ): Promise<TeacherIdentity | null> {
   const teacher = await prisma.teacher.findUnique({
@@ -289,6 +360,8 @@ export async function getTeacherIdentity(
     hasProfileImage,
   };
 }
+
+export const getTeacherIdentity = cache(loadTeacherIdentity);
 
 export type TeacherHistoryFilters = {
   subjectId?: number;

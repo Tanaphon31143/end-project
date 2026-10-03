@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, ChevronRight, ScanFace, UserPlus } from "lucide-react";
+import { BarChart3, ScanFace, UserPlus } from "lucide-react";
 
 const links = [
   ["เพิ่มนักเรียน", UserPlus, "blue", "/admin/students"],
@@ -20,10 +20,9 @@ export function QuickMenu() {
         {links.map(([label, Icon, tone, href]) => (
           <Link href={href} key={label}>
             <span className={`quick-icon ${tone}`}>
-              <Icon size={20} />
+              <Icon size={27} strokeWidth={2.15} />
             </span>
             <b>{label}</b>
-            <ChevronRight size={18} />
           </Link>
         ))}
       </div>

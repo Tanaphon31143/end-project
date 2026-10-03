@@ -18,12 +18,20 @@ export type SubjectRecord = {
   isActive: boolean;
   description: string;
   studentCount: number;
+  scheduleSource: "SCHEDULE" | "LEGACY_SUBJECT" | "SUBJECT";
+  schedules: Array<{
+    id: number;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    periodName: string;
+  }>;
 };
 
 export type SubjectOption = { id: number; name: string };
 export type ClassroomOption = SubjectOption & { level: string };
 
-export type SubjectFormValue = Omit<SubjectRecord, "databaseId" | "teacherName" | "className" | "studentCount">;
+export type SubjectFormValue = Omit<SubjectRecord, "databaseId" | "teacherName" | "className" | "studentCount" | "scheduleSource" | "schedules">;
 
 export const EMPTY_SUBJECT: SubjectFormValue = {
   subjectCode: "", subjectName: "", teacherId: null, gradeLevel: "ม.5", classId: null,

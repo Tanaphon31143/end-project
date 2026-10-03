@@ -1,17 +1,24 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import SubjectModal from "./SubjectModal";
 import SubjectTable from "./SubjectTable";
 import type { ClassroomOption, SubjectOption, SubjectRecord } from "./types";
+import type { SubjectRequest } from "@/lib/subject-requests";
+import { SubjectRequestsQueue } from "./SubjectRequestsQueue";
+import { SubjectFilters } from "./SubjectFilters";
+import { SubjectStats } from "./SubjectStats";
+import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 type Props = {
   initialSubjects: SubjectRecord[];
+  initialRequests: SubjectRequest[];
   teachers: SubjectOption[];
   classrooms: ClassroomOption[];
   academicYear: string;
 };
 export default function SubjectsManager({
   initialSubjects,
+  initialRequests,
   teachers,
   classrooms,
   academicYear,
@@ -19,6 +26,10 @@ export default function SubjectsManager({
   const [subjects, setSubjects] = useState(initialSubjects);
   const [query, setQuery] = useState("");
   const [room, setRoom] = useState("");
+  const [semester, setSemester] = useState("");
+  const [pendingRequestCount, setPendingRequestCount] = useState(
+    initialRequests.filter((request) => request.status === "PENDING").length,
+  );
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<SubjectRecord | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -31,12 +42,13 @@ export default function SubjectsManager({
       subjects.filter(
         (s) =>
           (!query ||
-            `${s.subjectCode} ${s.subjectName}`
+            `${s.subjectCode} ${s.subjectName} ${s.teacherName}`
               .toLowerCase()
               .includes(query.toLowerCase())) &&
-          (!room || String(s.classId) === room),
+          (!room || String(s.classId) === room) &&
+          (!semester || s.semester === semester),
       ),
-    [subjects, query, room],
+    [subjects, query, room, semester],
   );
   function notify(message: string, tone: "success" | "error") {
     setToast({ message, tone });
@@ -49,12 +61,12 @@ export default function SubjectsManager({
     setSubjects(data.subjects);
   }
   async function remove(subject: SubjectRecord) {
-    if (
-      !window.confirm(
-        `ยืนยันการลบวิชา ${subject.subjectCode} ${subject.subjectName}?`,
-      )
-    )
-      return;
+    const confirmed = await confirmDanger({
+      title: "ลบรายวิชา?",
+      text: `${subject.subjectCode} ${subject.subjectName} จะถูกนำออกจากระบบ`,
+      confirmText: "ลบรายวิชา",
+    });
+    if (!confirmed) return;
     setBusyId(subject.databaseId);
     try {
       const response = await fetch(`/api/subjects?id=${subject.databaseId}`, {
@@ -65,7 +77,7 @@ export default function SubjectsManager({
       setSubjects((current) =>
         current.filter((s) => s.databaseId !== subject.databaseId),
       );
-      notify(data.message || "ลบรายวิชาสำเร็จ", "success");
+      void showActionSuccess(data.message || "ลบรายวิชาสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
@@ -76,11 +88,15 @@ export default function SubjectsManager({
     }
   }
   return (
-    <main className="admin-content">
-      <div className="page-intro">
-        <div>
-          <h2>รายวิชาทั้งหมด</h2>
-          <p>รายวิชาที่เปิดสอนในภาคเรียนปัจจุบัน</p>
+    <main className="admin-content subjects-page">
+      <div className="subjects-page-inner">
+        <div className="page-intro subjects-page-intro">
+          <div className="subjects-page-title">
+            <BookOpen size={28} aria-hidden="true" />
+            <div>
+              <h1>รายวิชา</h1>
+          <p>จัดการรายวิชา ครูผู้สอน และคำขอเปิดรายวิชาในภาคเรียนปัจจุบัน</p>
+            </div>
         </div>
         <button
           className="admin-button primary"
@@ -93,47 +109,61 @@ export default function SubjectsManager({
           เพิ่มรายวิชา
         </button>
       </div>
-      <div className="admin-filters">
-        <label>
-          <Search size={18} />
-          <input
-            aria-label="ค้นหารหัสหรือชื่อรายวิชา"
-            placeholder="ค้นหารหัสหรือชื่อรายวิชา"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
-        <select
-          aria-label="ชั้นเรียน"
-          value={room}
-          onChange={(e) => setRoom(e.target.value)}
-        >
-          <option value="">ชั้นเรียนทั้งหมด</option>
-          {classrooms.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <button
-          className="admin-button secondary"
-          onClick={() => {
-            setQuery("");
-            setRoom("");
+        <SubjectStats
+          pendingRequests={pendingRequestCount}
+          subjectCount={subjects.length}
+          classroomCount={classrooms.length}
+          teacherCount={teachers.length}
+        />
+        <SubjectRequestsQueue
+          initialRequests={initialRequests}
+          onRequestsChange={(requests) =>
+            setPendingRequestCount(
+              requests.filter((request) => request.status === "PENDING").length,
+            )
+          }
+          onApproved={() => {
+            void reload().catch((error: unknown) =>
+              notify(
+                error instanceof Error ? error.message : "โหลดรายวิชาล่าสุดไม่สำเร็จ",
+                "error",
+              ),
+            );
           }}
-        >
-          ล้างตัวกรอง
-        </button>
+        />
+        <section className="subjects-catalog">
+          <div className="subjects-catalog-head">
+            <div>
+              <h2>รายวิชาที่เปิดสอน</h2>
+              <p>ข้อมูลรายวิชาและครูผู้รับผิดชอบในภาคเรียนปัจจุบัน</p>
+            </div>
+            <span>{subjects.length.toLocaleString("th-TH")} รายวิชา</span>
+          </div>
+          <SubjectFilters
+            query={query}
+            classroomId={room}
+            semester={semester}
+            classrooms={classrooms}
+            onQueryChange={setQuery}
+            onClassroomChange={setRoom}
+            onSemesterChange={setSemester}
+            onReset={() => {
+              setQuery("");
+              setRoom("");
+              setSemester("");
+            }}
+          />
+          <SubjectTable
+            subjects={filtered}
+            onEdit={(subject) => {
+              setEditing(subject);
+              setModal(true);
+            }}
+            onDelete={remove}
+            busyId={busyId}
+          />
+        </section>
       </div>
-      <SubjectTable
-        subjects={filtered}
-        onEdit={(subject) => {
-          setEditing(subject);
-          setModal(true);
-        }}
-        onDelete={remove}
-        busyId={busyId}
-      />
       <SubjectModal
         open={modal}
         subject={editing}
@@ -142,7 +172,10 @@ export default function SubjectsManager({
         academicYear={academicYear}
         onClose={() => setModal(false)}
         onSaved={reload}
-        onToast={notify}
+        onToast={(message, tone) => {
+          if (tone === "success") void showActionSuccess(message);
+          else notify(message, tone);
+        }}
       />
       {toast && (
         <div className={`subject-toast ${toast.tone}`}>{toast.message}</div>

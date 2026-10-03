@@ -1,8 +1,19 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Eye, KeyRound, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  KeyRound,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Badge, PersonCell } from "@/components/admin/AdminPage";
+import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 import {
   EMPTY_TEACHER,
   type TeacherFormValue,
@@ -127,13 +138,14 @@ export default function TeachersManager({
         subject.teacherId &&
         subject.teacherId !== selected?.databaseId,
     );
-    if (
-      reassigned.length &&
-      !window.confirm(
-        `มี ${reassigned.length} รายวิชาที่มีครูผู้สอนอยู่แล้ว ต้องการเปลี่ยนครูผู้สอนเป็น ${value.fullName.trim()} หรือไม่?`,
-      )
-    )
-      return;
+    if (reassigned.length) {
+      const confirmed = await confirmDanger({
+        title: "เปลี่ยนครูผู้สอน?",
+        text: `มี ${reassigned.length} รายวิชาที่มีครูผู้สอนอยู่แล้ว ระบบจะเปลี่ยนเป็น ${value.fullName.trim()}`,
+        confirmText: "ยืนยันการเปลี่ยน",
+      });
+      if (!confirmed) return;
+    }
     setBusy(true);
     setServerError("");
     try {
@@ -148,7 +160,7 @@ export default function TeachersManager({
         throw new Error(data.message || "บันทึกข้อมูลไม่สำเร็จ");
       await reload();
       setMode(null);
-      notify(data.message || "บันทึกข้อมูลสำเร็จ", "success");
+      void showActionSuccess(data.message || "บันทึกข้อมูลสำเร็จ");
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -156,7 +168,12 @@ export default function TeachersManager({
     }
   }
   async function remove(teacher: TeacherRecord) {
-    if (!window.confirm(`ยืนยันการลบข้อมูลครู ${teacher.fullName}?`)) return;
+    const confirmed = await confirmDanger({
+      title: "ลบข้อมูลครู?",
+      text: `ข้อมูลของ ${teacher.fullName} จะถูกนำออกจากระบบ`,
+      confirmText: "ลบข้อมูลครู",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/teachers?id=${teacher.databaseId}`, {
@@ -167,7 +184,7 @@ export default function TeachersManager({
       setTeachers((current) =>
         current.filter((item) => item.databaseId !== teacher.databaseId),
       );
-      notify(data.message || "ลบข้อมูลครูสำเร็จ", "success");
+      void showActionSuccess(data.message || "ลบข้อมูลครูสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
@@ -561,7 +578,25 @@ export default function TeachersManager({
         </div>
       )}
       {toast && (
-        <div className={`subject-toast ${toast.tone}`}>{toast.message}</div>
+        <div
+          className={`teacher-save-toast ${toast.tone}`}
+          role={toast.tone === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {toast.tone === "success" ? (
+            <CheckCircle2 aria-hidden="true" size={18} />
+          ) : (
+            <AlertCircle aria-hidden="true" size={18} />
+          )}
+          <span>{toast.message}</span>
+          <button
+            type="button"
+            aria-label="ปิดข้อความแจ้งเตือน"
+            onClick={() => setToast(null)}
+          >
+            <X aria-hidden="true" size={16} />
+          </button>
+        </div>
       )}
     </main>
   );

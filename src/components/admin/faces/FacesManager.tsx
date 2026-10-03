@@ -16,6 +16,7 @@ import { Badge, PersonCell } from "@/components/admin/AdminPage";
 import FaceEnrollmentModal from "./FaceEnrollmentModal";
 import FaceRecognitionModal from "./FaceRecognitionModal";
 import type { FaceRecord, FaceStatus, FaceStudentOption } from "./types";
+import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 
 const STATUS_LABEL: Record<FaceStatus, string> = {
   READY: "พร้อมใช้งาน",
@@ -72,8 +73,12 @@ export default function FacesManager({
     if (message) notify(message, "success");
   }
   async function remove(face: FaceRecord) {
-    if (!window.confirm(`ยืนยันการลบข้อมูลใบหน้าของ ${face.studentName}?`))
-      return;
+    const confirmed = await confirmDanger({
+      title: "ลบข้อมูลใบหน้า?",
+      text: `ข้อมูลใบหน้าของ ${face.studentName} จะถูกลบและไม่สามารถใช้เช็กชื่อได้`,
+      confirmText: "ลบข้อมูลใบหน้า",
+    });
+    if (!confirmed) return;
     setBusyId(face.studentId);
     try {
       const response = await fetch(`/api/faces?studentId=${face.studentId}`, {
@@ -81,7 +86,8 @@ export default function FacesManager({
         }),
         data = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(data.message || "ลบข้อมูลไม่สำเร็จ");
-      await reload(data.message);
+      await reload();
+      void showActionSuccess(data.message || "ลบข้อมูลใบหน้าสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
@@ -290,7 +296,7 @@ export default function FacesManager({
           students={students}
           initialStudentId={enrollStudent}
           onClose={() => setEnrollStudent(undefined)}
-          onSaved={async (message) => reload(message)}
+          onSaved={async () => reload()}
         />
       )}{" "}
       {testing && <FaceRecognitionModal onClose={() => setTesting(false)} />}{" "}

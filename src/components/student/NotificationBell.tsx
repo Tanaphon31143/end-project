@@ -1,300 +1,55 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  Bell,
-  Check,
-  CheckCheck,
-  Clock,
-  ExternalLink,
-  Info,
-  ShieldAlert,
-  CalendarCheck,
-  FileCheck2,
-  FileX2,
-} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import SharedNotificationBell, { type NotificationItem } from "@/components/notifications/NotificationBell";
 import type { AppNotification } from "@/lib/notifications";
 
-function getNotificationIcon(type: string) {
-  switch (type) {
-    case 'ATTENDANCE_SUCCESS':
-      return <CalendarCheck className="notif-type-icon notif-success" size={18} />;
-    case 'ISSUE_RESOLVED':
-      return <FileCheck2 className="notif-type-icon notif-info" size={18} />;
-    case 'COURSE_UPDATED':
-      return <Info className="notif-type-icon notif-info" size={18} />;
-    case "SESSION_OPENED":
-      return <CalendarCheck className="notif-type-icon notif-session" size={18} />;
-    case "SESSION_EXPIRING":
-      return <Clock className="notif-type-icon notif-warning" size={18} />;
-    case "REQUEST_APPROVED":
-      return <FileCheck2 className="notif-type-icon notif-success" size={18} />;
-    case "REQUEST_REJECTED":
-      return <FileX2 className="notif-type-icon notif-danger" size={18} />;
-    case "ATTENDANCE_LATE":
-    case "ATTENDANCE_ABSENT":
-    case "ATTENDANCE_ANOMALY":
-      return <ShieldAlert className="notif-type-icon notif-danger" size={18} />;
-    default:
-      return <Info className="notif-type-icon notif-info" size={18} />;
-  }
-}
-
-function getNotificationTypeBadge(type: string) {
-  switch (type) {
-    case 'ATTENDANCE_SUCCESS': return <span className="notif-badge approved">เช็คชื่อสำเร็จ</span>;
-    case 'ISSUE_RESOLVED': return <span className="notif-badge info">ผลคำร้อง</span>;
-    case 'COURSE_UPDATED': return <span className="notif-badge info">รายวิชาเปลี่ยนแปลง</span>;
-    case "SESSION_OPENED":
-      return <span className="notif-badge session">เปิดคาบเช็คชื่อ</span>;
-    case "SESSION_EXPIRING":
-      return <span className="notif-badge expiring">ใกล้หมดเวลา</span>;
-    case "REQUEST_APPROVED":
-      return <span className="notif-badge approved">อนุมัติคำร้อง</span>;
-    case "REQUEST_REJECTED":
-      return <span className="notif-badge rejected">ปฏิเสธคำร้อง</span>;
-    case "ATTENDANCE_LATE":
-      return <span className="notif-badge late">มาสาย</span>;
-    case "ATTENDANCE_ABSENT":
-      return <span className="notif-badge absent">ขาดเรียน</span>;
-    case "ATTENDANCE_ANOMALY":
-      return <span className="notif-badge anomaly">ข้อมูลผิดปกติ</span>;
-    default:
-      return <span className="notif-badge info">แจ้งเตือน</span>;
-  }
+function mapNotification(item: AppNotification): NotificationItem {
+  const type: NotificationItem["type"] = item.type === "REQUEST_REJECTED" || item.type === "ATTENDANCE_ABSENT" || item.type === "ATTENDANCE_ANOMALY" ? "error" : item.type === "REQUEST_APPROVED" || item.type === "ATTENDANCE_SUCCESS" || item.type === "ISSUE_RESOLVED" ? "success" : item.type === "SESSION_EXPIRING" || item.type === "ATTENDANCE_LATE" ? "warning" : "info";
+  const category: Record<string, string> = { REQUEST_APPROVED: "คำขอรายวิชา", REQUEST_REJECTED: "ปฏิเสธคำร้อง", COURSE_UPDATED: "รายวิชาเปลี่ยนแปลง", ATTENDANCE_SUCCESS: "เช็คชื่อ", ATTENDANCE_ABSENT: "เช็คชื่อ", ATTENDANCE_LATE: "เช็คชื่อ", ATTENDANCE_ANOMALY: "เช็คชื่อ", SESSION_OPENED: "เช็คชื่อ", SESSION_EXPIRING: "เช็คชื่อ", ISSUE_RESOLVED: "ผลคำร้อง" };
+  return { id: String(item.id), type, category: category[item.type] ?? "แจ้งเตือน", title: item.title, description: item.message, createdAt: item.createdAt, href: item.actionUrl ?? undefined, read: item.isRead };
 }
 
 export default function NotificationBell() {
-  const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [fetching, setFetching] = useState(false);
-  const fetchingRef = useRef(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const router = useRouter();
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [error, setError] = useState("");
+  const fetching = useRef(false);
   const pathname = usePathname();
 
-  async function fetchNotifications() {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
-    setFetching(true);
+  const fetchNotifications = useCallback(async () => {
+    if (fetching.current) return;
+    fetching.current = true;
     try {
-      const res = await fetch("/api/student/notifications", { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(Number(data.unreadCount) || 0);
-        setError('');
-      } else throw new Error('fetch failed');
+      const response = await fetch("/api/student/notifications", { cache: "no-store" });
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      setItems((data.notifications ?? []).map(mapNotification));
+      setError("");
     } catch {
-      setError('โหลดแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่');
-    } finally { fetchingRef.current = false; setFetching(false); }
-  }
+      setError("โหลดแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      fetching.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => void fetchNotifications());
-    const interval = setInterval(() => { if (!document.hidden) void fetchNotifications(); }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = window.setInterval(() => { if (!document.hidden) void fetchNotifications(); }, 30000);
+    return () => window.clearInterval(interval);
+  }, [fetchNotifications, pathname]);
 
-  // Close dropdown on route change
-  useEffect(() => {
-    queueMicrotask(() => setOpen(false));
-  }, [pathname]);
-
-  // Close dropdown on click outside or Escape
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && open) {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    }
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
-
-  async function handleMarkRead(id: number, e?: React.MouseEvent) {
-    if (e) e.stopPropagation();
+  async function mark(id?: string) {
+    const previous = items;
+    setItems((current) => id ? current.map((item) => item.id === id ? { ...item, read: true } : item) : current.map((item) => ({ ...item, read: true })));
     try {
-      const response = await fetch("/api/student/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!response.ok) throw new Error('update failed');
-      await fetchNotifications();
+      const response = await fetch("/api/student/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(id ? { id: Number(id) } : { markAll: true }) });
+      if (!response.ok) throw new Error();
     } catch {
-      setError('อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่');
+      setItems(previous);
+      setError("อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่");
     }
   }
 
-  async function handleMarkAllRead() {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/student/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markAll: true }),
-      });
-      if (!response.ok) throw new Error('update failed');
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch { setError('อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่'); } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleItemClick(notif: AppNotification) {
-    if (!notif.isRead) {
-      handleMarkRead(notif.id);
-    }
-    setOpen(false);
-    if (notif.actionUrl?.startsWith('/student/') && !notif.actionUrl.includes('\\')) {
-      router.push(notif.actionUrl);
-    }
-  }
-
-  return (
-    <div className="notif-wrapper" ref={dropdownRef}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="notification notif-trigger-btn"
-        aria-label={`การแจ้งเตือน ${unreadCount > 0 ? `มี ${unreadCount} รายการใหม่` : ""}`}
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => {
-          setOpen((v) => !v);
-          if (!open) fetchNotifications();
-        }}
-      >
-        <Bell size={21} />
-        {unreadCount > 0 ? (
-          <span className="notif-count-badge" aria-hidden="true">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        ) : (
-          <i />
-        )}
-      </button>
-
-      {open && (
-        <div
-          className="notif-panel card"
-          role="dialog"
-          aria-label="แผงการแจ้งเตือน"
-        >
-          <header className="notif-header">
-            <div>
-              <strong>การแจ้งเตือน</strong>
-              {unreadCount > 0 && (
-                <span className="notif-header-unread">{unreadCount} ใหม่</span>
-              )}
-            </div>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                className="notif-mark-all-btn"
-                onClick={handleMarkAllRead}
-                disabled={loading}
-                title="ทำเครื่องหมายว่าอ่านแล้วทั้งหมด"
-              >
-                <CheckCheck size={16} /> อ่านทั้งหมดแล้ว
-              </button>
-            )}
-          </header>
-
-          <div className="notif-list">
-            {error && <div role="alert"><p>{error}</p><button type="button" onClick={fetchNotifications}>ลองใหม่</button></div>}
-            {fetching && !notifications.length ? <p role="status">กำลังโหลดแจ้งเตือน...</p> : notifications.length === 0 ? (
-              <div className="notif-empty">
-                <Bell size={32} />
-                <p>ไม่มีการแจ้งเตือนในขณะนี้</p>
-                <small>เมื่อมีรอบเช็คชื่อหรือผลคำร้อง ข้อมูลจะปรากฏที่นี่</small>
-              </div>
-            ) : (
-              notifications.slice(0, 10).map((n) => (
-                <div
-                  key={n.id}
-                  className={`notif-item ${n.isRead ? "is-read" : "is-unread"}`}
-                  onClick={() => handleItemClick(n)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      if (e.target !== e.currentTarget) return;
-                      e.preventDefault();
-                      handleItemClick(n);
-                    }
-                  }}
-                >
-                  <div className="notif-item-icon">{getNotificationIcon(n.type)}</div>
-                  <div className="notif-item-content">
-                    <div className="notif-item-top">
-                      {getNotificationTypeBadge(n.type)}
-                      <span className="notif-time">{n.createdAt}</span>
-                    </div>
-                    <h4 className="notif-title">{n.title}</h4>
-                    <p className="notif-desc">{n.message}</p>
-                    {n.actionUrl && (
-                      <span className="notif-action-hint">
-                        กดเพื่อดูรายละเอียด <ExternalLink size={12} />
-                      </span>
-                    )}
-                  </div>
-                  {!n.isRead && (
-                    <button
-                      type="button"
-                      className="notif-item-read-btn"
-                      onClick={(e) => handleMarkRead(n.id, e)}
-                      title="ทำเครื่องหมายว่าอ่านแล้ว"
-                      aria-label="ทำเครื่องหมายว่าอ่านแล้ว"
-                    >
-                      <Check size={14} />
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          <footer className="notif-footer">
-            <button
-              type="button"
-              className="notif-view-all-link"
-              onClick={() => {
-                setOpen(false);
-                router.push("/student/notifications");
-              }}
-            >
-              ดูประวัติการแจ้งเตือนทั้งหมด
-            </button>
-          </footer>
-        </div>
-      )}
-    </div>
-  );
+  return <><SharedNotificationBell role="student" items={items} onRead={(id) => void mark(id)} onReadAll={() => void mark()} />{error && <span className="shared-notif-live-error" role="status">{error}</span>}</>;
 }

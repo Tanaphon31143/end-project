@@ -20,6 +20,7 @@ import type {
   ClassStudent,
   TeacherOption,
 } from "./types";
+import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 type Props = {
   initialClasses: Classroom[];
   initialStudents: Record<number, ClassStudent[]>;
@@ -119,18 +120,33 @@ export default function ClassesManager({
     if (!selected && d.classrooms[0]) setSelected(d.classrooms[0].id);
   }
   async function removeStudent(student: ClassStudent) {
-    if (!window.confirm(`ยืนยันการลบนักเรียน ${student.name}? ข้อมูลใบหน้าจะถูกลบด้วย`)) return;
+    const confirmed = await confirmDanger({
+      title: "ลบนักเรียนออกจากระบบ?",
+      text: `${student.name} และข้อมูลใบหน้าที่ลงทะเบียนไว้จะถูกลบด้วย`,
+      confirmText: "ลบนักเรียน",
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
-      const response = await fetch(`/api/students?id=${student.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/students?id=${student.id}`, {
+        method: "DELETE",
+      });
       const data = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(data.message || "ลบนักเรียนไม่สำเร็จ");
       setStudents((current) => ({
         ...current,
-        [selected]: (current[selected] || []).filter((item) => item.id !== student.id),
+        [selected]: (current[selected] || []).filter(
+          (item) => item.id !== student.id,
+        ),
       }));
-      setClasses((current) => current.map((item) => item.id === selected ? { ...item, studentCount: Math.max(0, item.studentCount - 1) } : item));
-      notify(data.message || "ลบนักเรียนสำเร็จ");
+      setClasses((current) =>
+        current.map((item) =>
+          item.id === selected
+            ? { ...item, studentCount: Math.max(0, item.studentCount - 1) }
+            : item,
+        ),
+      );
+      void showActionSuccess(data.message || "ลบนักเรียนสำเร็จ");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "เกิดข้อผิดพลาด");
       notify(caught instanceof Error ? caught.message : "เกิดข้อผิดพลาด");
@@ -161,15 +177,24 @@ export default function ClassesManager({
     }
     await reload();
     setModal(false);
-    notify(d.message);
+    void showActionSuccess(d.message || "บันทึกห้องเรียนสำเร็จ");
   }
   async function remove(c: Classroom) {
     setMenu(null);
-    if (!confirm(`คุณต้องการลบห้อง ${c.name} หรือไม่?`)) return;
+    const confirmed = await confirmDanger({
+      title: "ลบห้องเรียน?",
+      text: `ห้อง ${c.name} จะถูกนำออกจากระบบ`,
+      confirmText: "ลบห้องเรียน",
+    });
+    if (!confirmed) return;
     const r = await fetch(`/api/classes?id=${c.id}`, { method: "DELETE" }),
       d = await r.json();
-    notify(d.message);
-    if (r.ok) await reload();
+    if (r.ok) {
+      await reload();
+      void showActionSuccess(d.message || "ลบห้องเรียนสำเร็จ");
+    } else {
+      notify(d.message || "ลบห้องเรียนไม่สำเร็จ");
+    }
   }
   return (
     <main className="admin-content">
@@ -246,7 +271,8 @@ export default function ClassesManager({
           </article>
         ))}
       </section>
-      {menu !== null && menuPosition &&
+      {menu !== null &&
+        menuPosition &&
         createPortal(
           <>
             <div
@@ -358,13 +384,32 @@ export default function ClassesManager({
                     </td>
                     <td>
                       <div className="student-icon-actions">
-                        <button title="ดูรายละเอียด" onClick={() => router.push(`/admin/students?student=${s.id}&mode=view`)}>
+                        <button
+                          title="ดูรายละเอียด"
+                          onClick={() =>
+                            router.push(
+                              `/admin/students?student=${s.id}&mode=view`,
+                            )
+                          }
+                        >
                           <Eye size={15} />
                         </button>
-                        <button title="แก้ไข" onClick={() => router.push(`/admin/students?student=${s.id}&mode=edit`)}>
+                        <button
+                          title="แก้ไข"
+                          onClick={() =>
+                            router.push(
+                              `/admin/students?student=${s.id}&mode=edit`,
+                            )
+                          }
+                        >
                           <Pencil size={15} />
                         </button>
-                        <button title="ลบ" className="danger" disabled={busy} onClick={() => void removeStudent(s)}>
+                        <button
+                          title="ลบ"
+                          className="danger"
+                          disabled={busy}
+                          onClick={() => void removeStudent(s)}
+                        >
                           <Trash2 size={15} />
                         </button>
                       </div>

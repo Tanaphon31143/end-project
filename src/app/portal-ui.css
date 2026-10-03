@@ -1,0 +1,729 @@
+/* The student portal is the visual source of truth for both role workspaces. */
+.student-shell,
+.teacher-app {
+  --portal-navy: #0b2345;
+  --portal-blue: #1677ff;
+  --portal-ink: #12233f;
+  --portal-muted: #62748c;
+  --portal-line: #e4eaf2;
+  --portal-bg: #f4f7fb;
+  --portal-radius: 16px;
+  font-family: var(--font-sf-thonburi), Tahoma, "Leelawadee UI", sans-serif;
+  line-height: 1.5;
+  color: var(--portal-ink);
+  background: var(--portal-bg);
+  font-synthesis: none;
+}
+
+.student-shell :is(button, input, select, textarea),
+.teacher-app :is(button, input, select, textarea) {
+  font: inherit;
+}
+.student-shell :is(p, span, small, strong, b, label, a, button, th, td),
+.teacher-app :is(p, span, small, strong, b, label, a, button, th, td) {
+  line-height: 1.5;
+}
+.student-shell :is(h1, h2, h3, h4),
+.teacher-app :is(h1, h2, h3, h4) {
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+.student-shell :is(button, a, input, select, textarea):focus-visible,
+.teacher-app :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid var(--portal-blue);
+  outline-offset: 3px;
+}
+.teacher-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 12px;
+  background: #fff;
+  color: #0b2345;
+  transform: translateY(-150%);
+}
+.teacher-skip-link:focus {
+  transform: translateY(0);
+}
+.student-shell :is(button, input, select, textarea):disabled,
+.teacher-app :is(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+.student-shell ::selection,
+.teacher-app ::selection {
+  background: #cce1ff;
+  color: #0b2345;
+}
+
+/* Shared feedback language across the three role sidebars. */
+.portal-sidebar-item,
+.portal-sidebar-logout {
+  cursor: pointer;
+  transform-origin: center left;
+  transition:
+    transform 200ms ease-out,
+    background-color 200ms ease-out,
+    color 200ms ease-out,
+    box-shadow 200ms ease-out;
+}
+
+.portal-sidebar-icon {
+  flex: none;
+  transition: transform 200ms ease-out;
+}
+
+.teacher-app .portal-sidebar-item,
+.student-shell .portal-sidebar-item {
+  color: #d7e4f3;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.teacher-app .portal-sidebar-item .portal-sidebar-icon,
+.student-shell .portal-sidebar-item .portal-sidebar-icon {
+  width: 21px;
+  height: 21px;
+  color: currentColor;
+  stroke-width: 2.15;
+}
+
+.teacher-app .portal-sidebar-logout,
+.student-shell .portal-sidebar-logout {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+@media (hover: hover) {
+  .portal-sidebar-item:hover,
+  .portal-sidebar-logout:hover {
+    transform: translateX(6px);
+  }
+
+  .portal-sidebar-item:not(.active):hover {
+    background-color: rgb(255 255 255 / 10%);
+    color: #fff;
+  }
+
+  .portal-sidebar-item:hover .portal-sidebar-icon {
+    transform: rotate(12deg) scale(1.1);
+  }
+
+  .portal-sidebar-logout:hover {
+    background-color: rgb(244 63 94 / 15%);
+    color: #fecdd3;
+  }
+
+  .portal-sidebar-logout:hover .portal-sidebar-icon {
+    transform: rotate(-12deg) scale(1.1);
+  }
+}
+
+@media (hover: none) {
+  .portal-sidebar-item:not(.active):hover,
+  .portal-sidebar-logout:hover:not(:disabled) {
+    background-color: transparent;
+    transform: none;
+  }
+}
+
+.portal-sidebar-item:active,
+.portal-sidebar-logout:active:not(:disabled) {
+  transform: translateX(6px) scale(0.95);
+}
+
+/* Buttons, cards, rows and fields keep layout stable while acknowledging input. */
+:is(.admin-shell .admin-button, .teacher-app .button, .student-shell .button) {
+  cursor: pointer;
+  transition:
+    transform 200ms ease-out,
+    box-shadow 200ms ease-out,
+    background-color 200ms ease-out,
+    border-color 200ms ease-out,
+    color 200ms ease-out;
+}
+
+@media (hover: hover) {
+  :is(.admin-shell .admin-button, .teacher-app .button, .student-shell .button):hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgb(15 23 42 / 12%);
+  }
+}
+
+:is(.admin-shell .admin-button, .teacher-app .button, .student-shell .button):active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+:is(.admin-shell .admin-button, .teacher-app .button, .student-shell .button):disabled {
+  pointer-events: none;
+  transform: none;
+}
+
+:is(.table-actions, .student-icon-actions) button,
+.teacher-app .icon-button {
+  cursor: pointer;
+  transition:
+    transform 180ms ease-out,
+    background-color 180ms ease-out,
+    color 180ms ease-out;
+}
+
+@media (hover: hover) {
+  :is(.table-actions, .student-icon-actions) button:hover:not(:disabled),
+  .teacher-app .icon-button:hover:not(:disabled) {
+    background: #e6f0ff;
+    color: #1d4ed8;
+    transform: translateY(-2px);
+  }
+
+  :is(.table-actions, .student-icon-actions) button.danger:hover:not(:disabled) {
+    background: #ffe4e6;
+    color: #dc2626;
+  }
+}
+
+:is(.table-actions, .student-icon-actions) button:active:not(:disabled),
+.teacher-app .icon-button:active:not(:disabled) {
+  transform: scale(0.88);
+}
+
+:is(.admin-stat-card, .teacher-app .dashboard-stats > .stat-card, .student-shell .dashboard-stats-grid > .stat-card) {
+  cursor: pointer;
+  transition:
+    transform 200ms ease-out,
+    box-shadow 200ms ease-out;
+  animation: portal-stat-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+:is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(2) { animation-delay: 100ms; }
+:is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(3) { animation-delay: 200ms; }
+:is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(4) { animation-delay: 300ms; }
+:is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(n + 5) { animation-delay: 400ms; }
+
+@keyframes portal-stat-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (hover: hover) {
+  :is(.admin-stat-card, .teacher-app .dashboard-stats > .stat-card, .student-shell .dashboard-stats-grid > .stat-card):hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgb(32 63 98 / 16%);
+  }
+}
+
+:is(.admin-stat-card, .teacher-app .dashboard-stats > .stat-card, .student-shell .dashboard-stats-grid > .stat-card):active {
+  transform: scale(0.97);
+}
+
+:is(.admin-data-wrap, .attendance-table-wrap, .teacher-app .table-wrap, .student-shell .table-wrap) tbody tr {
+  transition: background-color 150ms ease-out;
+}
+
+@media (hover: hover) {
+  :is(.admin-data-wrap, .attendance-table-wrap, .teacher-app .table-wrap, .student-shell .table-wrap) tbody tr:hover > :is(td, th) {
+    background-color: rgb(239 246 255 / 60%);
+  }
+}
+
+:is(.admin-data-wrap, .attendance-table-wrap, .teacher-app .table-wrap, .student-shell .table-wrap) tbody tr:active > :is(td, th) {
+  background-color: rgb(219 234 254 / 75%);
+}
+
+:is(.admin-shell, .teacher-app, .student-shell)
+  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out,
+    background-color 180ms ease-out;
+}
+
+:is(.admin-shell, .teacher-app, .student-shell)
+  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 30%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-sidebar-item,
+  .portal-sidebar-logout,
+  .portal-sidebar-icon,
+  :is(.admin-shell .admin-button, .teacher-app .button, .student-shell .button),
+  :is(.table-actions, .student-icon-actions) button,
+  .teacher-app .icon-button,
+  :is(.admin-data-wrap, .attendance-table-wrap, .teacher-app .table-wrap, .student-shell .table-wrap) tbody tr,
+  :is(.admin-shell, .teacher-app, .student-shell)
+    :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+  :is(.admin-stat-card, .teacher-app .dashboard-stats > .stat-card, .student-shell .dashboard-stats-grid > .stat-card) {
+    transition: none;
+    transform: none !important;
+    animation: none;
+  }
+}
+
+/* Match the teacher shell to the established student shell. */
+.teacher-app {
+  --teacher-sidebar-w: 268px;
+  --navy: var(--portal-navy);
+  --blue: var(--portal-blue);
+  --bg: var(--portal-bg);
+  --text: var(--portal-ink);
+  --muted: var(--portal-muted);
+  --border: var(--portal-line);
+}
+.teacher-app .sidebar {
+  width: var(--teacher-sidebar-w);
+  padding: 22px 16px;
+  background: linear-gradient(180deg, #0b2345, #0d2c54 66%, #0a203e);
+  box-shadow: none;
+  z-index: 40;
+}
+.teacher-app .brand {
+  gap: 12px;
+  padding: 0 8px 20px;
+}
+.teacher-app .brand-mark {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.teacher-app .brand-mark img {
+  border-radius: 12px;
+  object-fit: cover;
+}
+.teacher-app .brand b {
+  color: #fff;
+  font-size: 1rem;
+}
+.teacher-app .brand span {
+  color: #84a5c8;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+.teacher-app .brand small {
+  color: #84a5c8;
+  font-size: 0.7rem;
+}
+.teacher-app .teacher-role {
+  min-height: 42px;
+  margin: 18px 7px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+.teacher-app .sidebar nav {
+  gap: 5px;
+  padding: 0;
+}
+.teacher-app .sidebar nav a,
+.teacher-app .teacher-logout {
+  min-height: 46px;
+  padding: 8px 13px;
+  border-radius: 11px;
+  font-size: 0.88rem;
+  color: #b8cbe1;
+}
+.teacher-app .sidebar nav a.active,
+.teacher-app .sidebar nav a.active:hover,
+.teacher-app .sidebar nav a.active:focus-visible {
+  background: var(--portal-blue);
+  color: #fff;
+  box-shadow: 0 8px 20px #0069e850;
+}
+.teacher-app .sidebar nav a:hover:not(.active) {
+  background: #ffffff0d;
+}
+.teacher-app .sidebar-foot {
+  padding-top: 12px;
+}
+.teacher-app .sidebar-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.teacher-app .teacher-logout {
+  color: #ffb5b8;
+}
+.teacher-app.sidebar-is-collapsed {
+  --teacher-sidebar-w: 78px;
+}
+.teacher-app .topbar {
+  height: 74px;
+  padding-inline: 30px;
+  border-color: var(--portal-line);
+  z-index: 30;
+}
+.teacher-app .notification {
+  background: transparent;
+  color: #607187;
+}
+.teacher-app .notification:hover {
+  background: #f2f6fa;
+}
+.teacher-app .teacher-profile-trigger .avatar {
+  background: linear-gradient(135deg, #2d8cff, #145dcc);
+  color: #fff;
+}
+.teacher-app .page-content {
+  max-width: 1500px;
+  margin-inline: auto;
+  padding: 28px 30px 46px;
+}
+.teacher-app .page-head h2 {
+  font-size: 1.65rem;
+}
+
+/* One surface, control, status and table vocabulary on every role page. */
+.teacher-app
+  :is(
+    .panel,
+    .course-card,
+    .stat-card,
+    .summary-box,
+    .subject-request-form,
+    .subject-request-history
+  ),
+.student-shell .card {
+  border: 1px solid var(--portal-line);
+  border-radius: var(--portal-radius);
+  background: #fff;
+  box-shadow: 0 7px 20px #203f6210;
+}
+.teacher-app .button,
+.student-shell .button {
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 9px 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+.teacher-app .button.primary,
+.student-shell .button.primary {
+  background: var(--portal-blue);
+  color: #fff;
+}
+.teacher-app .button.primary:hover:not(:disabled),
+.student-shell .button.primary:hover:not(:disabled) {
+  background: #075fcc;
+}
+.teacher-app .button:disabled,
+.student-shell .button:disabled {
+  opacity: 0.58;
+}
+.teacher-app :is(.status, .subject-request-status, .dashboard-session-status),
+.student-shell .badge {
+  min-height: 26px;
+  align-items: center;
+  line-height: 1.5 !important;
+  padding: 4px 9px;
+  white-space: normal;
+  text-align: center;
+}
+.teacher-app
+  :is(.status.active, .status.PRESENT, .subject-request-status.approved) {
+  background: #e8f8f0;
+  color: #15865b;
+}
+.teacher-app
+  :is(.status.upcoming, .status.LATE, .subject-request-status.pending) {
+  background: #fff3db;
+  color: #a96806;
+}
+.teacher-app :is(.status.ABSENT, .subject-request-status.rejected) {
+  background: #ffeaec;
+  color: #bd3947;
+}
+.teacher-app .table-wrap,
+.student-shell .table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.teacher-app .data-table th,
+.student-shell .data-table th {
+  padding: 12px 18px;
+  background: #f8fafc;
+  color: #61738b;
+  font-size: 0.78rem;
+  vertical-align: middle;
+}
+.teacher-app .data-table td,
+.student-shell .data-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf1f5;
+  font-size: 0.84rem;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.teacher-app .data-table tr:hover td,
+.student-shell .data-table tr:hover td {
+  background: #fbfdff;
+}
+.teacher-app
+  :is(
+    .field input,
+    .field select,
+    .field textarea,
+    .filters input,
+    .filters select,
+    .camera-picker select,
+    .subject-request-fields input,
+    .subject-request-fields select,
+    .subject-request-fields textarea,
+    .subject-request-schedule input,
+    .subject-request-schedule select
+  ),
+.student-shell
+  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  min-height: 44px;
+  border-radius: 10px;
+  color: var(--portal-ink);
+  line-height: 1.5;
+}
+.teacher-app .modal,
+.student-shell .student-modal {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.teacher-app .modal-backdrop {
+  padding: 16px;
+}
+.teacher-app .teacher-notification-menu {
+  width: min(340px, calc(100vw - 24px));
+}
+.teacher-app .teacher-notification-item {
+  border-radius: 8px;
+}
+.teacher-app .reports-stat-card {
+  border-color: var(--portal-line);
+  border-radius: var(--portal-radius);
+  box-shadow: 0 7px 20px #203f6210;
+  min-height: 142px;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.teacher-app .reports-stat-copy strong {
+  line-height: 1.4;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.teacher-app .reports-stat-copy span {
+  line-height: 1.5;
+}
+.teacher-app .scan-count {
+  min-height: 26px;
+  height: auto;
+  line-height: 1.5;
+}
+.teacher-app .notification-badge,
+.student-shell .notif-count-badge {
+  min-width: 22px;
+  min-height: 22px;
+  height: auto;
+  line-height: 1.3;
+  padding: 2px 5px;
+}
+.student-shell .course-rate-val {
+  line-height: 1.4;
+}
+.student-shell .step-label {
+  white-space: normal;
+  text-align: center;
+}
+.student-shell .notif-title,
+.student-shell .notif-desc {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.teacher-app .subject-request-study-fields {
+  margin-top: 16px;
+}
+.teacher-app .subject-request-period-head {
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: 0;
+}
+.teacher-app
+  .subject-request-page
+  :is(.subject-request-fields label, .subject-request-schedule label) {
+  line-height: 1.5;
+}
+
+/* Give Thai ascenders, vowels and tone marks room in both metric systems. */
+.teacher-app .dashboard-stat-card,
+.student-shell .stat-card {
+  min-width: 0;
+  min-height: 142px;
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 17px;
+}
+.teacher-app .dashboard-stat-card .stat-icon,
+.student-shell .stat-card .stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+.teacher-app .stat-card .stat-copy,
+.student-shell .stat-card .stat-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+.teacher-app .stat-card .stat-copy p,
+.student-shell .stat-card p {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.teacher-app .stat-card .stat-copy strong,
+.student-shell .stat-card strong {
+  display: block;
+  margin: 2px 0;
+  font-size: clamp(1.45rem, 2vw, 1.85rem);
+  line-height: 1.4;
+  color: var(--portal-ink);
+  font-variant-numeric: tabular-nums;
+}
+.teacher-app .stat-card .stat-copy small,
+.student-shell .stat-card small {
+  display: block;
+  margin: 0;
+  padding: 0;
+  font-size: 0.72rem;
+  color: #71839a;
+  overflow-wrap: break-word;
+}
+.teacher-app .dashboard-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.student-shell .stats-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.teacher-app .dashboard-page {
+  max-width: 100%;
+}
+.teacher-app .dashboard-overview-row-main strong,
+.teacher-app .dashboard-overview-row-main small {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .teacher-app .dashboard-stats,
+  .student-shell .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .teacher-app .course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .teacher-app .reports-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .teacher-app .sidebar.open,
+  .teacher-app .sidebar.open.collapsed {
+    width: 268px;
+  }
+  .teacher-app .teacher-main {
+    margin-left: 0;
+  }
+  .teacher-app .sidebar-backdrop.show {
+    z-index: 39;
+  }
+  .teacher-app .menu-button {
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 10px;
+    color: #607187;
+    cursor: pointer;
+  }
+  .teacher-app .menu-button:hover {
+    background: #f2f6fa;
+  }
+  .teacher-app .course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .teacher-app .topbar {
+    height: 66px;
+    padding-inline: 16px;
+  }
+  .teacher-app .page-content,
+  .student-shell .student-content {
+    padding: 20px 16px 40px;
+  }
+  .teacher-app .page-head,
+  .student-shell .page-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .teacher-app .course-grid,
+  .teacher-app .report-summary {
+    grid-template-columns: 1fr;
+  }
+  .teacher-app .reports-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .teacher-app .subject-request-actions {
+    flex-wrap: wrap;
+  }
+  .teacher-app .subject-request-actions .button {
+    flex: 1 1 auto;
+  }
+}
+@media (max-width: 520px) {
+  .teacher-app .dashboard-stats,
+  .student-shell .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .teacher-app .dashboard-stat-card,
+  .student-shell .stat-card {
+    padding: 14px;
+  }
+  .teacher-app .subject-request-schedule {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .teacher-app .subject-request-schedule-head {
+    flex-wrap: wrap;
+  }
+  .teacher-app .subject-request-item-main {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 380px) {
+  .teacher-app .dashboard-stats,
+  .student-shell .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .teacher-app *,
+  .teacher-app *::before,
+  .teacher-app *::after,
+  .student-shell *,
+  .student-shell *::before,
+  .student-shell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

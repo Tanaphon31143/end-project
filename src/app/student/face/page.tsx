@@ -16,7 +16,10 @@ import { PageTitle } from "@/components/student/UI";
 import { getStudentSession } from "@/lib/auth";
 import { getStudentFaceData, type FaceSampleItem } from "@/lib/student-data";
 import SelfFaceEnrollment from "@/components/student/SelfFaceEnrollment";
-import { getVerifiedFaceIdentity, studentIdentityRecord } from "@/lib/student-face-identity";
+import {
+  getVerifiedFaceIdentity,
+  studentIdentityRecord,
+} from "@/lib/student-face-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +62,9 @@ function getRegistrantRole(role: string | null) {
   return "ไม่มีข้อมูล";
 }
 
-export default async function FacePage({ searchParams }: {
+export default async function FacePage({
+  searchParams,
+}: {
   searchParams: Promise<{ identity?: string }>;
 }) {
   const session = await getStudentSession();
@@ -67,7 +72,9 @@ export default async function FacePage({ searchParams }: {
   const params = await searchParams;
 
   const [face, identity, account] = await Promise.all([
-    getStudentFaceData(session.id), getVerifiedFaceIdentity(session.id), studentIdentityRecord(session),
+    getStudentFaceData(session.id),
+    getVerifiedFaceIdentity(session.id),
+    studentIdentityRecord(session),
   ]);
   const ready = face?.status === "READY";
 
@@ -78,20 +85,24 @@ export default async function FacePage({ searchParams }: {
         title="ข้อมูลใบหน้า"
         description="ข้อมูลนี้ใช้ยืนยันตัวตนสำหรับการเช็คชื่อด้วยการสแกนใบหน้าเท่านั้น"
       />
-      {params.identity && params.identity !== 'verified' && <div className="card card-pad" role="alert">
-        {params.identity === 'email-mismatch'
-          ? 'บัญชี Google ที่เลือกไม่ตรงกับอีเมลของบัญชีนักเรียน กรุณาเลือกบัญชีที่ถูกต้อง'
-          : params.identity === 'bound'
-            ? 'บัญชี Google นี้ผูกกับข้อมูลใบหน้าบัญชีอื่นแล้ว หรือบัญชีนักเรียนนี้ผูก Google บัญชีอื่นอยู่'
-            : params.identity === 'google-unverified'
-              ? 'อีเมล Google นี้ยังไม่ผ่านการยืนยัน กรุณาเลือกบัญชีอื่น'
-              : params.identity === 'student'
-                ? 'ไม่พบ Session หรือนักเรียนที่ใช้งานได้ กรุณาเข้าสู่ระบบใหม่'
-                : 'ยืนยันบัญชี Google ไม่สำเร็จหรือหมดเวลา กรุณาลองใหม่'}
-      </div>}
+      {params.identity && params.identity !== "verified" && (
+        <div className="card card-pad" role="alert">
+          {params.identity === "email-mismatch"
+            ? "บัญชี Google ที่เลือกไม่ตรงกับอีเมลของบัญชีนักเรียน กรุณาเลือกบัญชีที่ถูกต้อง"
+            : params.identity === "bound"
+              ? "บัญชี Google นี้ผูกกับข้อมูลใบหน้าบัญชีอื่นแล้ว หรือบัญชีนักเรียนนี้ผูก Google บัญชีอื่นอยู่"
+              : params.identity === "google-unverified"
+                ? "อีเมล Google นี้ยังไม่ผ่านการยืนยัน กรุณาเลือกบัญชีอื่น"
+                : params.identity === "student"
+                  ? "ไม่พบ Session หรือนักเรียนที่ใช้งานได้ กรุณาเข้าสู่ระบบใหม่"
+                  : "ยืนยันบัญชี Google ไม่สำเร็จหรือหมดเวลา กรุณาลองใหม่"}
+        </div>
+      )}
 
       {/* Status Overview Card */}
-      <section className={`card face-status ${ready ? "is-ready" : "is-pending"}`}>
+      <section
+        className={`card face-status ${ready ? "is-ready" : "is-pending"}`}
+      >
         <div className="face-status-icon">
           {ready ? <ShieldCheck size={32} /> : <XCircle size={32} />}
         </div>
@@ -104,8 +115,10 @@ export default async function FacePage({ searchParams }: {
               </>
             ) : face?.status === "INACTIVE" ? (
               "ถูกปิดการใช้งานชั่วคราว"
+            ) : identity ? (
+              "กำลังยืนยันตัวตนและลงทะเบียน"
             ) : (
-              identity ? "กำลังยืนยันตัวตนและลงทะเบียน" : "ยังไม่ได้ยืนยันตัวตน"
+              "ยังไม่ได้ยืนยันตัวตน"
             )}
           </h2>
           <p>
@@ -120,13 +133,22 @@ export default async function FacePage({ searchParams }: {
         </div>
       </section>
 
-      {!account && <div className="card card-pad" role="alert">
-        บัญชีนักเรียนไม่พร้อมใช้งานหรืออีเมลใน session ไม่ตรงกับข้อมูลนักเรียน กรุณาเข้าสู่ระบบใหม่
-      </div>}
-      {account && face?.status !== 'INACTIVE' && <SelfFaceEnrollment
-        verified={Boolean(identity)} hasFace={Boolean(face)} resume={params.identity === 'verified'}
-        studentName={account.studentName} studentCode={account.studentCode} email={account.email}
-      />}
+      {!account && (
+        <div className="card card-pad" role="alert">
+          บัญชีนักเรียนไม่พร้อมใช้งานหรืออีเมลใน session ไม่ตรงกับข้อมูลนักเรียน
+          กรุณาเข้าสู่ระบบใหม่
+        </div>
+      )}
+      {account && face?.status !== "INACTIVE" && (
+        <SelfFaceEnrollment
+          verified={Boolean(identity)}
+          hasFace={Boolean(face)}
+          resume={params.identity === "verified"}
+          studentName={account.studentName}
+          studentCode={account.studentCode}
+          email={account.email}
+        />
+      )}
 
       {/* Registration Details & Metadata Grid */}
       {face && (
@@ -134,7 +156,9 @@ export default async function FacePage({ searchParams }: {
           <div className="section-head">
             <div>
               <h2>รายละเอียดการลงทะเบียน</h2>
-              <p>บันทึกประวัติและอุปกรณ์ที่ใช้ลงทะเบียนใบหน้าเพื่อความโปร่งใสและปลอดภัย</p>
+              <p>
+                บันทึกประวัติและอุปกรณ์ที่ใช้ลงทะเบียนใบหน้าเพื่อความโปร่งใสและปลอดภัย
+              </p>
             </div>
           </div>
           <div className="face-audit-grid">
@@ -156,7 +180,9 @@ export default async function FacePage({ searchParams }: {
               <div className="audit-content">
                 <span>ผู้ลงทะเบียน</span>
                 <strong>{face.registeredByName || "ไม่มีข้อมูล"}</strong>
-                <small>ผู้ดำเนินการ: {getRegistrantRole(face.registeredByRole)}</small>
+                <small>
+                  ผู้ดำเนินการ: {getRegistrantRole(face.registeredByRole)}
+                </small>
               </div>
             </div>
 
@@ -178,7 +204,9 @@ export default async function FacePage({ searchParams }: {
               <div className="audit-content">
                 <span>เบราว์เซอร์ / ระบบ</span>
                 <strong>{face.browser || "ไม่มีข้อมูล"}</strong>
-                <small>ระบบปฏิบัติการ: {face.operatingSystem || "ไม่มีข้อมูล"}</small>
+                <small>
+                  ระบบปฏิบัติการ: {face.operatingSystem || "ไม่มีข้อมูล"}
+                </small>
               </div>
             </div>
 
@@ -199,8 +227,20 @@ export default async function FacePage({ searchParams }: {
               </div>
               <div className="audit-content">
                 <span>วิธีและผลการยืนยัน</span>
-                <strong>{face.verificationMethod === 'GOOGLE' ? 'Google Account' : 'ข้อมูลเดิมไม่มีวิธีการยืนยัน'}</strong>
-                <small>{face.verifiedEmail ? `อีเมลที่ยืนยัน: ${face.verifiedEmail} · ` : ''}Liveness: {face.livenessVerifiedAt ? `ผ่านเมื่อ ${face.livenessVerifiedAt}` : 'ไม่มีข้อมูล'}</small>
+                <strong>
+                  {face.verificationMethod === "GOOGLE"
+                    ? "Google Account"
+                    : "ข้อมูลเดิมไม่มีวิธีการยืนยัน"}
+                </strong>
+                <small>
+                  {face.verifiedEmail
+                    ? `อีเมลที่ยืนยัน: ${face.verifiedEmail} · `
+                    : ""}
+                  Liveness:{" "}
+                  {face.livenessVerifiedAt
+                    ? `ผ่านเมื่อ ${face.livenessVerifiedAt}`
+                    : "ไม่มีข้อมูล"}
+                </small>
               </div>
             </div>
 
@@ -224,7 +264,8 @@ export default async function FacePage({ searchParams }: {
           <div>
             <h2>ภาพใบหน้าที่ลงทะเบียน ({face?.samples.length || 0} ภาพ)</h2>
             <p>
-              มุมของภาพใหม่บันทึกจากขั้นตอนลงทะเบียน ส่วนภาพเดิมที่ไม่มีข้อมูลจะแสดงว่า “ไม่ระบุมุมภาพ”
+              มุมของภาพใหม่บันทึกจากขั้นตอนลงทะเบียน
+              ส่วนภาพเดิมที่ไม่มีข้อมูลจะแสดงว่า “ไม่ระบุมุมภาพ”
             </p>
           </div>
         </div>
@@ -249,7 +290,9 @@ export default async function FacePage({ searchParams }: {
                   <div className="face-item-foot">
                     <strong>มุมภาพ: {label}</strong>
                     {sample.qualityScore > 0 && (
-                      <small>คะแนนคุณภาพ: {(sample.qualityScore * 100).toFixed(0)}%</small>
+                      <small>
+                        คะแนนคุณภาพ: {(sample.qualityScore * 100).toFixed(0)}%
+                      </small>
                     )}
                   </div>
                 </article>
@@ -279,10 +322,19 @@ export default async function FacePage({ searchParams }: {
         <div>
           <h2>คำแนะนำในการสแกนใบหน้าเข้าเรียน</h2>
           <ul>
-            <li>อยู่ในบริเวณที่มีแสงสว่างเพียงพอ หลีกเลี่ยงการย้อนแสงหรือเงามืด</li>
-            <li>ถอดหน้ากากอนามัย หมวก หรือแว่นตาดำที่บดบังใบหน้าก่อนเริ่มสแกน</li>
-            <li>วางใบหน้าให้อยู่กึ่งกลางกรอบ และมองตรงไปที่กล้องขณะระบบประมวลผล</li>
-            <li>ระบบมีการตรวจจับบุคคลจริง (Liveness Detection) เพื่อป้องกันการใช้ภาพถ่ายหลอกกล้อง</li>
+            <li>
+              อยู่ในบริเวณที่มีแสงสว่างเพียงพอ หลีกเลี่ยงการย้อนแสงหรือเงามืด
+            </li>
+            <li>
+              ถอดหน้ากากอนามัย หมวก หรือแว่นตาดำที่บดบังใบหน้าก่อนเริ่มสแกน
+            </li>
+            <li>
+              วางใบหน้าให้อยู่กึ่งกลางกรอบ และมองตรงไปที่กล้องขณะระบบประมวลผล
+            </li>
+            <li>
+              ระบบมีการตรวจจับบุคคลจริง (Liveness Detection)
+              เพื่อป้องกันการใช้ภาพถ่ายหลอกกล้อง
+            </li>
           </ul>
         </div>
       </section>

@@ -3,6 +3,8 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { getAdminSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import "./dashboard/admin.css";
+import "../portal-ui.css";
+import "../responsive.css";
 
 export const metadata: Metadata = {
   title: "แดชบอร์ดผู้ดูแลระบบ | โรงเรียนขุขันธ์",
@@ -10,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminRouteLayout({ children }: LayoutProps<"/admin">) {
-  if (!(await getAdminSession())) redirect("/");
-  return <AdminLayout>{children}</AdminLayout>;
+  const admin = await getAdminSession();
+  if (!admin) redirect("/");
+  return <AdminLayout adminName={admin.name}>{children}</AdminLayout>;
 }

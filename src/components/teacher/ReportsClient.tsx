@@ -39,13 +39,29 @@ const dateKey = (date: Date) =>
     day: "2-digit",
   }).format(date);
 
-const safeCount = (value: number | null | undefined) => typeof value === "number" && Number.isFinite(value) ? value : 0;
+const safeCount = (value: number | null | undefined) =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
 
-function ReportStatCard({ label, value, tone, icon: Icon }: { label: string; value: string; tone: string; icon: LucideIcon }) {
+function ReportStatCard({
+  label,
+  value,
+  tone,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+  icon: LucideIcon;
+}) {
   return (
     <article className={`reports-stat-card ${tone}`}>
-      <div className="reports-stat-icon"><Icon size={19} aria-hidden="true" /></div>
-      <div className="reports-stat-copy"><span>{label}</span><strong>{value}</strong></div>
+      <div className="reports-stat-icon">
+        <Icon size={19} aria-hidden="true" />
+      </div>
+      <div className="reports-stat-copy">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
     </article>
   );
 }
@@ -198,7 +214,10 @@ export function ReportsClient({
           </button>
         ))}
       </div>
-      <section className="panel reports-filter-panel" aria-label="ตัวกรองรายงาน">
+      <section
+        className="panel reports-filter-panel"
+        aria-label="ตัวกรองรายงาน"
+      >
         <form
           className="reports-filter-grid"
           onSubmit={(event) => {
@@ -208,20 +227,41 @@ export function ReportsClient({
         >
           <label className="reports-field reports-course-field">
             <span>รายวิชา</span>
-            <select value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
+            <select
+              value={subjectId}
+              onChange={(event) => setSubjectId(event.target.value)}
+            >
               <option value="">ทุกรายวิชา</option>
-              {courses.map((course) => <option key={course.id} value={course.id}>{course.code} {course.name}</option>)}
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.code} {course.name}
+                </option>
+              ))}
             </select>
           </label>
           <label className="reports-field">
             <span>ตั้งแต่วันที่</span>
-            <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} required />
+            <input
+              type="date"
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              required
+            />
           </label>
           <label className="reports-field">
             <span>ถึงวันที่</span>
-            <input type="date" value={to} onChange={(event) => setTo(event.target.value)} required />
+            <input
+              type="date"
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              required
+            />
           </label>
-          <button className="button primary reports-generate" disabled={loading} aria-busy={loading}>
+          <button
+            className="button primary reports-generate"
+            disabled={loading}
+            aria-busy={loading}
+          >
             {loading ? (
               <LoaderCircle className="spin" size={17} />
             ) : (
@@ -230,23 +270,68 @@ export function ReportsClient({
             {loading ? "กำลังสร้าง" : "สร้างรายงาน"}
           </button>
         </form>
-        {error && report && <p className="form-message error" role="alert">{error}</p>}
+        {error && report && (
+          <p className="form-message error" role="alert">
+            {error}
+          </p>
+        )}
       </section>
       {loading && !report ? (
-        <div className="reports-loading" role="status" aria-label="กำลังสร้างรายงาน">
+        <div
+          className="reports-loading"
+          role="status"
+          aria-label="กำลังสร้างรายงาน"
+        >
           <div className="reports-summary-grid">
-            {Array.from({ length: 5 }, (_, index) => <div className="reports-stat-card" key={index}><div className="skeleton reports-skeleton-label" /><div className="skeleton reports-skeleton-value" /></div>)}
+            {Array.from({ length: 5 }, (_, index) => (
+              <div className="reports-stat-card" key={index}>
+                <div className="skeleton reports-skeleton-label" />
+                <div className="skeleton reports-skeleton-value" />
+              </div>
+            ))}
           </div>
-          <div className="panel reports-chart-panel"><div className="skeleton reports-skeleton-title" /><div className="skeleton reports-skeleton-chart" /></div>
+          <div className="panel reports-chart-panel">
+            <div className="skeleton reports-skeleton-title" />
+            <div className="skeleton reports-skeleton-chart" />
+          </div>
         </div>
       ) : report ? (
-        <div id="teacher-report-export" className="reports-content" aria-busy={loading}>
+        <div
+          id="teacher-report-export"
+          className="reports-content"
+          aria-busy={loading}
+        >
           <section className="reports-summary-grid" aria-label="สรุปรายงาน">
-            <ReportStatCard label="อัตราการเข้าเรียนเฉลี่ย" value={`${safeCount(report.attendanceRate).toFixed(1)}%`} tone="rate" icon={ChartNoAxesCombined} />
-            <ReportStatCard label="เข้าเรียนรวม" value={String(safeCount(report.counts?.PRESENT))} tone="present" icon={UserRoundCheck} />
-            <ReportStatCard label="มาสายรวม" value={String(safeCount(report.counts?.LATE))} tone="late" icon={Clock3} />
-            <ReportStatCard label="ขาดเรียนรวม" value={String(safeCount(report.counts?.ABSENT))} tone="absent" icon={UserMinus} />
-            <ReportStatCard label="ลารวม" value={String(safeCount(report.counts?.LEAVE))} tone="leave" icon={UserCheck} />
+            <ReportStatCard
+              label="อัตราการเข้าเรียนเฉลี่ย"
+              value={`${safeCount(report.attendanceRate).toFixed(1)}%`}
+              tone="rate"
+              icon={ChartNoAxesCombined}
+            />
+            <ReportStatCard
+              label="เข้าเรียนรวม"
+              value={String(safeCount(report.counts?.PRESENT))}
+              tone="present"
+              icon={UserRoundCheck}
+            />
+            <ReportStatCard
+              label="มาสายรวม"
+              value={String(safeCount(report.counts?.LATE))}
+              tone="late"
+              icon={Clock3}
+            />
+            <ReportStatCard
+              label="ขาดเรียนรวม"
+              value={String(safeCount(report.counts?.ABSENT))}
+              tone="absent"
+              icon={UserMinus}
+            />
+            <ReportStatCard
+              label="ลารวม"
+              value={String(safeCount(report.counts?.LEAVE))}
+              tone="leave"
+              icon={UserCheck}
+            />
           </section>
           <article className="panel reports-chart-panel">
             <div className="reports-chart-head">
@@ -255,9 +340,7 @@ export function ReportsClient({
                   แนวโน้มการเข้าเรียน —{" "}
                   {modes.find((item) => item.value === mode)?.label}
                 </h3>
-                <p className="muted">
-                  อัตราเข้าเรียนคำนวณจากเข้าเรียนและมาสาย
-                </p>
+                <p className="muted">อัตราเข้าเรียนคำนวณจากเข้าเรียนและมาสาย</p>
               </div>
               <div className="export-actions">
                 <button
@@ -291,14 +374,22 @@ export function ReportsClient({
             {trend.length ? (
               <AttendanceChart data={trend} dashboard />
             ) : (
-              <EmptyState title="ไม่มีข้อมูลในช่วงเวลานี้" description="ลองเปลี่ยนรายวิชาหรือช่วงวันที่" />
+              <EmptyState
+                title="ไม่มีข้อมูลในช่วงเวลานี้"
+                description="ลองเปลี่ยนรายวิชาหรือช่วงวันที่"
+              />
             )}
           </article>
         </div>
       ) : error ? (
         <div className="panel reports-error">
-          <EmptyState title="โหลดรายงานไม่สำเร็จ" description="กรุณาลองใหม่อีกครั้ง" />
-          <button className="button primary" onClick={() => void load()}>ลองใหม่</button>
+          <EmptyState
+            title="โหลดรายงานไม่สำเร็จ"
+            description="กรุณาลองใหม่อีกครั้ง"
+          />
+          <button className="button primary" onClick={() => void load()}>
+            ลองใหม่
+          </button>
         </div>
       ) : null}
     </div>

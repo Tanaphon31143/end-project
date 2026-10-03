@@ -1,82 +1,39 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { UserRound } from "lucide-react";
-import { PageTitle } from "@/components/student/UI";
 import ProfileActions from "@/components/student/ProfileActions";
 import ProfileRequestHistory from "@/components/student/ProfileRequestHistory";
+import { ProfileAccountCard, ProfilePageHeading, ProfileSection } from "@/components/profile/ProfilePrimitives";
+import { ProfileSummaryCard } from "@/components/profile/ProfileSummaryCard";
+import { PasswordChangeCard } from "@/components/profile/PasswordChangeCard";
 import { getStudentSession } from "@/lib/auth";
 import { getStudentIdentity } from "@/lib/student-data";
+import "../../profile.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const session = await getStudentSession();
   if (!session) redirect("/");
-
   const student = await getStudentIdentity(session.id);
   if (!student) redirect("/");
+  const context = [student.classLevel, student.className].filter(Boolean).join(" · ");
 
-  const details = [
-    ["ชื่อ-นามสกุล", student.name],
-    ["รหัสนักเรียน", student.code],
-    ["ระดับชั้น", student.classLevel || "ยังไม่ระบุ"],
-    ["ห้อง", student.className],
-    ["เลขที่", student.classNumber ? String(student.classNumber) : "ยังไม่ระบุ"],
-    ["วันเกิด", student.birthday || "ยังไม่ระบุ"],
-    ["อีเมล", student.email],
-    ["เบอร์โทรศัพท์", student.phone || "ยังไม่ระบุ"],
-    ["ที่อยู่", student.address || "ยังไม่ระบุ"],
-  ];
-
-  return (
-    <>
-      <PageTitle
-        eyebrow="บัญชีของฉัน"
-        title="ข้อมูลส่วนตัว"
-        description="ตรวจสอบ จัดการข้อมูลติดต่อ และยื่นคำร้องขอแก้ไขข้อมูลสำคัญในระบบ"
+  return <div className="account-profile student-account-profile">
+    <ProfilePageHeading />
+    <div className="account-profile-layout">
+      <ProfileSummaryCard
+        name={student.name} role="นักเรียน" code={student.code} context={context || "ยังไม่ระบุ"}
+        initials={student.initials} hasProfileImage={student.hasProfileImage}
+        imageUrl="/api/student/profile-image" uploadUrl="/api/student/profile"
       />
-
-      <div className="grid profile-grid">
-        <section className="card card-pad profile-card">
-          <div className="student-profile-photo">
-            {student.hasProfileImage ? (
-              <Image
-                src="/api/student/profile-image"
-                alt="รูปนักเรียน"
-                width={96}
-                height={96}
-                sizes="96px"
-                unoptimized
-              />
-            ) : (
-              <span>{student.initials}</span>
-            )}
-          </div>
-          <h2>{student.name}</h2>
-          <p>{student.code}</p>
-          <span>นักเรียน · {student.className}</span>
-
+      <div className="account-profile-main">
+        <ProfileSection title="ข้อมูลส่วนตัว" description="ข้อมูลประจำตัวและช่องทางติดต่อ" icon={<UserRound size={20} />}>
           <ProfileActions student={student} />
-        </section>
-
-        <section className="card card-pad profile-details">
-          <div className="section-label">
-            <UserRound size={20} />
-            <h2>รายละเอียดนักเรียน</h2>
-          </div>
-          <div className="info-list">
-            {details.map(([label, value]) => (
-              <div className="info-row" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
+        </ProfileSection>
+        <PasswordChangeCard role="student" />
       </div>
-
-      {/* Requests History Table */}
-      <ProfileRequestHistory />
-    </>
-  );
+    </div>
+    <ProfileAccountCard role="นักเรียน" code={student.code} context={context || "ยังไม่ระบุ"} faceReady={student.faceReady} />
+    <div className="account-profile-history"><ProfileRequestHistory /></div>
+  </div>;
 }

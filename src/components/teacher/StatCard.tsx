@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { StatCard as SharedStatCard } from "@/components/portal/StatCard";
 export function StatCard({
   label,
   value,
@@ -13,15 +14,13 @@ export function StatCard({
   icon: LucideIcon;
 }) {
   return (
-    <article className="stat-card dashboard-stat-card">
-      <div className={`stat-icon ${tone}`}>
-        <Icon size={20} aria-hidden="true" />
-      </div>
-      <div className="dashboard-stat-copy">
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{detail}</small>
-      </div>
-    </article>
+    <SharedStatCard
+      label={label}
+      value={value}
+      detail={detail}
+      tone={tone}
+      icon={Icon}
+      className="dashboard-stat-card"
+    />
   );
 }

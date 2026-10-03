@@ -11,6 +11,7 @@ export async function PATCH(request: Request) {
       { status: 401 },
     );
   const body = (await request.json()) as {
+    name?: unknown;
     email?: unknown;
     phone?: unknown;
     birthday?: unknown;
@@ -46,6 +47,7 @@ export async function PATCH(request: Request) {
   }
   const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "",
+    name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "",
     phone = typeof body.phone === "string" ? body.phone.trim() : "",
     birthday =
       typeof body.birthday === "string" &&
@@ -54,6 +56,8 @@ export async function PATCH(request: Request) {
         : null,
     address = typeof body.address === "string" ? body.address.trim() : "";
   if (
+    !name ||
+    name.length > 150 ||
     !/^\S+@\S+\.\S+$/.test(email) ||
     phone.length > 30 ||
     address.length > 1000
@@ -63,11 +67,45 @@ export async function PATCH(request: Request) {
       { status: 400 },
     );
   try {
-    await db.execute<ResultSetHeader>(
-      `UPDATE students SET email=?,phone=?,birthday=?,address=? WHERE id=? AND status='ACTIVE'`,
-      [email, phone, birthday, address, student.id],
-    );
-    return Response.json({ message: "บันทึกข้อมูลส่วนตัวแล้ว" });
+    const connection = await db.getConnection();
+    let cancelledNameRequest = false;
+    try {
+      await connection.beginTransaction();
+      const [currentRows] = await connection.execute<
+        (RowDataPacket & { fullName: string })[]
+      >(
+        `SELECT full_name fullName FROM students WHERE id=? AND status='ACTIVE' FOR UPDATE`,
+        [student.id],
+      );
+      if (!currentRows[0]) {
+        await connection.rollback();
+        return Response.json({ message: "ไม่พบบัญชีนักเรียนที่ใช้งานอยู่" }, { status: 404 });
+      }
+      const [result] = await connection.execute<ResultSetHeader>(
+        `UPDATE students SET full_name=?,email=?,phone=?,birthday=?,address=? WHERE id=? AND status='ACTIVE'`,
+        [name, email, phone, birthday, address, student.id],
+      );
+      if (result.affectedRows && currentRows[0].fullName !== name) {
+        const [cancelled] = await connection.execute<ResultSetHeader>(
+          `UPDATE profile_edit_requests SET status='CANCELLED'
+           WHERE student_id=? AND field_type='FULL_NAME' AND status='PENDING'`,
+          [student.id],
+        );
+        cancelledNameRequest = cancelled.affectedRows > 0;
+      }
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+    return Response.json({
+      message: cancelledNameRequest
+        ? "บันทึกข้อมูลแล้ว และยกเลิกคำร้องแก้ไขชื่อเดิมที่รอพิจารณา"
+        : "บันทึกข้อมูลส่วนตัวแล้ว",
+      name,
+    });
   } catch (error) {
     if ((error as { code?: string }).code === "ER_DUP_ENTRY")
       return Response.json(

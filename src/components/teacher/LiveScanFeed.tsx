@@ -17,6 +17,7 @@ import {
   getFaceEngine,
   resetFaceEngine,
 } from "@/lib/face-recognition";
+import { confirmDanger } from "@/lib/sweet-alert";
 
 type AttendanceRow = {
   id: string;
@@ -69,7 +70,10 @@ const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 async function waitForVideoFrame(video: HTMLVideoElement) {
-  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth)
+  if (
+    video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+    video.videoWidth
+  )
     return;
 
   await new Promise<void>((resolve, reject) => {
@@ -198,10 +202,7 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
     };
   }, [loadSession, stopCamera]);
 
-  async function openCamera(
-    deviceId = selectedCameraId,
-    mode = facing,
-  ) {
+  async function openCamera(deviceId = selectedCameraId, mode = facing) {
     setBusy(true);
     setError("");
     setMessage("กำลังเตรียมระบบตรวจจับใบหน้า...");
@@ -231,7 +232,12 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
           const activeDeviceId = stream
             .getVideoTracks()[0]
             ?.getSettings().deviceId;
-          if (activeDeviceId && availableCameras.some((camera) => camera.deviceId === activeDeviceId))
+          if (
+            activeDeviceId &&
+            availableCameras.some(
+              (camera) => camera.deviceId === activeDeviceId,
+            )
+          )
             setSelectedCameraId(activeDeviceId);
           setCameraOpen(true);
           setRetryCount(0);
@@ -349,12 +355,12 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
   }
   async function closeSession() {
     if (closingRef.current) return;
-    if (
-      !window.confirm(
-        "ปิดรอบเช็คชื่อและบันทึกนักเรียนที่ยังไม่เช็คชื่อเป็นขาดเรียนหรือไม่?",
-      )
-    )
-      return;
+    const confirmed = await confirmDanger({
+      title: "ปิดรอบเช็กชื่อ?",
+      text: "นักเรียนที่ยังไม่เช็กชื่อจะถูกบันทึกเป็นขาดเรียน และรอบนี้จะไม่สามารถรับการเช็กชื่อเพิ่มได้",
+      confirmText: "ปิดรอบเช็กชื่อ",
+    });
+    if (!confirmed) return;
     setBusy(true);
     closingRef.current = true;
     setClosing(true);
@@ -370,9 +376,14 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
         // A lost response may follow a successful commit. Check before retrying.
         const latest = await loadSession().catch(() => null);
         if (latest?.status !== "CLOSED")
-          throw new Error(data?.message || "เซิร์ฟเวอร์ไม่สามารถยืนยันการปิดรอบได้ กรุณาลองอีกครั้ง");
+          throw new Error(
+            data?.message ||
+              "เซิร์ฟเวอร์ไม่สามารถยืนยันการปิดรอบได้ กรุณาลองอีกครั้ง",
+          );
       }
-      setSession((current) => current ? { ...current, status: "CLOSED" } : current);
+      setSession((current) =>
+        current ? { ...current, status: "CLOSED" } : current,
+      );
       setMatch(null);
       stopCamera();
       router.push("/teacher/dashboard");
@@ -415,7 +426,11 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
           onClick={closeSession}
           disabled={busy || session.status === "CLOSED"}
         >
-          {closing ? "กำลังปิดรอบ…" : session.status === "CLOSED" ? "ปิดรอบแล้ว" : "ปิดรอบเช็คชื่อ"}
+          {closing
+            ? "กำลังปิดรอบ…"
+            : session.status === "CLOSED"
+              ? "ปิดรอบแล้ว"
+              : "ปิดรอบเช็คชื่อ"}
         </button>
       </div>
       <section className="scan-grid">

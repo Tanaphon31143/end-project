@@ -1,17 +1,25 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  BookOpen,
+  CalendarDays,
   Camera,
   CameraIcon,
+  Check,
   CheckCircle2,
+  ChevronRight,
   Clock,
   DoorOpen,
+  GraduationCap,
+  Info,
   Layers,
   LoaderCircle,
   Lock,
+  Monitor,
   RefreshCw,
   ShieldCheck,
   SwitchCamera,
@@ -56,7 +64,12 @@ export type ScanResultData = {
   confidence?: number;
   message?: string;
   code?: string;
-  record?: { id?: number; checkInTime: string; status: string; confidence?: number };
+  record?: {
+    id?: number;
+    checkInTime: string;
+    status: string;
+    confidence?: number;
+  };
   session?: StudentCheckInSession;
   remainingAttempts?: number;
 };
@@ -69,14 +82,32 @@ type ScanStep =
   | "SAVING"
   | "COMPLETED";
 
-const STEPS_CONFIG = [
-  { step: "INIT_CAMERA", label: "เปิดกล้อง", num: 1 },
-  { step: "FACE_DETECTION", label: "ตรวจจับใบหน้า", num: 2 },
-  { step: "LIVENESS", label: "ตรวจบุคคลจริง", num: 3 },
-  { step: "MATCHING", label: "เปรียบเทียบใบหน้า", num: 4 },
-  { step: "SAVING", label: "บันทึกผล", num: 5 },
-  { step: "COMPLETED", label: "เสร็จสิ้น", num: 6 },
+const DISPLAY_STEPS = [
+  { num: 1, label: "เปิดกล้อง", hint: "เริ่มต้นการสแกน" },
+  { num: 2, label: "ตรวจจับใบหน้า", hint: "ระบบกำลังตรวจสอบ" },
+  { num: 3, label: "ยืนยันตัวตน", hint: "เปรียบเทียบข้อมูล" },
+  { num: 4, label: "เช็คชื่อสำเร็จ", hint: "บันทึกเวลาเรียน" },
 ] as const;
+
+const bangkokTimeFormatter = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+const bangkokDateFormatter = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+function getBangkokTimestamp(sessionDate: string, time: string) {
+  return Date.parse(`${sessionDate}T${time.length === 5 ? `${time}:00` : time}+07:00`);
+}
 
 export default function FaceScanner({
   initialSessions = [],
@@ -90,19 +121,19 @@ export default function FaceScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [sessions, setSessions] = useState<StudentCheckInSession[]>(initialSessions);
-  const [selectedSession, setSelectedSession] = useState<StudentCheckInSession | null>(
-    () => {
+  const [sessions, setSessions] =
+    useState<StudentCheckInSession[]>(initialSessions);
+  const [selectedSession, setSelectedSession] =
+    useState<StudentCheckInSession | null>(() => {
       if (preferredSessionId) {
         const found = initialSessions.find((s) => s.id === preferredSessionId);
         if (found) return found;
       }
       return initialSessions.length === 1 ? initialSessions[0] : null;
-    },
-  );
-  const [confirmed, setConfirmed] = useState(false);
+    });
   const [sessionModalOpen, setSessionModalOpen] = useState(
-    initialSessions.length > 1 && !initialSessions.some((s) => s.id === preferredSessionId),
+    initialSessions.length > 1 &&
+      !initialSessions.some((s) => s.id === preferredSessionId),
   );
 
   const [facing, setFacing] = useState<"user" | "environment">("user");
@@ -111,17 +142,75 @@ export default function FaceScanner({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [result, setResult] = useState<ScanResultData | null>(null);
-  const [scanStatus, setScanStatus] = useState<"idle" | "success" | "duplicate" | "error">(
-    "idle",
-  );
+  const [scanStatus, setScanStatus] = useState<
+    "idle" | "success" | "duplicate" | "error"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [currentChallenge, setCurrentChallenge] = useState<LivenessChallenge | null>(null);
+  const [currentChallenge, setCurrentChallenge] =
+    useState<LivenessChallenge | null>(null);
   const [challengeNumber, setChallengeNumber] = useState(0);
+  const [clockNow, setClockNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateClock = () => setClockNow(Date.now());
+    updateClock();
+    const timer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const attendanceWindow = useMemo(() => {
+    if (!selectedSession) {
+      return {
+        availability: "EMPTY" as const,
+        remainingSeconds: 0,
+        progress: 0,
+      };
+    }
+
+    const start = getBangkokTimestamp(
+      selectedSession.sessionDate,
+      selectedSession.startTime,
+    );
+    const end = getBangkokTimestamp(
+      selectedSession.sessionDate,
+      selectedSession.endTime,
+    );
+    if (clockNow === null) {
+      return {
+        availability: selectedSession.availability,
+        remainingSeconds: selectedSession.remainingSeconds,
+        progress: 0,
+      };
+    }
+
+    const now = clockNow;
+    const availability =
+      now < start ? "UPCOMING" : now > end ? "ENDED" : "OPEN";
+    const duration = Math.max(1, end - start);
+
+    return {
+      availability,
+      remainingSeconds: Math.max(0, Math.floor((end - now) / 1000)),
+      progress: Math.max(0, Math.min(100, ((now - start) / duration) * 100)),
+    };
+  }, [clockNow, selectedSession]);
+
+  const visualStep =
+    scanStatus === "success" || scanStatus === "duplicate"
+      ? 4
+      : currentStep === "LIVENESS" ||
+          currentStep === "MATCHING" ||
+          currentStep === "SAVING" ||
+          currentStep === "COMPLETED"
+        ? 3
+        : cameraOpen || currentStep === "FACE_DETECTION"
+          ? 2
+          : 1;
 
   // Rate Limiting
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
-  const isSelectedSessionOpen = Boolean(selectedSession?.isOpenNow);
-  const selectedSessionEnded = selectedSession?.availability === "ENDED";
+  const isSelectedSessionOpen = attendanceWindow.availability === "OPEN";
+  const selectedSessionEnded = attendanceWindow.availability === "ENDED";
   const sessionNotOpenMessage = selectedSession
     ? selectedSessionEnded
       ? `คาบนี้ปิดรับเช็คชื่อแล้วเมื่อ ${selectedSession.endTime} น.`
@@ -147,12 +236,17 @@ export default function FaceScanner({
         return data.sessions as StudentCheckInSession[];
       }
     } catch {
-      setErrorMessage("เชื่อมต่อระบบคาบเรียนไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่");
+      setErrorMessage(
+        "เชื่อมต่อระบบคาบเรียนไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตและลองใหม่",
+      );
     }
     return [];
   }
 
-  async function completeChallenge(video: HTMLVideoElement, challenge: LivenessChallenge) {
+  async function completeChallenge(
+    video: HTMLVideoElement,
+    challenge: LivenessChallenge,
+  ) {
     const deadline = Date.now() + 10_000;
     let lastError: unknown;
     while (Date.now() < deadline) {
@@ -161,7 +255,9 @@ export default function FaceScanner({
         if (
           observation.real >= 0.65 &&
           observation.live >= 0.55 &&
-          observation.gestures.some((gesture) => acceptedGestures[challenge].includes(gesture))
+          observation.gestures.some((gesture) =>
+            acceptedGestures[challenge].includes(gesture),
+          )
         ) {
           return {
             challenge,
@@ -245,7 +341,6 @@ export default function FaceScanner({
       }
 
       setCameraOpen(true);
-      setConfirmed(true);
       setCurrentStep(null);
     } catch (err) {
       stopCamera();
@@ -268,7 +363,12 @@ export default function FaceScanner({
 
   // Multi-step Scan Workflow (Steps 2 to 6)
   async function startScan() {
-    if (!videoRef.current || !selectedSession || isProcessing || lockoutRemaining > 0) {
+    if (
+      !videoRef.current ||
+      !selectedSession ||
+      isProcessing ||
+      lockoutRemaining > 0
+    ) {
       return;
     }
 
@@ -297,8 +397,14 @@ export default function FaceScanner({
         challenges?: LivenessChallenge[];
         message?: string;
       };
-      if (!challengeResponse.ok || !challengeData.token || !challengeData.challenges) {
-        throw new Error(challengeData.message || "ไม่สามารถเริ่มการตรวจบุคคลจริงได้");
+      if (
+        !challengeResponse.ok ||
+        !challengeData.token ||
+        !challengeData.challenges
+      ) {
+        throw new Error(
+          challengeData.message || "ไม่สามารถเริ่มการตรวจบุคคลจริงได้",
+        );
       }
       const livenessEvidence = [];
       for (let index = 0; index < challengeData.challenges.length; index += 1) {
@@ -333,9 +439,13 @@ export default function FaceScanner({
       setCurrentStep("COMPLETED");
 
       if (response.status === 429) {
-        setLockoutRemaining((data as { retryAfterSeconds?: number }).retryAfterSeconds || 600);
+        setLockoutRemaining(
+          (data as { retryAfterSeconds?: number }).retryAfterSeconds || 600,
+        );
         setScanStatus("error");
-        setErrorMessage(data.message || "ระบบล็อกชั่วคราวเนื่องจากสแกนผิดหลายครั้ง");
+        setErrorMessage(
+          data.message || "ระบบล็อกชั่วคราวเนื่องจากสแกนผิดหลายครั้ง",
+        );
         return;
       }
 
@@ -353,7 +463,9 @@ export default function FaceScanner({
       setCurrentStep("COMPLETED");
       setScanStatus("error");
       setErrorMessage(
-        error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการสแกนใบหน้า",
+        error instanceof Error
+          ? error.message
+          : "เกิดข้อผิดพลาดในการสแกนใบหน้า",
       );
     } finally {
       setCurrentChallenge(null);
@@ -377,9 +489,25 @@ export default function FaceScanner({
     return `เหลือ ${m}:${s < 10 ? `0${s}` : s} นาที`;
   }
 
+  if (sessions.length === 0) {
+    return (
+      <section className="scan-empty-state card">
+        <span className="scan-empty-icon" aria-hidden="true">
+          <CalendarDays />
+        </span>
+        <div>
+          <h2>วันนี้ไม่มีคาบเรียนที่สามารถเช็คชื่อได้</h2>
+          <p>เมื่อครูเปิดรอบเช็คชื่อ คาบเรียนจะปรากฏบนหน้านี้โดยอัตโนมัติ</p>
+        </div>
+        <Link href="/student/courses" className="button primary">
+          ดูตารางเรียน <ChevronRight />
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <div className="scanner-container">
-      {/* Rate Limit Lockout Banner */}
       {lockoutRemaining > 0 && (
         <div className="scan-lockout-banner card">
           <Lock size={28} className="danger-icon" />
@@ -399,53 +527,115 @@ export default function FaceScanner({
         </div>
       )}
 
-      {/* Session Selector Bar & Switcher */}
-      <div className="scanner-session-bar card">
-        <div className="session-bar-info">
-          <span className="session-bar-tag">
-            <span className="live-dot" /> คาบเรียนที่เลือก
-          </span>
-          {selectedSession ? (
-            <div>
-              <h3>
-                {selectedSession.subjectCode} {selectedSession.subjectName}
-              </h3>
-              <p>
-                ห้อง {selectedSession.room} · ครู {selectedSession.teacherName} · เวลา{" "}
-                {selectedSession.startTime}–{selectedSession.endTime} น. (
-                {formatRemainingTime(selectedSession.remainingSeconds)})
-              </p>
+      <div className="scan-overview-grid">
+        <section className="scan-course-card card">
+          <div className="scan-course-heading">
+            <span className="scan-course-icon" aria-hidden="true">
+              <BookOpen />
+            </span>
+            <div className="scan-course-copy">
+              <span>คาบเรียนที่เลือก</span>
+              {selectedSession ? (
+                <>
+                  <h2>{selectedSession.subjectName}</h2>
+                  <small>{selectedSession.subjectCode}</small>
+                </>
+              ) : (
+                <h2>กรุณาเลือกคาบเรียน</h2>
+              )}
             </div>
-          ) : (
-            <p className="no-session-text">กรุณาเลือกคาบเรียนที่ต้องการเช็คชื่อ</p>
-          )}
-        </div>
+            {sessions.length > 1 && (
+              <button
+                type="button"
+                className="scan-change-session"
+                onClick={() => {
+                  stopCamera();
+                  setSessionModalOpen(true);
+                }}
+                disabled={isProcessing}
+              >
+                <Layers /> เปลี่ยนคาบ
+              </button>
+            )}
+          </div>
 
-        <div className="session-bar-actions">
-          {sessions.length > 1 && (
-            <button
-              type="button"
-              className="button secondary session-switch-btn"
-              onClick={() => {
-                stopCamera();
-                setSessionModalOpen(true);
-              }}
-              disabled={isProcessing}
-            >
-              <Layers size={16} /> เปลี่ยนคาบเรียน ({sessions.length} คาบเปิดอยู่)
-            </button>
+          {selectedSession && (
+            <div className="scan-course-facts">
+              <div>
+                <Monitor aria-hidden="true" />
+                <span>ห้องเรียน<strong>{selectedSession.room}</strong></span>
+              </div>
+              <div>
+                <GraduationCap aria-hidden="true" />
+                <span>ระดับชั้น / ห้อง<strong>{student?.className || "ไม่ระบุ"}</strong></span>
+              </div>
+              <div>
+                <UserRound aria-hidden="true" />
+                <span>ครูผู้สอน<strong>{selectedSession.teacherName}</strong></span>
+              </div>
+              <div>
+                <Clock aria-hidden="true" />
+                <span>เวลาเรียน<strong>{selectedSession.startTime}–{selectedSession.endTime} น.</strong></span>
+              </div>
+            </div>
           )}
-        </div>
+        </section>
+
+        <section
+          className={`scan-window-card card is-${attendanceWindow.availability.toLowerCase()}`}
+          aria-live="polite"
+        >
+          <div className="scan-window-status">
+            <span>
+              <i />
+              {selectedSession?.alreadyCheckedIn
+                ? "เช็คชื่อแล้ว"
+                : attendanceWindow.availability === "OPEN"
+                  ? "เปิดให้เช็คชื่อ"
+                  : attendanceWindow.availability === "UPCOMING"
+                    ? "ยังไม่ถึงเวลาเช็คชื่อ"
+                    : "หมดเวลาเช็คชื่อแล้ว"}
+            </span>
+            <strong>
+              {attendanceWindow.availability === "OPEN"
+                ? formatRemainingTime(attendanceWindow.remainingSeconds)
+                : selectedSession?.alreadyCheckedIn
+                  ? "บันทึกเรียบร้อย"
+                  : attendanceWindow.availability === "UPCOMING"
+                    ? `เปิด ${selectedSession?.startTime || "--:--"} น.`
+                    : `ปิด ${selectedSession?.endTime || "--:--"} น.`}
+            </strong>
+          </div>
+          <time className="scan-live-clock">
+            {clockNow ? `${bangkokTimeFormatter.format(clockNow)} น.` : "--:--:-- น."}
+          </time>
+          <div className="scan-live-date">
+            <CalendarDays aria-hidden="true" />
+            <span>{clockNow ? bangkokDateFormatter.format(clockNow) : "กำลังโหลดวันที่"}</span>
+          </div>
+          <div className="scan-window-progress" aria-hidden="true">
+            <span style={{ width: `${attendanceWindow.progress}%` }} />
+          </div>
+          <div className="scan-window-times">
+            <span>เปิด {selectedSession?.startTime || "--:--"} น.</span>
+            <span>ปิด {selectedSession?.endTime || "--:--"} น.</span>
+          </div>
+        </section>
       </div>
 
-      {/* Multi-Session Selection Modal */}
       {sessionModalOpen && (
         <div className="student-modal-layer">
-          <div className="student-modal card session-select-modal" role="dialog">
+          <div
+            className="student-modal card session-select-modal"
+            role="dialog"
+          >
             <header>
               <div>
                 <h2>เลือกคาบเรียนที่ต้องการเช็คชื่อ</h2>
-                <p>มีคาบเรียนเปิดให้เช็คชื่อพร้อมกัน {sessions.length} คาบ กรุณาเลือกวิชาของคุณ</p>
+                <p>
+                  มีคาบเรียนเปิดให้เช็คชื่อพร้อมกัน {sessions.length} คาบ
+                  กรุณาเลือกวิชาของคุณ
+                </p>
               </div>
             </header>
 
@@ -458,7 +648,6 @@ export default function FaceScanner({
                   }`}
                   onClick={() => {
                     setSelectedSession(s);
-                    setConfirmed(false);
                     setSessionModalOpen(false);
                     stopCamera();
                   }}
@@ -468,7 +657,6 @@ export default function FaceScanner({
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       setSelectedSession(s);
-                      setConfirmed(false);
                       setSessionModalOpen(false);
                       stopCamera();
                     }
@@ -477,7 +665,8 @@ export default function FaceScanner({
                   <div className="session-card-header">
                     <span className="badge info">{s.subjectCode}</span>
                     <span className="session-countdown">
-                      <Clock size={13} /> {formatRemainingTime(s.remainingSeconds)}
+                      <Clock size={13} />{" "}
+                      {formatRemainingTime(s.remainingSeconds)}
                     </span>
                   </div>
 
@@ -526,45 +715,18 @@ export default function FaceScanner({
         </div>
       )}
 
-      {/* Confirmation before Camera Open (When 1 session available and camera not open) */}
-      {!cameraOpen && selectedSession && !confirmed && !selectedSessionEnded && (
-        <div className="session-confirm-box card">
-          <div className="confirm-icon">
-            <ShieldCheck size={36} />
-          </div>
-          <div className="confirm-content">
-            <h3>ยืนยันคาบเรียนก่อนเปิดกล้องสแกนใบหน้า</h3>
-            <p>
-              คุณกำลังจะเช็คชื่อวิชา <b>{selectedSession.subjectName}</b> (
-              {selectedSession.subjectCode}) ห้อง {selectedSession.room} กับครู{" "}
-              {selectedSession.teacherName}
-            </p>
-            <small>
-              เวลาเปิดเช็คชื่อ: {selectedSession.startTime} – {selectedSession.endTime} น.
-            </small>
-            {student && (
-              <small>
-                ผู้เช็คชื่อ: {student.name} ({student.code}) · {student.className} · {student.faceReady ? "ข้อมูลใบหน้าพร้อม" : "ยังไม่มีข้อมูลใบหน้า"}
-              </small>
-            )}
-          </div>
-          <button
-            type="button"
-            className="button primary confirm-open-cam-btn"
-            onClick={() => openCamera()}
-            disabled={lockoutRemaining > 0 || !isSelectedSessionOpen}
-          >
-            <Camera size={18} /> ยืนยันคาบและเปิดกล้อง
-          </button>
-        </div>
-      )}
-
       {selectedSession && !isSelectedSessionOpen && (
-        <div className={`scan-result-card card ${selectedSessionEnded ? "expired" : "error"}`}>
+        <div
+          className={`scan-result-card card ${selectedSessionEnded ? "expired" : "error"}`}
+        >
           <div className="result-header">
             <Clock size={32} className="danger-icon" />
             <div>
-              <h3>{selectedSessionEnded ? "หมดเวลาเช็คชื่อแล้ว" : "ยังไม่ถึงเวลาเปิดเช็คชื่อ"}</h3>
+              <h3>
+                {selectedSessionEnded
+                  ? "หมดเวลาเช็คชื่อแล้ว"
+                  : "ยังไม่ถึงเวลาเปิดเช็คชื่อ"}
+              </h3>
               <p className="error-desc">
                 {sessionNotOpenMessage}{" "}
                 {selectedSessionEnded
@@ -576,145 +738,122 @@ export default function FaceScanner({
         </div>
       )}
 
-      {/* 6-Step Progress Indicator */}
-      {isProcessing && currentStep && (
-        <div className="scan-step-indicator card">
-          <div className="steps-row">
-            {STEPS_CONFIG.map(({ step, label, num }) => {
-              const activeIndex = STEPS_CONFIG.findIndex((c) => c.step === currentStep);
-              const currentIndex = STEPS_CONFIG.findIndex((c) => c.step === step);
-              const isDone = currentIndex < activeIndex;
-              const isCurrent = currentIndex === activeIndex;
-
+      <div className="scan-workspace-grid">
+        <section className="scan-camera-card card">
+          <div className="scan-steps" aria-label={`ขั้นตอนที่ ${visualStep} จาก 4`}>
+            {DISPLAY_STEPS.map((step) => {
+              const isDone = step.num < visualStep;
+              const isActive = step.num === visualStep;
               return (
                 <div
-                  key={step}
-                  className={`step-item ${isDone ? "is-done" : ""} ${
-                    isCurrent ? "is-active" : ""
-                  }`}
+                  key={step.num}
+                  className={`scan-step ${isDone ? "is-done" : ""} ${isActive ? "is-active" : ""}`}
                 >
-                  <span className="step-circle">
-                    {isDone ? <CheckCircle2 size={14} /> : num}
-                  </span>
-                  <span className="step-label">{label}</span>
+                  <span>{isDone ? <Check /> : step.num}</span>
+                  <div><strong>{step.label}</strong><small>{step.hint}</small></div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* Video Camera Viewfinder */}
-      <div className="scanner">
-        <div className="camera-view">
-          <video ref={videoRef} autoPlay muted playsInline />
-          <div className="camera-shade" />
+          <div className="scanner">
+            <div className="camera-view">
+              <video ref={videoRef} autoPlay muted playsInline />
+              <div className="camera-shade" />
+              <span className="camera-quality"><CameraIcon /> HD</span>
+              <button
+                type="button"
+                className="camera-switch"
+                onClick={switchCamera}
+                disabled={!cameraOpen || isProcessing}
+              >
+                <SwitchCamera /> สลับกล้อง
+              </button>
 
-          <div className={`face-frame ${scanStatus} ${isProcessing ? "detecting" : ""}`}>
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+              <div
+                className={`face-frame ${scanStatus} ${isProcessing ? "detecting" : ""}`}
+              >
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
 
-          {!cameraOpen && (
-            <div className="camera-empty">
-              <CameraIcon size={48} />
-              <p>
-                {selectedSession
-                  ? "กล้องยังไม่เปิด กดปุ่มด้านล่างเพื่อเปิดกล้อง"
-                  : "กรุณาเลือกคาบเรียน"}
-              </p>
-            </div>
-          )}
+              {!cameraOpen && (
+                <div className="camera-empty">
+                  <CameraIcon size={48} />
+                  <strong>กล้องยังไม่เปิด</strong>
+                  <p>{selectedSession ? "กดปุ่มด้านล่างเพื่อเริ่มสแกนใบหน้า" : "กรุณาเลือกคาบเรียน"}</p>
+                </div>
+              )}
 
-          {cameraOpen && (
-            <div className={`scan-message ${scanStatus}`}>
-              {isProcessing ? (
-                <>
-                  <LoaderCircle className="face-spin" size={18} />
-                  <span>
-                    {currentStep === "INIT_CAMERA" && "กำลังเปิดและเตรียมกล้อง..."}
-                    {currentStep === "FACE_DETECTION" && "กำลังตรวจจับตำแหน่งใบหน้า..."}
-                    {currentStep === "LIVENESS" && "กำลังตรวจจับบุคคลจริง (Liveness)..."}
-                    {currentStep === "MATCHING" && "กำลังเปรียบเทียบข้อมูลใบหน้า..."}
-                    {currentStep === "SAVING" && "กำลังบันทึกผลการเข้าเรียน..."}
-                    {currentStep === "COMPLETED" && "ประมวลผลเสร็จสิ้น"}
-                  </span>
-                </>
-              ) : scanStatus === "success" ? (
-                <>
-                  <CheckCircle2 size={18} />
-                  <span>ยืนยันตัวตนสำเร็จ</span>
-                </>
-              ) : scanStatus === "duplicate" ? (
-                <>
-                  <AlertCircle size={18} />
-                  <span>เช็คชื่อคาบนี้แล้ว</span>
-                </>
-              ) : scanStatus === "error" ? (
-                <>
-                  <XCircle size={18} />
-                  <span>{errorMessage || "สแกนไม่สำเร็จ"}</span>
-                </>
-              ) : (
-                <>
-                  <span className="pulse-dot" />
-                  <span>จัดใบหน้าให้อยู่กึ่งกลางกรอบและมองตรงที่กล้อง</span>
-                </>
+              {cameraOpen && (
+                <div className={`scan-message ${scanStatus}`}>
+                  {isProcessing ? (
+                    <>
+                      <LoaderCircle className="face-spin" size={18} />
+                      <span>
+                        {currentStep === "INIT_CAMERA" && "กำลังเปิดและเตรียมกล้อง..."}
+                        {currentStep === "FACE_DETECTION" && "กำลังตรวจจับตำแหน่งใบหน้า..."}
+                        {currentStep === "LIVENESS" && "กำลังตรวจจับบุคคลจริง (Liveness)..."}
+                        {currentStep === "MATCHING" && "กำลังเปรียบเทียบข้อมูลใบหน้า..."}
+                        {currentStep === "SAVING" && "กำลังบันทึกผลการเข้าเรียน..."}
+                        {currentStep === "COMPLETED" && "ประมวลผลเสร็จสิ้น"}
+                      </span>
+                    </>
+                  ) : scanStatus === "success" ? (
+                    <><CheckCircle2 size={18} /><span>ยืนยันตัวตนสำเร็จ</span></>
+                  ) : scanStatus === "duplicate" ? (
+                    <><AlertCircle size={18} /><span>เช็คชื่อคาบนี้แล้ว</span></>
+                  ) : scanStatus === "error" ? (
+                    <><XCircle size={18} /><span>{errorMessage || "สแกนไม่สำเร็จ"}</span></>
+                  ) : (
+                    <><UserRound size={18} /><span>วางใบหน้าให้อยู่ในกรอบ</span></>
+                  )}
+                </div>
+              )}
+
+              {currentChallenge && (
+                <div className="liveness-challenge" role="status" aria-live="assertive">
+                  <small>ขั้นที่ {challengeNumber} จาก 2 · ทำภายใน 10 วินาที</small>
+                  <strong>{challengeLabels[currentChallenge]}</strong>
+                  <span>มองกล้องและขยับอย่างเป็นธรรมชาติ</span>
+                </div>
               )}
             </div>
-          )}
 
-          {currentChallenge && (
-            <div className="liveness-challenge" role="status" aria-live="assertive">
-              <small>ขั้นที่ {challengeNumber} จาก 2 · ทำภายใน 10 วินาที</small>
-              <strong>{challengeLabels[currentChallenge]}</strong>
-              <span>มองกล้องและขยับอย่างเป็นธรรมชาติ</span>
+            <div className="scanner-actions">
+              <button
+                type="button"
+                className="button primary scan-start"
+                onClick={!cameraOpen ? () => openCamera() : startScan}
+                disabled={isProcessing || lockoutRemaining > 0 || scanStatus === "success" || !selectedSession || !isSelectedSessionOpen}
+              >
+                <Camera size={19} />
+                {!cameraOpen ? "เปิดกล้องเพื่อเช็คชื่อ" : isProcessing ? "กำลังประมวลผล..." : "สแกนใบหน้าเพื่อเช็คชื่อ"}
+                <ChevronRight size={18} />
+              </button>
+              {cameraOpen && (
+                <button
+                  type="button"
+                  className="button secondary scan-restart"
+                  onClick={() => openCamera()}
+                  disabled={isProcessing || lockoutRemaining > 0 || !isSelectedSessionOpen}
+                >
+                  <RefreshCw size={18} /> เริ่มกล้องใหม่
+                </button>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Action Controls */}
-        <div className="scanner-actions">
-          <button
-            type="button"
-            className="button secondary"
-            onClick={switchCamera}
-            disabled={!cameraOpen || isProcessing}
-          >
-            <SwitchCamera size={18} /> สลับกล้อง
-          </button>
+            <div className="scan-trust-row">
+              <span><ShieldCheck /> ตรวจจับใบหน้าอัตโนมัติ</span>
+              <span><Lock /> Liveness Detection ป้องกันการสวมรูป</span>
+              <span><ShieldCheck /> ข้อมูลถูกเข้ารหัสและปลอดภัย</span>
+            </div>
+          </div>
 
-          <button
-            type="button"
-            className="button primary scan-start"
-            onClick={!cameraOpen ? () => openCamera() : startScan}
-            disabled={
-              isProcessing ||
-              lockoutRemaining > 0 ||
-              scanStatus === "success" ||
-              !selectedSession ||
-              !isSelectedSessionOpen
-            }
-          >
-            <Camera size={18} />
-            {!cameraOpen ? "เปิดกล้อง" : isProcessing ? "กำลังประมวลผล..." : "สแกนใบหน้า"}
-          </button>
-
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => openCamera()}
-            disabled={isProcessing || lockoutRemaining > 0 || !isSelectedSessionOpen}
-          >
-            <RefreshCw size={18} /> เปิดกล้องใหม่
-          </button>
-        </div>
-
-        {/* Detailed Result Card (Requirement 4) */}
-        {result && (scanStatus === "success" || scanStatus === "duplicate") && (
-          <div className={`scan-result-card card ${scanStatus}`}>
+          {result && (scanStatus === "success" || scanStatus === "duplicate") && (
+            <div className={`scan-result-card card ${scanStatus}`}>
             <div className="result-header">
               {student?.hasProfileImage ? (
                 <Image
@@ -731,8 +870,16 @@ export default function FaceScanner({
                 </span>
               )}
               <div>
-                <h3>{scanStatus === "duplicate" ? "เช็คชื่อคาบนี้แล้ว" : "เช็คชื่อสำเร็จ"}</h3>
-                <p>{student ? `${student.name} · ${student.code} · ${student.className}` : result.message}</p>
+                <h3>
+                  {scanStatus === "duplicate"
+                    ? "เช็คชื่อคาบนี้แล้ว"
+                    : "เช็คชื่อสำเร็จ"}
+                </h3>
+                <p>
+                  {student
+                    ? `${student.name} · ${student.code} · ${student.className}`
+                    : result.message}
+                </p>
               </div>
             </div>
 
@@ -740,8 +887,12 @@ export default function FaceScanner({
               <div className="result-field">
                 <span>วันที่</span>
                 <strong>
-                  {new Intl.DateTimeFormat("th-TH", { dateStyle: "long" }).format(
-                    new Date(`${(result.session || selectedSession)?.sessionDate}T00:00:00`),
+                  {new Intl.DateTimeFormat("th-TH", {
+                    dateStyle: "long",
+                  }).format(
+                    new Date(
+                      `${(result.session || selectedSession)?.sessionDate}T00:00:00`,
+                    ),
                   )}
                 </strong>
               </div>
@@ -766,13 +917,13 @@ export default function FaceScanner({
               </div>
               <div className="result-field">
                 <span>ครูผู้สอน</span>
-                <strong>{(result.session || selectedSession)?.teacherName}</strong>
+                <strong>
+                  {(result.session || selectedSession)?.teacherName}
+                </strong>
               </div>
               <div className="result-field">
                 <span>เวลาเช็คชื่อ</span>
-                <strong>
-                  {result.record?.checkInTime || "บันทึกแล้ว"} น.
-                </strong>
+                <strong>{result.record?.checkInTime || "บันทึกแล้ว"} น.</strong>
               </div>
               <div className="result-field">
                 <span>สถานะเข้าเรียน</span>
@@ -786,25 +937,30 @@ export default function FaceScanner({
               </div>
               <div className="result-field">
                 <span>ผลยืนยันใบหน้า</span>
-                <strong>{Number(result.confidence || 0) >= 80 ? "ความมั่นใจสูง" : "ผ่านเกณฑ์"}</strong>
+                <strong>
+                  {Number(result.confidence || 0) >= 80
+                    ? "ความมั่นใจสูง"
+                    : "ผ่านเกณฑ์"}
+                </strong>
               </div>
             </div>
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Error Result Card with Explanation and Retry Button */}
-        {scanStatus === "error" && errorMessage && (
-          <div className="scan-result-card card error">
+          {scanStatus === "error" && errorMessage && (
+            <div className="scan-result-card card error">
             <div className="result-header">
               <XCircle size={32} className="danger-icon" />
               <div>
                 <h3>การสแกนไม่สำเร็จ</h3>
                 <p className="error-desc">{errorMessage}</p>
-                {result?.remainingAttempts !== undefined && result.remainingAttempts > 0 && (
-                  <small className="attempt-warning">
-                    คุณสามารถลองใหม่ได้อีก {result.remainingAttempts} ครั้ง ก่อนระบบล็อกชั่วคราว
-                  </small>
-                )}
+                {result?.remainingAttempts !== undefined &&
+                  result.remainingAttempts > 0 && (
+                    <small className="attempt-warning">
+                      คุณสามารถลองใหม่ได้อีก {result.remainingAttempts} ครั้ง
+                      ก่อนระบบล็อกชั่วคราว
+                    </small>
+                  )}
               </div>
             </div>
             <div className="result-actions">
@@ -817,8 +973,30 @@ export default function FaceScanner({
                 <RefreshCw size={16} /> ลองสแกนใหม่อีกครั้ง
               </button>
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </section>
+
+        <aside className="scan-guide-column">
+          <section className="scan-guide-card card">
+            <header><Info /><h2>คำแนะนำในการเช็คชื่อ</h2></header>
+            <ul>
+              <li><Check /><span>อยู่ในที่ที่มีแสงสว่างเพียงพอ</span></li>
+              <li><Check /><span>มองตรงไปที่กล้อง</span></li>
+              <li><Check /><span>ไม่สวมหมวก แว่นดำ หรือสิ่งที่ปิดบังใบหน้า</span></li>
+              <li><Check /><span>อยู่ในกรอบที่กำหนดจนกว่าระบบจะยืนยัน</span></li>
+              <li className="is-warning"><XCircle /><span>ห้ามใช้รูปภาพหรือวิดีโอในการเช็คชื่อ</span></li>
+            </ul>
+          </section>
+
+          <section className="scan-safety-card card">
+            <ShieldCheck />
+            <div>
+              <h2>มาตรการความปลอดภัย</h2>
+              <p>ระบบใช้การตรวจจับการมีชีวิตจริง (Liveness Detection) และเข้ารหัสข้อมูล เพื่อป้องกันการสวมรูปและรักษาความปลอดภัยของข้อมูลนักเรียน</p>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

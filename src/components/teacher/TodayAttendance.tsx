@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight, CalendarDays, Clock3, UsersRound } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 
 export type DashboardSession = {
   id: string;
+  href?: string | null;
   time?: string | null;
   code?: string | null;
   name?: string | null;
@@ -13,37 +14,41 @@ export type DashboardSession = {
   status?: string | null;
 };
 
-function AttendanceSessionCard({ item }: { item: DashboardSession }) {
-  const state = item.status === "closed" ? "closed" : item.status === "active" ? "active" : "upcoming";
-  const label = state === "closed" ? "เสร็จสิ้น" : state === "active" ? "กำลังเช็คชื่อ" : "ยังไม่เริ่ม";
-  return (
-    <article className="dashboard-session-card">
-      <div className="dashboard-session-time"><Clock3 size={16} aria-hidden="true" /><span>{item.time || "-"}</span></div>
-      <div className="dashboard-session-info">
-        <h4>{item.subjectName || item.name || "ไม่มีข้อมูล"}</h4>
-        <div className="dashboard-session-meta">
-          <span>{item.code || "-"}</span>
-          <span className="dashboard-meta-dot" aria-hidden="true" />
-          <span>{item.room || "ไม่ระบุห้อง"}</span>
-        </div>
-      </div>
-      <div className="dashboard-session-count"><UsersRound size={15} aria-hidden="true" /> เข้าเรียน {item.count || "0/0"} คน</div>
-      <span className={`dashboard-session-status ${state}`}>{label}</span>
-      <Link className="dashboard-session-link" href={`/teacher/scan/${item.id}`}>ดูรายละเอียด <ArrowUpRight size={15} aria-hidden="true" /></Link>
-    </article>
-  );
-}
+const statusLabel = (status?: string | null) =>
+  status === "closed"
+    ? "เสร็จสิ้น"
+    : status === "active"
+      ? "กำลังเช็คชื่อ"
+      : "ยังไม่ถึงเวลา";
 
 export function TodayAttendance({ sessions }: { sessions?: DashboardSession[] | null }) {
   return (
-    <section className="panel dashboard-panel" aria-labelledby="today-heading">
+    <section className="panel dashboard-panel dashboard-schedule" aria-labelledby="today-heading">
       <div className="dashboard-panel-head">
-        <div><p className="dashboard-eyebrow">ตารางวันนี้</p><h3 id="today-heading">รอบเช็คชื่อวันนี้</h3></div>
-        <Link href="/teacher/history" className="dashboard-view-all">ดูทั้งหมด <ArrowUpRight size={15} aria-hidden="true" /></Link>
+        <h3 id="today-heading">ตารางสอนวันนี้</h3>
+        <Link href="/teacher/courses" className="dashboard-view-all">ดูทั้งหมด</Link>
       </div>
       {sessions?.length ? (
-        <div className="dashboard-session-list">{sessions.map((item) => <AttendanceSessionCard key={item.id} item={item} />)}</div>
-      ) : <EmptyState icon={CalendarDays} title="วันนี้ยังไม่มีรอบเช็คชื่อ" description="สร้างรอบใหม่ได้จากหน้ารายวิชาของฉัน" />}
+        <div className="dashboard-schedule-scroll">
+          <table className="dashboard-schedule-table">
+            <thead>
+              <tr><th>เวลา</th><th>รายวิชา</th><th>ห้องเรียน</th><th>สถานะ</th></tr>
+            </thead>
+            <tbody>
+              {sessions.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.time || "-"}</td>
+                  <td><Link href={item.href || `/teacher/scan/${item.id}`}>{item.subjectName || item.name || "ไม่มีข้อมูล"}</Link><small>{item.code || "-"}</small></td>
+                  <td>{item.room || "-"}</td>
+                  <td><span className={`dashboard-session-status ${item.status === "closed" ? "closed" : item.status === "active" ? "active" : "upcoming"}`}>{statusLabel(item.status)}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState icon={CalendarDays} title="วันนี้ยังไม่มีตารางสอน" description="ตารางเรียนของวันนี้จะแสดงที่นี่" />
+      )}
     </section>
   );
 }

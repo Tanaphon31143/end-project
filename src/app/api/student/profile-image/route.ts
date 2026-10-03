@@ -16,7 +16,7 @@ export async function GET() {
   return new Response(new Uint8Array(image.data), {
     headers: {
       "Content-Type": image.mime,
-      "Cache-Control": "private, max-age=300",
+      "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },
   });

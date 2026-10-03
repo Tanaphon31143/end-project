@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS teacher_subject_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  teacher_id INT UNSIGNED NOT NULL,
+  classroom_id INT UNSIGNED NOT NULL,
+  subject_name VARCHAR(200) NOT NULL,
+  subject_code VARCHAR(30) NOT NULL,
+  semester TINYINT UNSIGNED NOT NULL,
+  academic_year VARCHAR(10) NOT NULL,
+  description VARCHAR(255) NULL,
+  schedules_json JSON NOT NULL,
+  status ENUM('PENDING','APPROVED','REJECTED','CHANGES_REQUESTED') NOT NULL DEFAULT 'PENDING',
+  admin_remark VARCHAR(500) NULL,
+  reviewed_by_admin_id INT UNSIGNED NULL,
+  reviewed_at DATETIME NULL,
+  subject_id INT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_teacher_subject_request_teacher (teacher_id, created_at),
+  INDEX idx_teacher_subject_request_status (status, created_at),
+  INDEX idx_teacher_subject_request_code (subject_code),
+  CONSTRAINT fk_teacher_subject_request_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+  CONSTRAINT fk_teacher_subject_request_classroom FOREIGN KEY (classroom_id) REFERENCES classrooms(id)
+);

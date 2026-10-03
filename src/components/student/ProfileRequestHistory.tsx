@@ -1,11 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  FileSpreadsheet,
-  Paperclip,
-  RefreshCw,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { FileSpreadsheet, Paperclip, RefreshCw } from "lucide-react";
 import AttachmentModal, { type AttachmentInfo } from "./AttachmentModal";
 
 type ProfileRequestItem = {
@@ -59,32 +55,44 @@ function getStatusBadge(status: string) {
 export default function ProfileRequestHistory() {
   const [requests, setRequests] = useState<ProfileRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeAttachment, setActiveAttachment] = useState<AttachmentInfo | null>(null);
+  const [error, setError] = useState(false);
+  const [activeAttachment, setActiveAttachment] =
+    useState<AttachmentInfo | null>(null);
 
-  async function loadRequests() {
+  const loadRequests = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch("/api/student/profile-requests");
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data.requests || []);
-      }
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setRequests(data.requests || []);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => void loadRequests());
-  }, []);
+    const refresh = () => {
+      void loadRequests();
+    };
+    window.addEventListener("student-profile-request-submitted", refresh);
+    return () =>
+      window.removeEventListener("student-profile-request-submitted", refresh);
+  }, [loadRequests]);
 
   return (
     <>
       <section className="card card-pad profile-request-history">
-        <div className="section-head">
+        <div className="section-head profile-request-history-head">
           <div>
             <h2>ประวัติคำร้องแก้ไขข้อมูลส่วนตัว</h2>
-            <p>ติดตามสถานะคำร้องขอแก้ไขข้อมูลสำคัญที่ยื่นต่อฝ่ายทะเบียนและผู้ดูแลระบบ</p>
+            <p>
+              ติดตามสถานะคำร้องขอแก้ไขข้อมูลสำคัญที่ยื่นต่อฝ่ายทะเบียนและผู้ดูแลระบบ
+            </p>
           </div>
           <button
             type="button"
@@ -101,13 +109,25 @@ export default function ProfileRequestHistory() {
             <div className="skeleton-item" />
             <div className="skeleton-item" />
           </div>
+        ) : error ? (
+          <div className="table-empty profile-request-history-empty" role="alert">
+            <h3>โหลดประวัติคำร้องไม่สำเร็จ</h3>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => void loadRequests()}
+            >
+              ลองใหม่
+            </button>
+          </div>
         ) : requests.length === 0 ? (
-          <div className="table-empty">
+          <div className="table-empty profile-request-history-empty">
             <FileSpreadsheet size={40} />
-            <p>ยังไม่มีประวัติการยื่นคำร้องแก้ไขข้อมูล</p>
-            <small>
-              หากชื่อ-สกุล รหัสนักเรียน หรือห้องเรียนไม่ถูกต้อง สามารถกดยื่นคำร้องได้ที่ปุ่มด้านบน
-            </small>
+            <h3>ยังไม่มีประวัติการยื่นคำร้องแก้ไขข้อมูล</h3>
+            <p>
+              หากชื่อ-สกุล รหัสนักเรียน หรือห้องเรียนไม่ถูกต้อง
+              สามารถกดยื่นคำร้องได้ที่ปุ่มด้านบน
+            </p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -148,7 +168,8 @@ export default function ProfileRequestHistory() {
                             setActiveAttachment({
                               requestId: r.id,
                               name: r.attachmentName || "เอกสารหลักฐาน",
-                              mime: r.attachmentMime || "application/octet-stream",
+                              mime:
+                                r.attachmentMime || "application/octet-stream",
                               size: r.attachmentSize || undefined,
                               uploadDate: r.createdAt,
                             })
