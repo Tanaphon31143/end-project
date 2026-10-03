@@ -7,7 +7,6 @@ export default async function ClassesPage() {
   return (
     <ClassesManager
       initialClasses={data.classrooms}
-      initialStudents={data.studentsByClass}
       teachers={data.teachers}
       academicYear={data.academicYear}
       semester={data.semester}
