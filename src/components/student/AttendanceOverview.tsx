@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, GraduationCap, Check, X, Clock3 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -44,10 +45,11 @@ export default function AttendanceOverview({ summary, subjects, attendanceDays, 
   const [month, setMonth] = useState({ year: latestParts[0], month: latestParts[1] - 1 });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<AttendanceStatus | null>(initialStatus);
-  const [animatedPresent, setAnimatedPresent] = useState(0);
+  const [animatedPresent, setAnimatedPresent] = useState(summary.present);
 
   useEffect(() => {
     if (!hasData) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let frame = 0;
     const started = performance.now();
     const tick = (now: number) => {
@@ -69,6 +71,18 @@ export default function AttendanceOverview({ summary, subjects, attendanceDays, 
   const selectedRecords = selectedDate ? recordsByDate.get(selectedDate) || [] : [];
   const rate = hasData ? Math.round(summary.rate) : null;
   const threshold = ATTENDANCE_THRESHOLD * 100;
+  const [weekCount, setWeekCount] = useState(4);
+  const weekly = Array.from({ length: weekCount }, (_, index) => {
+    const anchor = latest ? new Date(`${latest}T00:00:00Z`) : new Date();
+    anchor.setUTCDate(anchor.getUTCDate() - ((anchor.getUTCDay() + 6) % 7) - (weekCount - 1 - index) * 7);
+    const start = anchor.toISOString().slice(0, 10);
+    anchor.setUTCDate(anchor.getUTCDate() + 6);
+    const end = anchor.toISOString().slice(0, 10);
+    const records = attendanceDays.filter((record) => record.date >= start && record.date <= end);
+    const attended = records.filter((record) => record.status === "PRESENT" || record.status === "LATE").length;
+    return { start, end, total: records.length, rate: records.length ? Math.round(attended / records.length * 100) : null };
+  });
+  const recent = [...attendanceDays].filter((record) => !activeStatus || record.status === activeStatus).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
 
   function moveMonth(delta: number) {
     setSelectedDate(null);
@@ -87,7 +101,12 @@ export default function AttendanceOverview({ summary, subjects, attendanceDays, 
 
   return (
     <div className="attendance-overview">
+      <div className="statistics-metrics" aria-label="สรุปการเข้าเรียน">
+        {[{ label: "อัตราการเข้าเรียน", value: rate === null ? "—" : `${rate}%`, note: `จากทั้งหมด ${summary.total} คาบ`, icon: GraduationCap, tone: "blue" }, { label: "มาเรียน", value: summary.present, note: "คาบ", icon: Check, tone: "green" }, { label: "ขาดเรียน", value: summary.absent, note: "คาบ", icon: X, tone: "red" }, { label: "สาย / ลา", value: summary.late + summary.leave, note: `สาย ${summary.late} · ลา ${summary.leave} คาบ`, icon: Clock3, tone: "amber" }].map(({ label, value, note, icon: Icon, tone }) => <div className={`statistics-metric ${tone}`} key={label}><Icon size={32} aria-hidden="true" /><div><h2>{label}</h2><strong>{value}</strong><p>{note}</p></div></div>)}
+      </div>
       <section className="attendance-hero" aria-labelledby="attendance-hero-title">
+        <h2 className="statistics-panel-title">ภาพรวมการเข้าเรียน</h2>
+        <div className="statistics-rate-ring" role="img" aria-label={`อัตราการเข้าเรียน ${rate === null ? "ไม่มีข้อมูล" : `${rate}%`}`}><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" /><circle className="ring-value" cx="60" cy="60" r="50" pathLength="100" strokeDasharray={`${rate ?? 0} 100`} strokeLinecap={rate ? "round" : "butt"} /></svg><div><strong>{rate === null ? "—" : `${rate}%`}</strong><span>อัตราการเข้าเรียน</span></div></div>
         <div className="attendance-hero-copy" aria-live="polite">
           <h2 id="attendance-hero-title">
             {hasData ? <>คุณเข้าเรียน <strong>{animatedPresent + summary.late}</strong> จาก <strong>{summary.total}</strong> คาบ</> : "ยังไม่มีข้อมูลการเข้าเรียน"}
@@ -103,7 +122,7 @@ export default function AttendanceOverview({ summary, subjects, attendanceDays, 
           <span className="attendance-threshold" style={{ left: `${threshold}%` }}><span>เกณฑ์เวลาเรียน {threshold}%</span></span>
         </div>
         <p className={`attendance-threshold-note ${rate !== null && rate >= threshold ? "is-pass" : "is-warning"}`}>
-          {rate !== null && rate >= threshold ? `อยู่ในเกณฑ์เวลาเรียน ${threshold}% ขึ้นไป` : `ต่ำกว่าเกณฑ์เวลาเรียน ${threshold}%`}
+          {rate === null ? "ยังไม่มีข้อมูลสำหรับประเมินเวลาเรียน" : rate >= threshold ? `อยู่ในเกณฑ์เวลาเรียน ${threshold}% ขึ้นไป` : `ต่ำกว่าเกณฑ์เวลาเรียน ${threshold}%`}
         </p>
         <div className="attendance-status-legend" aria-label="กรองตามสถานะ">
           {STATUS_ORDER.map((status) => {
@@ -121,6 +140,11 @@ export default function AttendanceOverview({ summary, subjects, attendanceDays, 
             </button>;
           })}
         </div>
+      </section>
+
+      <section className="statistics-weekly">
+        <div className="attendance-section-heading"><h2>แนวโน้มการเข้าเรียนรายสัปดาห์</h2><select aria-label="จำนวนสัปดาห์ที่แสดง" value={weekCount} onChange={(event) => setWeekCount(Number(event.target.value))}><option value={4}>4 สัปดาห์ล่าสุด</option><option value={8}>8 สัปดาห์ล่าสุด</option></select></div>
+        <div className="statistics-week-chart"><div className="statistics-chart-axis"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="statistics-chart-columns">{weekly.map((week) => <div className="statistics-chart-column" key={week.start}><div className="statistics-chart-track"><span style={{ height: `${week.rate ?? 0}%` }} /><b>{week.rate === null ? "—" : `${week.rate}%`}</b></div><small>{week.start.slice(8)}/{week.start.slice(5, 7)}–{week.end.slice(8)}/{week.end.slice(5, 7)}</small><small>{week.total ? `${week.total} คาบ` : "ไม่มีข้อมูล"}</small></div>)}</div></div>
       </section>
 
       <section className="attendance-calendar-section" aria-labelledby="attendance-calendar-title">
@@ -155,8 +179,9 @@ export default function AttendanceOverview({ summary, subjects, attendanceDays, 
         {!monthRecords.length && <p className="attendance-calendar-empty">เดือนนี้ยังไม่มีการบันทึกการเข้าเรียน</p>}
       </section>
 
+      <section className="statistics-recent"><div className="attendance-section-heading"><h2>รายการเข้าเรียนล่าสุด</h2><Link href="/student/attendance/history">ดูทั้งหมด</Link></div><div className="statistics-table-scroll"><table><thead><tr><th>วันที่</th><th>เวลา</th><th>รายวิชา</th><th>สถานะ</th></tr></thead><tbody>{recent.map((record, index) => <tr key={`${record.date}-${index}`}><td>{record.date.split("-").reverse().join("/")}</td><td>{record.classTime || "—"}</td><td>{record.subjectName}</td><td><span className={`statistics-record-status is-${record.status.toLowerCase()}`} style={{ color: STATUS_STYLE[record.status].textColor, background: STATUS_STYLE[record.status].softColor }}>{STATUS_STYLE[record.status].label}</span></td></tr>)}{!recent.length && <tr><td colSpan={4}>ยังไม่มีรายการในช่วงที่เลือก</td></tr>}</tbody></table></div></section>
       <section className="attendance-subject-section" aria-labelledby="attendance-subject-title">
-        <div className="attendance-section-heading"><h2 id="attendance-subject-title">รายวิชา</h2><span>{subjects.length} รายวิชา</span></div>
+        <div className="attendance-section-heading"><h2 id="attendance-subject-title">อัตราการเข้าเรียนรายวิชา</h2><span>{subjects.length} รายวิชา</span></div>
         <div className="attendance-subject-list">
           {subjects.length ? subjects.map((subject, index) => {
             const subjectRate = subject.total ? Math.round(subject.value) : null;

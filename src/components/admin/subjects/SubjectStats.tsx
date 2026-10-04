@@ -1,32 +1,30 @@
-import { BookOpen, Clock3, School, UserRound } from "lucide-react";
+import { BookOpen, BookOpenCheck, School } from "lucide-react";
 
 type Props = {
-  pendingRequests: number;
   subjectCount: number;
+  activeSubjectCount: number;
   classroomCount: number;
-  teacherCount: number;
 };
 
 export function SubjectStats({
-  pendingRequests,
   subjectCount,
+  activeSubjectCount,
   classroomCount,
-  teacherCount,
 }: Props) {
   const items = [
     {
-      label: "คำขอรอตรวจสอบ",
-      value: pendingRequests,
-      unit: "รายการ",
-      tone: "amber",
-      icon: Clock3,
-    },
-    {
-      label: "รายวิชาทั้งหมด",
+      label: "จำนวนรายวิชาทั้งหมด",
       value: subjectCount,
       unit: "รายวิชา",
-      tone: "blue",
+      tone: "amber",
       icon: BookOpen,
+    },
+    {
+      label: "รายวิชาที่กำลังสอน",
+      value: activeSubjectCount,
+      unit: "รายวิชา",
+      tone: "blue",
+      icon: BookOpenCheck,
     },
     {
       label: "ชั้นเรียนที่เปิดสอน",
@@ -34,13 +32,6 @@ export function SubjectStats({
       unit: "ห้องเรียน",
       tone: "green",
       icon: School,
-    },
-    {
-      label: "ครูผู้สอนทั้งหมด",
-      value: teacherCount,
-      unit: "คน",
-      tone: "violet",
-      icon: UserRound,
     },
   ] as const;
 

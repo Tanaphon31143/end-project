@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./select-controls.css";
 
 const sfThonburi = localFont({
   src: [
@@ -15,6 +16,10 @@ const sfThonburi = localFont({
 export const metadata: Metadata = {
   title: "เข้าสู่ระบบ | School OS",
   description: "ศูนย์บัญชาการโรงเรียน",
+  icons: {
+    icon: "/school-icon.png",
+    apple: "/school-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -30,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="th" className={sfThonburi.variable}>
-      <body>
+      <body className={sfThonburi.className}>
         {children}
       </body>
     </html>

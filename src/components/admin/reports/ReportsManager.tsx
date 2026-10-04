@@ -1,4 +1,5 @@
 "use client";
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useRef, useState } from "react";
 import { Download, UserCheck, UserMinus, UserX, Users } from "lucide-react";
 import {
@@ -94,13 +95,13 @@ export default function ReportsManager({
         </div>
       </div>
       <div className="admin-filters report-filters">
-        <input
+        <DateTimeInput
           aria-label="วันที่เริ่มต้น"
           type="date"
           value={filters.from}
           onChange={(e) => setFilters({ ...filters, from: e.target.value })}
         />
-        <input
+        <DateTimeInput
           aria-label="วันที่สิ้นสุด"
           type="date"
           value={filters.to}

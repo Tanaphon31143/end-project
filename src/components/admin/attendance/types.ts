@@ -27,7 +27,7 @@ export type AttendanceAudit = {
   createdAt: string;
 };
 
-export type AttendanceOption = { id: number; code: string; name: string; classroomId: number | null };
+export type AttendanceOption = { id: number; code: string; name: string; classroomId: number | null; teacherName?: string; gradeLevel?: string; weeklyPeriods?: number | null };
 export type ClassroomOption = { id: number; name: string };
 export type StudentOption = { id: number; code: string; name: string; classroomId: number | null; className: string };
 
@@ -35,5 +35,6 @@ export type AttendancePageData = {
   records: AttendanceRecord[];
   students: StudentOption[];
   subjects: AttendanceOption[];
+  catalogSubjects?: AttendanceOption[];
   classrooms: ClassroomOption[];
 };

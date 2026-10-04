@@ -2,6 +2,10 @@
 @source "./**/*.{js,ts,jsx,tsx,mdx}";
 @source "../components/**/*.{js,ts,jsx,tsx,mdx}";
 
+@theme inline {
+  --font-sans: var(--font-sf-thonburi), Tahoma, "Leelawadee UI", Arial, Helvetica, sans-serif;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -34,12 +38,16 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: var(--font-sf-thonburi), Tahoma, "Leelawadee UI", Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 button, input, select, textarea {
-  font-family: inherit;
+  font: inherit;
+  line-height: 1.5;
+  font-synthesis: none;
 }
 
 @keyframes ripple {
@@ -149,6 +157,18 @@ a {
 
 *::-webkit-scrollbar-corner {
   background: #f2f2f2;
+}
+
+/* Keep Thai marks legible and aligned on every filter-reset control. */
+:is(.admin-shell, .teacher-app, .student-shell) :is(button, a).filter-reset-button {
+  font-family: var(--font-sf-thonburi), Tahoma, "Leelawadee UI", Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  font-synthesis: none;
+  min-height: 40px;
+  height: auto;
+  padding-block: 0.35rem;
 }
 
 /* Shared SweetAlert2 surface for admin, teacher, and student actions. */

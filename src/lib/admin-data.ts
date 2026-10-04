@@ -296,7 +296,7 @@ export async function getStudentPageData() {
       `SELECT s.id databaseId,s.student_code studentCode,s.full_name fullName,s.email,s.class_id classId,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,s.class_number classNumber,COALESCE(s.parent_name,'') parentName,COALESCE(s.phone,'') phone,s.status FROM students s LEFT JOIN classrooms c ON c.id=s.class_id ORDER BY s.student_code`,
     ),
     rows<RowDataPacket & StudentClassroomOption>(
-      `SELECT id,name,level FROM classrooms ORDER BY level,name`,
+      `SELECT c.id,c.name,c.level,COALESCE(t.full_name,'ยังไม่กำหนด') advisorName FROM classrooms c LEFT JOIN teachers t ON t.id=c.advisor_teacher_id ORDER BY c.level,c.name`,
     ),
   ]);
   return { students, classrooms };
@@ -564,7 +564,7 @@ export async function getAttendance() {
   );
 }
 export async function getAttendancePageData(): Promise<AttendancePageData> {
-  const [records, students, subjects, classrooms] = await Promise.all([
+  const [records, students, subjects, classrooms, catalogSubjects] = await Promise.all([
     rows<RowDataPacket & AttendanceRecord>(
       `SELECT a.id,a.student_id studentId,st.student_code studentCode,st.full_name studentName,st.class_id classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subjectName,DATE_FORMAT(a.attendance_date,'%Y-%m-%d') attendanceDate,IFNULL(TIME_FORMAT(a.check_in_time,'%H:%i:%s'),NULL) checkInTime,a.status,IFNULL(CAST(a.confidence AS DECIMAL(5,2)),NULL) confidence,DATE_FORMAT(a.created_at,'%d/%m/%Y %H:%i') createdAt FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN classrooms c ON c.id=st.class_id LEFT JOIN subjects sb ON sb.id=a.subject_id ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 500`,
     ),
@@ -592,8 +592,13 @@ export async function getAttendancePageData(): Promise<AttendancePageData> {
     rows<RowDataPacket & { id: number; name: string }>(
       `SELECT id,name FROM classrooms ORDER BY level,name`,
     ),
+    getSubjectPageData().then(data => data.subjects.map(subject => ({
+      id: subject.databaseId, code: subject.subjectCode, name: subject.subjectName,
+      classroomId: subject.classId, teacherName: subject.teacherName, gradeLevel: subject.gradeLevel,
+      weeklyPeriods: subject.schedules.length || (subject.startTime && subject.endTime && subject.studyDays.length ? subject.studyDays.length : null),
+    }))),
   ]);
-  return { records, students, subjects, classrooms };
+  return { records, students, subjects, classrooms, catalogSubjects };
 }
 export async function getCheckInPageData(date: string) {
   const [classrooms, subjects, sessionResult] = await Promise.all([

@@ -1,0 +1,100 @@
+.summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 280px;
+  margin-left: auto;
+  align-self: flex-end;
+  max-width: 100%;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.rateCard,
+.totalCard {
+  min-width: 0;
+  min-height: 116px;
+  padding: 18px;
+  border: 1px solid #dfe8f2;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.rateCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rateCard:hover { transform: translateY(-3px); box-shadow: 0 8px 18px #18304f12; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rateCard { transition: none; }
+  .rateCard:hover { transform: none; }
+}
+
+.label {
+  color: #405c7c;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-wrap: balance;
+}
+
+.ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(#12a66a calc(var(--history-rate, 0) * 1%), #e9f1f7 0);
+}
+
+.ring::before {
+  position: absolute;
+  inset: 8px;
+  border-radius: inherit;
+  background: #fff;
+  content: "";
+}
+
+.ring strong {
+  position: relative;
+  color: #087b58;
+  font-size: 20px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.total {
+  color: #102f54;
+  font-size: 30px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.total span { font-size: 13px; font-weight: 500; }
+
+@media (max-width: 900px) {
+  .summary { width: 280px; }
+}
+
+@media (max-width: 460px) {
+  .summary { gap: 8px; }
+  .rateCard, .totalCard { padding: 12px; min-height: 104px; }
+  .rateCard { gap: 8px; }
+  .ring { width: 60px; height: 60px; }
+  .ring strong { font-size: 18px; }
+  .label { font-size: 13px; }
+}

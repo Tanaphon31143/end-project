@@ -1,3 +1,4 @@
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -61,13 +62,13 @@ export default async function History({
               </option>
             ))}
           </select>
-          <input
+          <DateTimeInput
             name="from"
             type="date"
             defaultValue={filters.from}
             aria-label="วันที่เริ่มต้น"
           />
-          <input
+          <DateTimeInput
             name="to"
             type="date"
             defaultValue={filters.to}

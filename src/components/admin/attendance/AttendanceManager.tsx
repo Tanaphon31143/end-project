@@ -1,5 +1,6 @@
 "use client";
 
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useMemo, useState } from "react";
 import {
   CalendarDays,
@@ -11,6 +12,20 @@ import {
   Search,
   UserRound,
   X,
+  BookOpen,
+  GraduationCap,
+  FileText,
+  BarChart3,
+  LayoutGrid,
+  List,
+  ArrowRight,
+  RotateCcw,
+  School,
+  Calculator,
+  FlaskConical,
+  Palette,
+  Dumbbell,
+  Monitor,
 } from "lucide-react";
 import type {
   AttendanceAudit,
@@ -19,6 +34,15 @@ import type {
   AttendanceStatus,
 } from "./types";
 import { showActionSuccess } from "@/lib/sweet-alert";
+
+function courseIcon(name: string) {
+  if (/คณิต/.test(name)) return Calculator;
+  if (/วิทย|เคมี|ฟิสิกส์/.test(name)) return FlaskConical;
+  if (/ศิลป/.test(name)) return Palette;
+  if (/พละ|สุขศึกษา/.test(name)) return Dumbbell;
+  if (/คอม|โปรแกรม|การงาน/.test(name)) return Monitor;
+  return BookOpen;
+}
 
 const labels: Record<AttendanceStatus, string> = {
   PRESENT: "มาเรียน",
@@ -42,6 +66,26 @@ export function AttendanceManager({
   today: string;
 }) {
   const [records, setRecords] = useState(initialData.records);
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [detailSubject, setDetailSubject] = useState<string | null>(null);
+  const [sort, setSort] = useState("name");
+  const groupedSubjects = useMemo(() => {
+    const groups = new Map<string, { key: string; name: string; code: string; rooms: Set<string>; rows: AttendanceRecord[]; teacherName?: string; gradeLevel?: string; weeklyPeriods?: number | null }>();
+    (initialData.catalogSubjects || initialData.subjects).forEach(subject => {
+      const room = initialData.classrooms.find(item => item.id === subject.classroomId);
+      const key = String(subject.id);
+      groups.set(key, { key, name: subject.name, code: subject.code, rooms: new Set(room ? [room.name] : []), rows: [], teacherName: subject.teacherName, gradeLevel: subject.gradeLevel, weeklyPeriods: subject.weeklyPeriods });
+    });
+    records.forEach(row => {
+      const key = String(row.subjectId ?? `${row.subjectCode}:${row.subjectName}`);
+      const group = groups.get(key) || { key, name: row.subjectName, code: row.subjectCode, rooms: new Set<string>(), rows: [] };
+      if (row.className) group.rooms.add(row.className);
+      group.rows.push(row);
+      groups.set(key, group);
+    });
+    return [...groups.values()].sort((a, b) => sort === "count" ? b.rows.length - a.rows.length : a.name.localeCompare(b.name, "th"));
+  }, [records, sort, initialData.catalogSubjects, initialData.subjects, initialData.classrooms]);
+  const displayRecords = detailSubject ? records.filter(row => String(row.subjectId ?? `${row.subjectCode}:${row.subjectName}`) === detailSubject) : records;
   const [filters, setFilters] = useState({
     search: "",
     date: "",
@@ -86,6 +130,7 @@ export function AttendanceManager({
 
   async function search(nextFilters = filters) {
     setLoading(true);
+    setDetailSubject(null);
     setMessage("");
     try {
       const query = new URLSearchParams(
@@ -197,11 +242,12 @@ export function AttendanceManager({
 
   return (
     <>
-      <div className="page-intro">
-        <div>
+      <div className="page-intro attendance-page-intro">
+        <div className="attendance-intro-copy">
+          <span className="attendance-intro-icon"><CalendarDays aria-hidden="true" /></span><div>
           <h2>ประวัติการเข้าเรียน</h2>
           <p>ค้นหา ตรวจสอบ และแก้ไขข้อมูลพร้อมประวัติผู้ดำเนินการ</p>
-        </div>
+        </div></div>
         <button
           className="admin-button primary"
           onClick={() => setAddOpen(true)}
@@ -213,6 +259,7 @@ export function AttendanceManager({
       {message && <div className="attendance-message">{message}</div>}
       <section className="attendance-filter dashboard-card">
         <label className="attendance-search">
+          <span>ค้นหานักเรียน</span>
           <Search size={18} />
           <input
             placeholder="ค้นหารหัสหรือชื่อนักเรียน"
@@ -227,7 +274,7 @@ export function AttendanceManager({
         </label>
         <label>
           <span>วันที่</span>
-          <input
+          <DateTimeInput
             type="date"
             value={filters.date}
             onChange={(event) =>
@@ -289,9 +336,11 @@ export function AttendanceManager({
             disabled={loading}
             onClick={() => void search()}
           >
+            <Search size={17} aria-hidden="true" />
             {loading ? "กำลังโหลด..." : "ค้นหา"}
           </button>
-          <button className="admin-button secondary" onClick={resetFilters}>
+          <button className="admin-button secondary filter-reset-button" onClick={resetFilters}>
+            <RotateCcw size={17} aria-hidden="true" />
             ล้างตัวกรอง
           </button>
         </div>
@@ -300,19 +349,24 @@ export function AttendanceManager({
         {(["PRESENT", "LATE", "ABSENT", "LEAVE"] as AttendanceStatus[]).map(
           (status) => (
             <span key={status} className={tones[status]}>
-              <b>{counts[status]}</b>
-              {labels[status]}
+              <span className="attendance-summary-icon">{status === "PRESENT" ? <GraduationCap /> : status === "LATE" ? <Clock3 /> : status === "ABSENT" ? <X /> : <FileText />}</span>
+              <span className="attendance-summary-copy"><b>{counts[status]}</b><strong>{labels[status]}</strong><small>คิดเป็น {records.length ? (counts[status] / records.length * 100).toFixed(1) : "0.0"}% จากทั้งหมด {records.length} รายการ</small></span>
+              <BarChart3 className="attendance-summary-chart" aria-hidden="true" />
             </span>
           ),
         )}
       </div>
-      <section className="dashboard-card admin-table-card attendance-table">
+      <section className="dashboard-card attendance-subjects">
+        <header className="attendance-subjects-head"><div><BookOpen aria-hidden="true" /><div><h2>รายวิชาทั้งหมด</h2><p>รายวิชาทั้งหมดในระบบ · {groupedSubjects.length} รายวิชา</p></div></div><div className="attendance-view-controls"><select aria-label="เรียงรายวิชา" value={sort} onChange={event => setSort(event.target.value)}><option value="name">เรียงตาม: ชื่อวิชา</option><option value="count">เรียงตาม: จำนวนรายการ</option></select><button type="button" aria-label="แสดงแบบการ์ด" aria-pressed={view === "grid"} onClick={() => { setView("grid"); setDetailSubject(null); }}><LayoutGrid size={19} /></button><button type="button" aria-label="แสดงแบบตาราง" aria-pressed={view === "list"} onClick={() => { setView("list"); setDetailSubject(null); }}><List size={19} /></button></div></header>
+        {view === "grid" && <div className="attendance-subject-grid">{groupedSubjects.map((subject, index) => { const CourseIcon = courseIcon(subject.name); return <article className={`attendance-subject-card tone-${index % 4}`} key={subject.key}><header><span className="attendance-course-icon"><CourseIcon aria-hidden="true" /></span><div><h3>{subject.name || "ไม่ระบุรายวิชา"}</h3><p>รหัสวิชา {subject.code || "—"} <span className="attendance-grade-tag">ระดับชั้น {subject.gradeLevel || "ยังไม่ระบุ"}</span></p></div><button type="button" onClick={() => { setDetailSubject(subject.key); setView("list"); }}>ดูรายละเอียด <ArrowRight size={15} /></button></header><div className="attendance-course-info"><span><UserRound aria-hidden="true" />ครูผู้สอน</span><strong>{subject.teacherName || "ยังไม่กำหนด"}</strong><span><School aria-hidden="true" />ห้องที่สอน</span><div>{[...subject.rooms].map(room => <span key={room} className="attendance-room-tag">{room}</span>)}</div><span><BookOpen aria-hidden="true" />จำนวนห้อง</span><strong>{subject.rooms.size} ห้อง</strong><span><Clock3 aria-hidden="true" />จำนวนคาบ/สัปดาห์</span><strong>{subject.weeklyPeriods == null ? "ยังไม่กำหนด" : `${subject.weeklyPeriods} คาบ`}</strong><span><History aria-hidden="true" />รายการเข้าเรียน</span><strong>{subject.rows.length} รายการ</strong></div></article>; })}{!groupedSubjects.length && <p className="attendance-course-empty">ไม่พบรายวิชาตามตัวกรองที่เลือก</p>}</div>}
+      </section>
+      {view === "list" && <section className="dashboard-card admin-table-card attendance-table">
         <div className="card-head">
           <div>
             <h2>รายการเข้าเรียน</h2>
             <p>ผลลัพธ์ล่าสุดสูงสุด 500 รายการ</p>
           </div>
-          <span className="row-count">ทั้งหมด {records.length} รายการ</span>
+          <span className="row-count">ทั้งหมด {displayRecords.length} รายการ</span>
         </div>
         <div className="admin-data-wrap">
           <table>
@@ -329,7 +383,7 @@ export function AttendanceManager({
               </tr>
             </thead>
             <tbody>
-              {records.map((row) => (
+              {displayRecords.map((row) => (
                 <tr key={row.id}>
                   <td>
                     <CalendarDays size={14} />{" "}
@@ -378,7 +432,7 @@ export function AttendanceManager({
                   </td>
                 </tr>
               ))}
-              {!records.length && (
+              {!displayRecords.length && (
                 <tr>
                   <td colSpan={8}>
                     <div className="subject-empty">
@@ -391,7 +445,7 @@ export function AttendanceManager({
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
 
       {addOpen && (
         <div
@@ -454,7 +508,7 @@ export function AttendanceManager({
               </label>
               <label>
                 <span>วันที่ *</span>
-                <input
+                <DateTimeInput
                   type="date"
                   value={form.attendanceDate}
                   onChange={(event) =>
@@ -483,7 +537,7 @@ export function AttendanceManager({
               {(form.status === "PRESENT" || form.status === "LATE") && (
                 <label>
                   <span>เวลาเข้าเรียน *</span>
-                  <input
+                  <DateTimeInput
                     type="time"
                     value={form.checkInTime}
                     onChange={(event) =>

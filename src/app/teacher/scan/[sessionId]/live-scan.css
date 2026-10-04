@@ -1,0 +1,64 @@
+.teacher-live-scan { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; width: 100%; container: live-scan / inline-size; font-size: 16px; color: #172b4d; }
+.teacher-live-scan > *, .teacher-live-scan .page-head > div, .teacher-live-scan .panel-head > div { min-width: 0; }
+.teacher-live-scan .page-head > .button { flex-shrink: 0; }
+.teacher-live-scan :is(h3, h4, dd, .form-message, .detail-row b) { overflow-wrap: anywhere; }
+.teacher-live-scan .page-head { margin: 0; gap: 16px; }
+.teacher-live-scan .page-head h2 { font-size: 28px; line-height: 1.35; margin: 0 0 8px; }
+.teacher-live-scan .page-head p { font-size: 16px; line-height: 1.6; margin: 0; color: #526681; overflow-wrap: anywhere; }
+.teacher-live-scan .button { min-height: 44px; font-size: 15px; white-space: normal; justify-content: center; }
+.teacher-live-scan .button:focus-visible, .teacher-live-scan select:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.teacher-live-scan .button:disabled { opacity: .55; cursor: not-allowed; }
+.teacher-live-scan .live-session-summary { display: flex; flex-wrap: wrap; gap: 16px 32px; margin: 0; padding: 16px 20px; background: #fff; border: 1px solid #dce4ee; border-radius: 12px; }
+.teacher-live-scan .live-session-summary > div { display: grid; gap: 6px; flex: 1 1 140px; }
+.teacher-live-scan dt { color: #526681; font-size: 14px; }
+.teacher-live-scan dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.teacher-live-scan .scan-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 20px; align-items: stretch; }
+.teacher-live-scan .panel { min-width: 0; padding: 20px; border-radius: 12px; box-shadow: none; border: 1px solid #dce4ee; background: #fff; }
+.teacher-live-scan .panel-head { margin-bottom: 16px; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.teacher-live-scan .panel-head h3 { font-size: 20px; line-height: 1.4; margin: 0 0 6px; }
+.teacher-live-scan .muted { color: #526681; font-size: 14px; line-height: 1.6; }
+.teacher-live-scan .camera { height: auto; aspect-ratio: 16 / 10; min-height: 300px; background: #101e30; border-radius: 12px; overflow: hidden; isolation: isolate; }
+.teacher-live-scan .camera:before { z-index: 1; box-shadow: none; width: 34%; height: 57%; }
+.teacher-live-scan .camera-corners { z-index: 1; }
+.teacher-live-scan .camera > svg { z-index: 2; color: #e4edf7; }
+.teacher-live-scan .camera p { z-index: 2; bottom: 12px; left: 12px; right: 12px; margin: 0; padding: 12px; border-radius: 8px; background: #101e30; color: #fff; font-size: 15px; line-height: 1.6; text-align: center; }
+.teacher-live-scan .scan-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.teacher-live-scan .scan-controls .primary { margin-left: auto; min-width: 160px; }
+.teacher-live-scan .camera-picker { width: 100%; display: flex; font-size: 15px; order: 1; }
+.teacher-live-scan .camera-picker select { flex: 1; min-width: 0; max-width: none; min-height: 44px; }
+.teacher-live-scan .student-result { text-align: center; display: flex; flex-direction: column; }
+.teacher-live-scan .student-result .panel-head { text-align: left; }
+.teacher-live-scan .student-result > .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 12px; }
+.teacher-live-scan .empty h4 { margin: 0; font-size: 18px; color: #172b4d; }
+.teacher-live-scan .empty p { max-width: 30ch; margin: 0; font-size: 16px; line-height: 1.7; color: #526681; }
+.teacher-live-scan .profile-photo { margin: 12px auto; }
+.teacher-live-scan .detail-row { gap: 12px; font-size: 16px; }
+.teacher-live-scan .course-actions { margin-top: auto; gap: 8px; }
+.teacher-live-scan .course-actions .button { flex: 1; }
+.teacher-live-scan .scan-table { margin: 0; }
+.teacher-live-scan .table-wrap { min-width: 0; width: 100%; max-width: 100%; overflow-x: auto; scrollbar-color: #95a7bd #edf2f7; }
+.teacher-live-scan .data-table { min-width: 640px; font-size: 16px; font-variant-numeric: tabular-nums; }
+.teacher-live-scan .data-table th { font-size: 14px; padding: 12px 16px; color: #526681; background: #f5f8fc; }
+.teacher-live-scan .data-table td { padding: 16px; }
+.teacher-live-scan .status { font-size: 14px; white-space: nowrap; width: fit-content; }
+.teacher-live-scan .form-message { font-size: 15px; line-height: 1.6; }
+.teacher-live-scan ::selection { background: #dbeafe; color: #172b4d; }
+@media (max-width: 1100px) { .teacher-live-scan .scan-grid { grid-template-columns: minmax(0, 1.3fr) minmax(260px, 1fr); } .teacher-live-scan .scan-controls .primary { margin-left: 0; flex: 1 1 100%; } }
+@media (max-width: 760px) { .teacher-live-scan { gap: 16px; } .teacher-live-scan .scan-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; } .teacher-live-scan .panel { padding: 16px; } .teacher-live-scan .live-session-summary { padding: 16px; gap: 16px; } .teacher-live-scan .live-session-summary > div { flex-basis: 120px; } .teacher-live-scan .camera { min-height: 320px; } .teacher-live-scan .page-head h2 { font-size: 24px; } .teacher-live-scan .scan-controls > .button { flex: 1 1 120px; } .teacher-live-scan .student-result > .empty { min-height: 220px; } }
+/* The sidebar changes available space independently of the viewport. */
+@container live-scan (max-width: 800px) {
+  .teacher-live-scan .scan-grid { grid-template-columns: minmax(0, 1fr); }
+  .teacher-live-scan .student-result > .empty { min-height: 200px; }
+  .teacher-live-scan .scan-controls .primary { margin-left: 0; flex: 1 1 100%; }
+}
+@container live-scan (max-width: 480px) {
+  .teacher-live-scan .page-head { flex-direction: column; align-items: stretch; }
+  .teacher-live-scan .page-head > .button { width: 100%; }
+  .teacher-live-scan .live-session-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .teacher-live-scan .camera { aspect-ratio: auto; min-height: 300px; }
+  .teacher-live-scan .scan-controls > .button { flex: 1 1 100%; min-width: 0; }
+  .teacher-live-scan .camera-picker { flex-direction: column; align-items: stretch; }
+  .teacher-live-scan .camera p { font-size: 14px; padding: 8px; }
+  .teacher-live-scan .course-actions { flex-wrap: wrap; }
+  .teacher-live-scan .course-actions > .button { flex: 1 1 100%; }
+}

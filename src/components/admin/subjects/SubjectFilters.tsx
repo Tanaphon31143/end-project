@@ -57,7 +57,7 @@ export function SubjectFilters({
         <option value="2">ภาคเรียนที่ 2</option>
       </select>
       <button
-        className="subjects-reset"
+        className="subjects-reset filter-reset-button"
         type="button"
         disabled={!hasFilters}
         onClick={onReset}

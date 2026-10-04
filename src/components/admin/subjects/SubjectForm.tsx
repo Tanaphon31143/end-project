@@ -1,4 +1,5 @@
 "use client";
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import type { ClassroomOption, SubjectFormValue, SubjectOption } from "./types";
 
 export type SubjectErrors = Partial<Record<keyof SubjectFormValue, string>>;
@@ -152,14 +153,14 @@ export default function SubjectForm({
           {errors.studyDays && <small>{errors.studyDays}</small>}
         </div>
         <Field label="เวลาเริ่มเรียน" required error={errors.startTime}>
-          <input
+          <DateTimeInput
             type="time"
             value={value.startTime}
             onChange={(e) => set("startTime", e.target.value)}
           />
         </Field>
         <Field label="เวลาเลิกเรียน" required error={errors.endTime}>
-          <input
+          <DateTimeInput
             type="time"
             value={value.endTime}
             onChange={(e) => set("endTime", e.target.value)}

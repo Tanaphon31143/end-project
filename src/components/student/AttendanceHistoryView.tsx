@@ -1,4 +1,6 @@
 "use client";
+import DateTimeInput from "@/components/forms/DateTimeInput";
+
 
 import {
   BarChart3,
@@ -18,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import styles from "./AttendanceHistorySummary.module.css";
 import type { StudentAttendance } from "@/lib/student-data";
 
 type StatusKey = "present" | "late" | "absent" | "leave";
@@ -90,8 +93,11 @@ export default function AttendanceHistoryView({ records, courses, counts, totalS
       <nav className="attendance-history-breadcrumb" aria-label="เส้นทางนำทาง"><Link href="/student/dashboard"><House aria-hidden="true" />หน้าหลัก</Link><ChevronRight aria-hidden="true" /><span>ประวัติการเข้าเรียน</span></nav>
       <header className="attendance-history-head">
         <div className="attendance-history-heading-copy"><span className="attendance-history-title-icon"><Clock3 aria-hidden="true" /></span><div><h1>ประวัติการเข้าเรียน</h1><p>ค้นหาและตรวจสอบข้อมูลการเข้าเรียนย้อนหลัง</p></div></div>
-        <div className="attendance-history-rate" aria-label={rate === null ? "ยังไม่มีข้อมูลอัตราการเข้าเรียน" : `อัตราการเข้าเรียนรวม ${rate}%`}>
-          <span>อัตราการเข้าเรียนรวม</span><div className="attendance-history-rate-ring" style={{ "--history-rate": `${rate ?? 0}` } as React.CSSProperties}><strong>{rate === null ? "-" : `${rate}%`}</strong></div><div><strong>{rate === null ? "-" : `${rate}%`}</strong><small>จากทั้งหมด {totalScoped} ครั้ง</small><i><b style={{ width: `${rate ?? 0}%` }} /></i></div>
+        <div className={styles.summary}>
+          <div className={styles.rateCard} aria-label={rate === null ? "ยังไม่มีข้อมูลอัตราการเข้าเรียน" : `อัตราการเข้าเรียนรวม ${rate}%`}>
+            <span className={styles.label}>อัตราการเข้าเรียนรวม</span>
+            <div className={styles.ring} aria-hidden="true" style={{ "--history-rate": `${rate ?? 0}` } as React.CSSProperties}><strong>{rate === null ? "—" : `${rate}%`}</strong></div>
+          </div>
         </div>
       </header>
 
@@ -106,10 +112,10 @@ export default function AttendanceHistoryView({ records, courses, counts, totalS
           <form className="attendance-history-filters" method="get">
             <header><Filter aria-hidden="true" /><h2>ค้นหาข้อมูลการเข้าเรียน</h2></header>
             <label className="attendance-history-search"><span>ค้นหารายวิชาหรือรหัสวิชา</span><div><Search aria-hidden="true" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="พิมพ์ชื่อวิชาหรือรหัสวิชา..." /></div></label>
-            <fieldset className="attendance-history-date-range"><legend>ช่วงวันที่</legend><input aria-label="จากวันที่" name="from" type="date" defaultValue={from} /><span>-</span><input aria-label="ถึงวันที่" name="to" type="date" defaultValue={to} /></fieldset>
+            <fieldset className="attendance-history-date-range"><legend>ช่วงวันที่</legend><DateTimeInput aria-label="จากวันที่" name="from" type="date" defaultValue={from} /><span>-</span><DateTimeInput aria-label="ถึงวันที่" name="to" type="date" defaultValue={to} /></fieldset>
             <label className="attendance-history-subject"><span>รายวิชา</span><select name="subject" defaultValue={subject || ""}><option value="">ทุกรายวิชา</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></label>
             <div className="attendance-history-status-tabs" aria-label="สถานะการเข้าเรียน"><span>สถานะการเข้าเรียน</span><div><button type="button" className={!selectedStatus ? "is-active" : ""} onClick={() => navigateWithStatus("")}>ทั้งหมด</button>{statusKeys.map((key) => { const Icon = STATUS_STYLE[key].icon; return <button type="button" key={key} className={`${STATUS_STYLE[key].className}${selectedStatus === key ? " is-active" : ""}`} onClick={() => navigateWithStatus(selectedStatus === key ? "" : key)}><Icon aria-hidden="true" />{STATUS_STYLE[key].label}</button>; })}</div></div>
-            <div className="attendance-history-filter-actions"><a className="button attendance-history-clear" href="/student/attendance/history"><RotateCcw aria-hidden="true" />ล้างตัวกรอง</a><button className="button primary" type="submit"><Search aria-hidden="true" />ค้นหา</button></div>
+            <div className="attendance-history-filter-actions"><a className="button attendance-history-clear filter-reset-button" href="/student/attendance/history"><RotateCcw aria-hidden="true" />ล้างตัวกรอง</a><button className="button primary" type="submit"><Search aria-hidden="true" />ค้นหา</button></div>
             {invalidRange && <small className="attendance-history-range-error" role="alert">ช่วงวันที่ไม่ถูกต้อง</small>}
           </form>
 
@@ -119,7 +125,7 @@ export default function AttendanceHistoryView({ records, courses, counts, totalS
               <div className="attendance-history-table-wrap"><table className="attendance-history-table"><thead><tr><th>วันที่</th><th>เวลา</th><th>รายวิชา</th><th>รหัสวิชา</th><th>สถานะ</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead><tbody>{paginatedRecords.map((record) => { const key = STATUS_FROM_RECORD[record.status]; const StatusIcon = STATUS_STYLE[key].icon; return <tr key={record.id}><td>{record.date}</td><td>{record.checkIn !== "-" ? record.checkIn : record.classTime.split("–")[0]}</td><td><strong>{record.subject}</strong></td><td>{record.subjectCode}</td><td><span className={`attendance-history-badge ${STATUS_STYLE[key].className}`}><StatusIcon aria-hidden="true" />{STATUS_STYLE[key].label}</span></td><td>{record.note || "-"}</td><td><details className="attendance-history-actions"><summary aria-label={`จัดการรายการ ${record.subject}`}><MoreVertical aria-hidden="true" /></summary><div>{record.status === "ขาด" ? <Link href={`/student/attendance/report?subject=${record.subjectId || ""}&date=${isoDate(record.date)}`}>แจ้งปัญหาการเช็คชื่อ</Link> : <span>ไม่มีรายการเพิ่มเติม</span>}</div></details></td></tr>; })}</tbody></table></div>
               <div className="attendance-history-mobile-list">{paginatedRecords.map((record) => { const key = STATUS_FROM_RECORD[record.status]; return <article key={record.id} className="attendance-history-mobile-card"><div className="attendance-history-mobile-top"><strong>{record.date}</strong><span className={`attendance-history-badge ${STATUS_STYLE[key].className}`}>{record.status}</span></div><strong className="attendance-history-mobile-subject">{record.subject}</strong><small>{record.subjectCode} · {record.classTime || "-"}</small><div className="attendance-history-mobile-note">เข้าเรียน {record.checkIn || "-"} · {record.note || "-"}</div>{record.status === "ขาด" && <Link href={`/student/attendance/report?subject=${record.subjectId || ""}&date=${isoDate(record.date)}`}>แจ้งปัญหาการเช็คชื่อ</Link>}</article>; })}</div>
               <footer className="attendance-history-pagination"><span>แสดง {paginatedRecords.length} รายการจากทั้งหมด {visibleRecords.length} รายการ</span><nav aria-label="เปลี่ยนหน้าตาราง"><button type="button" disabled={currentPage === 1} onClick={() => setPage(1)} aria-label="หน้าแรก">«</button><button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="หน้าก่อนหน้า">‹</button><b>{currentPage}</b><button type="button" disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} aria-label="หน้าถัดไป">›</button><button type="button" disabled={currentPage === totalPages} onClick={() => setPage(totalPages)} aria-label="หน้าสุดท้าย">»</button></nav></footer>
-            </> : <div className="attendance-history-empty"><CalendarDays aria-hidden="true" /><strong>{totalAll ? "ไม่พบรายการ ลองปรับตัวกรองใหม่" : "ยังไม่มีประวัติการเข้าเรียน"}</strong><p>{totalAll ? "ลองเปลี่ยนช่วงวันที่ รายวิชา หรือสถานะ" : "ข้อมูลจะแสดงเมื่อมีการบันทึกการเข้าเรียน"}</p>{totalAll > 0 && <a className="button attendance-history-clear" href="/student/attendance/history">ล้างตัวกรอง</a>}</div>}
+            </> : <div className="attendance-history-empty"><CalendarDays aria-hidden="true" /><strong>{totalAll ? "ไม่พบรายการ ลองปรับตัวกรองใหม่" : "ยังไม่มีประวัติการเข้าเรียน"}</strong><p>{totalAll ? "ลองเปลี่ยนช่วงวันที่ รายวิชา หรือสถานะ" : "ข้อมูลจะแสดงเมื่อมีการบันทึกการเข้าเรียน"}</p>{totalAll > 0 && <a className="button attendance-history-clear filter-reset-button" href="/student/attendance/history">ล้างตัวกรอง</a>}</div>}
           </section>
         </main>
 
@@ -130,7 +136,20 @@ export default function AttendanceHistoryView({ records, courses, counts, totalS
             <header><button type="button" aria-label="เดือนก่อนหน้า" onClick={() => { setSelectedCalendarDay(null); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)); }}><ChevronLeft /></button><strong>{new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(calendarMonth)}</strong><button type="button" aria-label="เดือนถัดไป" onClick={() => { setSelectedCalendarDay(null); setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)); }}><ChevronRight /></button></header>
             <div className="attendance-history-calendar-grid">{["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"].map((day) => <span className="weekday" key={day}>{day}</span>)}{calendarDays.map((day, index) => { const dayRecords = day ? recordsByDay.get(day) || [] : []; const today = new Date(); const isToday = day === today.getDate() && calendarMonth.getMonth() === today.getMonth() && calendarMonth.getFullYear() === today.getFullYear(); const primaryKey = dayRecords.length ? STATUS_FROM_RECORD[dayRecords.find((record) => record.status === "ขาด")?.status || dayRecords[0].status] : undefined; return day ? <button type="button" key={`${day}-${index}`} className={`${isToday ? "is-today " : ""}${selectedCalendarDay === day ? "is-selected " : ""}${primaryKey ? `has-${primaryKey}` : ""}`} aria-pressed={selectedCalendarDay === day} aria-label={`${day} ${new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(calendarMonth)}${dayRecords.length ? ` ${dayRecords.map((record) => record.status).join(" ")}` : " ไม่มีรายการ"}`} onClick={() => setSelectedCalendarDay(selectedCalendarDay === day ? null : day)}><strong>{day}</strong>{primaryKey && <small>{STATUS_STYLE[primaryKey].label}</small>}{dayRecords.length > 0 && <i>{[...new Set(dayRecords.map((record) => STATUS_FROM_RECORD[record.status]))].map((key) => <b key={key} className={`is-${key}`} />)}</i>}</button> : <span key={`empty-${index}`} className="is-empty" />; })}</div>
           </section>
-          <section className="attendance-history-month-summary"><header><h2>สรุปในเดือนนี้</h2><span>{monthRecords.length} ครั้ง</span></header><div>{statusKeys.map((key) => <span key={key}><i className={`is-${key}`} /><small>{STATUS_STYLE[key].label}</small><strong>{monthCounts[key]} <em>ครั้ง</em></strong></span>)}</div></section>
+          <section className="attendance-history-month-summary">
+            <header><h2>สรุปในเดือนนี้</h2><span>{monthRecords.length} ครั้ง</span></header>
+            <div>{statusKeys.map((key) => {
+              const Icon = STATUS_STYLE[key].icon;
+              const percentage = monthRecords.length ? Math.round(monthCounts[key] / monthRecords.length * 100) : 0;
+              return <span key={key} className={`attendance-month-stat is-${key}`}>
+                <span className="attendance-month-stat-icon"><Icon aria-hidden="true" /></span>
+                <small>{STATUS_STYLE[key].label}</small>
+                <strong>{monthCounts[key]} <em>ครั้ง</em></strong>
+                <span className="attendance-month-stat-ratio">{percentage}%</span>
+                <span className="attendance-month-stat-track" aria-hidden="true"><span style={{ transform: `scaleX(${percentage / 100})` }} /></span>
+              </span>;
+            })}</div>
+          </section>
         </aside>
       </div>
     </div>

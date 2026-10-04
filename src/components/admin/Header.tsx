@@ -70,6 +70,8 @@ export function Header({
   const [searchOpen, setSearchOpen] = useState(false);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [bellPulse, setBellPulse] = useState(0);
+  const previousPendingCount = useRef(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notificationError, setNotificationError] = useState("");
@@ -95,6 +97,10 @@ export function Header({
         pendingCount: number;
       };
       setRequests(data.requests);
+      if (data.pendingCount > previousPendingCount.current) {
+        setBellPulse((value) => value + 1);
+      }
+      previousPendingCount.current = data.pendingCount;
       setPendingCount(data.pendingCount);
     } catch {
       setNotificationError("โหลดการแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่");
@@ -246,8 +252,8 @@ export function Header({
               if (!notificationsOpen) void loadNotifications();
             }}
           >
-            <Bell size={20} />
-            {pendingCount > 0 && <span>{pendingCount > 99 ? "99+" : pendingCount}</span>}
+            <Bell key={`bell-${bellPulse}`} className={bellPulse ? "admin-bell-ring" : undefined} size={20} aria-hidden="true" />
+            {pendingCount > 0 && <span key={`badge-${bellPulse}`} className={bellPulse ? "admin-bell-ping" : undefined} aria-hidden="true">{pendingCount > 99 ? "99+" : pendingCount}</span>}
           </button>
           <button
             type="button"

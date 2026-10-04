@@ -99,61 +99,6 @@
   background: rgba(244, 63, 94, 0.14);
 }
 
-.sidebar-school-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 4px 12px;
-  padding: 13px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.11);
-}
-
-.sidebar-school-logo {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  overflow: hidden;
-  border-radius: 50%;
-  padding: 3px;
-  background: #fff;
-}
-
-.sidebar-school-logo img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: contain;
-  object-position: center;
-}
-
-.sidebar-school-card div {
-  min-width: 0;
-}
-
-.sidebar-school-card strong,
-.sidebar-school-card span {
-  display: block;
-}
-
-.sidebar-school-card strong {
-  color: #fff;
-  font-size: 14px;
-}
-
-.sidebar-school-card span {
-  margin-top: 3px;
-  color: #9eb2cc;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.admin-sidebar.collapsed .sidebar-school-card {
-  display: none;
-}
-
 .admin-header {
   height: 60px;
   padding: 0 24px;

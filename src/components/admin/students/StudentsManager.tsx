@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Eye, Pencil, Save, Search, Trash2, X } from "lucide-react";
+import { Eye, Pencil, Save, Search, Trash2, X, Users, School, UserRound, GraduationCap, LayoutGrid, List, ChevronRight } from "lucide-react";
+import styles from "./StudentRoster.module.css";
 import { Badge, PersonCell } from "@/components/admin/AdminPage";
 import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 import StudentAddDropdown from "./StudentAddDropdown";
@@ -26,6 +27,9 @@ export default function StudentsManager({
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState("");
   const [room, setRoom] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [groupFilter, setGroupFilter] = useState<number | "unregistered" | null>(null);
   const [mode, setMode] = useState<Mode | null>(null);
   const [selected, setSelected] = useState<StudentRecord | null>(null);
   const [value, setValue] = useState<StudentFormValue>(EMPTY_STUDENT);
@@ -57,9 +61,14 @@ export default function StudentsManager({
         matchesQuery &&
         (!level || student.classLevel === level) &&
         (!room || String(student.classId) === room)
+        && (!statusFilter || student.status === statusFilter)
       );
     });
-  }, [students, query, level, room]);
+  }, [students, query, level, room, statusFilter]);
+  const unassigned = (student: StudentRecord) => !student.classId || !classrooms.some(item => item.id === student.classId && item.level);
+  const groups = classrooms.filter(item => (!level || item.level === level) && (!room || String(item.id) === room)).map(item => ({ ...item, members: filtered.filter(student => student.classId === item.id && !unassigned(student)) })).filter(item => !query && !statusFilter || item.members.length > 0);
+  const unregistered = filtered.filter(unassigned);
+  const tableStudents = groupFilter === "unregistered" ? unregistered : groupFilter === null ? filtered : filtered.filter(student => student.classId === groupFilter);
 
   function notify(message: string, tone: "success" | "error") {
     setToast({ message, tone });
@@ -186,13 +195,19 @@ export default function StudentsManager({
   const readOnly = mode === "view";
   return (
     <main className="admin-content">
-      <div className="page-intro">
+      <div className={`page-intro ${styles.intro}`}>
         <div>
           <h2>ทะเบียนนักเรียน</h2>
           <p>จัดการข้อมูล บัญชี และห้องเรียนของนักเรียน</p>
         </div>
         <StudentAddDropdown classrooms={classrooms} onAddSingle={() => open("create")} />
       </div>
+      <div className={styles.metrics}>{[
+        { label: "จำนวนนักเรียนทั้งหมด", count: students.length, unit: "คน", Icon: Users },
+        { label: "นักเรียนที่ใช้งานอยู่", count: students.filter(item => item.status === "ACTIVE").length, unit: "คน", Icon: UserRound },
+        { label: "จำนวนห้องเรียน", count: classrooms.length, unit: "ห้อง", Icon: School },
+        { label: "ยังไม่ได้ลงทะเบียนชั้น/ห้อง", count: students.filter(unassigned).length, unit: "คน", Icon: GraduationCap },
+      ].map(({ label, count, unit, Icon }) => <div key={label}><span><Icon aria-hidden="true" /></span><div><p>{label}</p><strong>{count} <small>{unit}</small></strong></div></div>)}</div>
       <div className="admin-filters">
         <label>
           <Search size={18} />
@@ -216,6 +231,7 @@ export default function StudentsManager({
             <option key={item}>{item}</option>
           ))}
         </select>
+        <select aria-label="สถานะนักเรียน" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="">ทุกสถานะ</option><option value="ACTIVE">ใช้งาน</option><option value="INACTIVE">ระงับ</option></select>
         <select
           aria-label="ห้องเรียน"
           value={room}
@@ -231,25 +247,31 @@ export default function StudentsManager({
             ))}
         </select>
         <button
-          className="admin-button secondary"
+          className="admin-button secondary filter-reset-button"
           onClick={() => {
             setQuery("");
             setLevel("");
             setRoom("");
+            setStatusFilter("");
+            setGroupFilter(null);
           }}
         >
           ล้างตัวกรอง
         </button>
       </div>
-      <section className="dashboard-card admin-table-card">
+      <section className={styles.roster}>
+        <header className={styles.heading}><div><h2>นักเรียนแยกตามชั้น/ห้อง</h2><p>พบ {groups.length} ห้องเรียน และนักเรียนที่ยังไม่ได้ลงทะเบียนชั้น/ห้อง {unregistered.length} คน</p></div><div className={styles.views}><button type="button" aria-label="มุมมองการ์ด" aria-pressed={view === "grid"} onClick={() => { setView("grid"); setGroupFilter(null); }}><LayoutGrid size={19} /></button><button type="button" aria-label="มุมมองตาราง" aria-pressed={view === "list"} onClick={() => { setView("list"); setGroupFilter(null); }}><List size={19} /></button></div></header>
+        {view === "grid" && <div className={styles.grid}>{[...groups.map(group => ({ key: group.id as number | "unregistered", name: group.name, advisor: group.advisorName, members: group.members })), ...(unregistered.length ? [{ key: "unregistered" as const, name: "ยังไม่ได้ลงทะเบียน", advisor: undefined, members: unregistered }] : [])].map((group, index) => <article key={group.key} className={`${styles.card} ${group.key === "unregistered" ? styles.unregistered : ""}`} data-tone={index % 4}><header><span className={styles.roomIcon}><Users aria-hidden="true" /></span><div><h3>{group.name}</h3><p>นักเรียน {group.members.length} คน</p></div></header><div className={styles.body}>{group.key === "unregistered" ? <p className={styles.hint}>นักเรียนที่ยังไม่ได้กำหนดชั้น/ห้องเรียน</p> : <div className={styles.advisor}><UserRound size={20} /><div><strong>{group.advisor || "ยังไม่กำหนดครูที่ปรึกษา"}</strong><small>ครูที่ปรึกษา</small></div></div>}<ul>{group.members.slice(0, 3).map(student => <li key={student.databaseId}><span>{student.fullName.replace(/^(เด็กชาย|เด็กหญิง|นาย|นางสาว)/, "").trim().slice(0, 1)}</span><button type="button" onClick={() => open("view", student)}>{student.fullName}</button></li>)}</ul>{group.members.length > 3 && <span className={styles.more}>+{group.members.length - 3} คน</span>}{!group.members.length && <p className={styles.hint}>ยังไม่มีนักเรียนในห้องนี้</p>}<button className={styles.showAll} type="button" onClick={() => { setGroupFilter(group.key); setView("list"); }}>ดูนักเรียนทั้งหมด <span>{group.members.length}</span><ChevronRight size={17} /></button></div></article>)}{!groups.length && !unregistered.length && <p>ไม่พบข้อมูลตามตัวกรองที่เลือก</p>}</div>}
+      </section>
+      {view === "list" && <section className="dashboard-card admin-table-card">
         <div className="card-head">
           <div>
             <h2>รายชื่อนักเรียน</h2>
             <p>
-              แสดง {filtered.length} จาก {students.length} คน
+              แสดง {tableStudents.length} จาก {students.length} คน
             </p>
           </div>
-          <span className="row-count">ทั้งหมด {filtered.length} รายการ</span>
+          <span className="row-count">ทั้งหมด {tableStudents.length} รายการ</span>
         </div>
         <div className="admin-data-wrap">
           <table>
@@ -266,7 +288,7 @@ export default function StudentsManager({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((student) => (
+              {tableStudents.map((student) => (
                 <tr key={student.databaseId}>
                   <td>
                     <b>{student.studentCode}</b>
@@ -316,7 +338,7 @@ export default function StudentsManager({
                   </td>
                 </tr>
               ))}
-              {!filtered.length && (
+              {!tableStudents.length && (
                 <tr>
                   <td colSpan={8} className="class-empty">
                     ไม่พบข้อมูลนักเรียน
@@ -326,7 +348,7 @@ export default function StudentsManager({
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
 
       {mode && (
         <div

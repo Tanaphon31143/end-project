@@ -247,7 +247,7 @@ export default function TeachersManager({
           <option value="INACTIVE">ระงับ</option>
         </select>
         <button
-          className="admin-button secondary"
+          className="admin-button secondary filter-reset-button"
           onClick={() => {
             setQuery("");
             setDepartment("");

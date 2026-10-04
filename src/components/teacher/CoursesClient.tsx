@@ -1,5 +1,6 @@
 "use client";
 
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -542,7 +543,7 @@ export function ScheduleFilters({
 
       <button
         type="button"
-        className="teacher-filter-reset"
+        className="teacher-filter-reset filter-reset-button"
         onClick={onReset}
       >
         <RotateCcw size={16} aria-hidden="true" />
@@ -1110,7 +1111,7 @@ export function CoursesClient({
               </div>
               <div className="field">
                 <label>วันที่</label>
-                <input
+                <DateTimeInput
                   name="sessionDate"
                   type="date"
                   value={sessionDate}

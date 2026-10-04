@@ -3,7 +3,7 @@ import type {
   ResultSetHeader,
   RowDataPacket,
 } from "mysql2/promise";
-import { getAdminSession } from "@/lib/auth";
+import { getAdminSession, revokeAccountSessions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getUsers } from "@/lib/admin-data";
 import { hashPassword } from "@/lib/password";
@@ -345,6 +345,7 @@ export async function PUT(request: Request) {
       await connection.execute(`DELETE FROM ${table} WHERE id=?`, [ref.id]);
     }
     await connection.commit();
+    await revokeAccountSessions(ref.role, ref.id);
     await recordAdminAudit(request, "UPDATE", "user", String(body.id), `แก้ไขผู้ใช้งาน ${parsed.value.email} (${parsed.value.role})`);
     return Response.json({ message: "แก้ไขผู้ใช้งานสำเร็จ" });
   } catch (error) {
@@ -380,6 +381,7 @@ export async function PATCH(request: Request) {
   );
   if (!result.affectedRows)
     return Response.json({ message: "ไม่พบบัญชีผู้ใช้งาน" }, { status: 404 });
+  await revokeAccountSessions(ref.role, ref.id);
   await recordAdminAudit(request, "PASSWORD_CHANGE", "user", String(body.id), `เปลี่ยนรหัสผ่านผู้ใช้งาน ${String(body.id)}`);
   return Response.json({ message: "เปลี่ยนรหัสผ่านสำเร็จ" });
 }

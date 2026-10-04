@@ -1,79 +1,109 @@
-.checkin-setup {
-  margin-bottom: 18px;
-}
-.checkin-form {
+.checkin-page {
+  --checkin-gap: 16px;
+  --checkin-border: #dce5ef;
+  --checkin-muted: #52647b;
   display: grid;
-  grid-template-columns: 1fr 1fr 1.6fr 0.8fr 0.8fr 0.8fr auto;
-  gap: 9px;
-  align-items: end;
+  gap: var(--checkin-gap);
+  font-size: 16px;
+  line-height: 1.55;
 }
-.checkin-form label,
-.session-picker label {
-  color: #64748b;
-  font-size: 11px;
-}
-.checkin-form input,
-.checkin-form select,
-.session-picker select {
+
+.checkin-page-heading { display: flex; align-items: center; gap: 12px; }
+.checkin-page-heading > svg { flex: none; color: #2563eb; }
+.checkin-page-heading h1 { margin: 0; color: #142a46; font-size: 28px; font-weight: 700; line-height: 1.35; }
+.checkin-page-heading p { margin: 4px 0 0; color: var(--checkin-muted); font-size: 16px; }
+.checkin-page .dashboard-card { padding: 20px; border: 1px solid var(--checkin-border); border-radius: 14px; box-shadow: none; }
+.checkin-page .card-head { margin-bottom: 16px; align-items: flex-start; gap: 12px; }
+.checkin-page .card-head h2 { margin: 0; color: #142a46; font-size: 20px; line-height: 1.4; }
+.checkin-page .card-head p { margin: 3px 0 0; color: var(--checkin-muted); font-size: 15px; line-height: 1.5; }
+.checkin-page .checkin-setup, .checkin-page .checkin-recent { margin: 0; }
+
+.checkin-page .checkin-form { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 12px; }
+.checkin-page .checkin-form > label:nth-child(-n+3) { grid-column: span 2; }
+.checkin-page .checkin-form > button { grid-column: span 3; }
+.checkin-page :is(.checkin-form, .session-picker) label { display: block; color: #334155; font-size: 15px; font-weight: 600; }
+.checkin-page :is(.checkin-form input, .checkin-form select, .session-picker select) {
   display: block;
   width: 100%;
-  height: 38px;
-  margin-top: 5px;
-  padding: 0 9px;
-  border: 1px solid #dfe5ee;
+  min-width: 0;
+  height: 46px;
+  margin-top: 6px;
+  padding: 0 12px;
+  border: 1px solid #ccd8e6;
   border-radius: 8px;
   background: #fff;
-  color: #334155;
+  color: #243b55;
   font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  color-scheme: light;
 }
-.session-picker {
-  display: flex;
-  align-items: end;
-  gap: 9px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #edf0f4;
-}
-.session-picker label {
-  flex: 1;
-}
-.checkin-recent {
-  margin-top: 18px;
-}
-.checkin-recent td svg {
-  vertical-align: middle;
-}
-.checkin-recent .data-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.detected-card .data-badge {
-  display: inline-flex;
-}
-.camera-actions .primary {
-  min-width: 160px;
-}
+.checkin-page .admin-button { min-height: 46px; padding: 10px 16px; font-size: 16px; line-height: 1.4; }
+.checkin-page :is(button, input, select):focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.checkin-page .session-picker { display: flex; align-items: end; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--checkin-border); }
+.checkin-page .session-picker label { min-width: 0; flex: 1; }
+.checkin-page .session-picker button { flex: 0 0 auto; }
+.checkin-setup-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.checkin-data-message { margin: 12px 0 0; color: #315273; font-size: 15px; line-height: 1.5; }
+
+.checkin-page .checkin-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr); gap: var(--checkin-gap); align-items: stretch; }
+.checkin-page .camera-panel { min-height: 420px; gap: 12px; padding: 20px; border-radius: 14px; background: #112740; box-shadow: none; }
+.checkin-camera-heading { display: flex; align-items: center; gap: 8px; color: #fff; }
+.checkin-camera-heading h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.checkin-page .camera-top { align-items: center; gap: 12px; flex-wrap: wrap; color: #cedded; font-size: 14px; }
+.checkin-page .camera-top b { font-weight: 500; }
+.checkin-page .face-frame { min-height: 260px; gap: 12px; background: #0c1d30; color: #9eb9d6; }
+.checkin-page .face-frame > span { width: 32px; height: 32px; inset: auto; border: 0; }
+.checkin-page .face-frame > span:nth-of-type(1) { left: 22%; top: 15%; border-left: 2px solid; border-top: 2px solid; }
+.checkin-page .face-frame > span:nth-of-type(2) { right: 22%; top: 15%; border-right: 2px solid; border-top: 2px solid; }
+.checkin-page .face-frame > span:nth-of-type(3) { left: 22%; bottom: 15%; border-left: 2px solid; border-bottom: 2px solid; }
+.checkin-page .face-frame > span:nth-of-type(4) { right: 22%; bottom: 15%; border-right: 2px solid; border-bottom: 2px solid; }
+.checkin-page .face-frame p { max-width: 46ch; margin: 0; padding: 8px 16px; color: #e0eaf5; font-size: 16px; line-height: 1.5; text-shadow: none; }
+.checkin-page .camera-actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 12px; }
+.checkin-page .camera-actions .primary { min-width: 0; }
+.checkin-page .detected-card .normal { flex: none; font-size: 13px; }
+.checkin-page .detected-profile { padding: 8px 0 16px; }
+.checkin-page .detected-profile > span { width: 64px; height: 64px; margin-bottom: 10px; font-size: 22px; }
+.checkin-page .detected-profile h3 { margin: 0; color: #142a46; font-size: 22px; line-height: 1.4; }
+.checkin-page .detected-profile p { margin: 4px 0 0; color: var(--checkin-muted); font-size: 15px; line-height: 1.5; }
+.checkin-page .detected-card dl { margin: 0; }
+.checkin-page .detected-card dl > div { gap: 12px; padding: 12px 0; font-size: 16px; }
+.checkin-page .detected-card dl > div:last-child { border-bottom: 0; }
+.checkin-page .detected-card dt { color: var(--checkin-muted); }
+.checkin-page .detected-card dd { text-align: right; font-variant-numeric: tabular-nums; }
+.checkin-page .data-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-size: 14px; }
+.checkin-page .row-count { padding: 5px 12px; color: #315273; font-size: 14px; }
+.checkin-page .admin-data-wrap { width: 100%; margin: 0; border: 1px solid var(--checkin-border); border-radius: 10px; }
+.checkin-page .admin-data-wrap table { min-width: 720px; }
+.checkin-page .admin-data-wrap th { padding: 12px 16px; color: #52647b; font-size: 14px; }
+.checkin-page .admin-data-wrap td { padding: 12px 16px; color: #243b55; font-size: 16px; font-variant-numeric: tabular-nums; }
+.checkin-page .checkin-recent td svg { vertical-align: middle; }
+.checkin-page .subject-empty { padding: 28px 16px; }
+.checkin-page .subject-empty span { font-size: 17px; }
+.checkin-page .subject-empty p { margin-top: 4px; color: var(--checkin-muted); font-size: 15px; }
+
 @media (max-width: 1100px) {
-  .checkin-form {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .checkin-form > button {
-    width: 100%;
-  }
+  .checkin-page .checkin-grid { grid-template-columns: minmax(0, 1fr); }
+  .checkin-page .detected-profile { text-align: left; display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+  .checkin-page .detected-profile > span { grid-row: span 2; margin: 0; }
+  .checkin-page .detected-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
 }
+
 @media (max-width: 640px) {
-  .checkin-form {
-    grid-template-columns: 1fr 1fr;
-  }
-  .checkin-form label:nth-child(3) {
-    grid-column: 1/-1;
-  }
-  .session-picker {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .session-picker button {
-    width: 100%;
-  }
+  .checkin-page { gap: 12px; }
+  .checkin-page-heading { align-items: flex-start; }
+  .checkin-page-heading h1 { font-size: 24px; }
+  .checkin-page-heading p { font-size: 15px; }
+  .checkin-page .dashboard-card, .checkin-page .camera-panel { padding: 16px; }
+  .checkin-page .checkin-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .checkin-page .checkin-form > label:nth-child(-n+2) { grid-column: auto; }
+  .checkin-page .checkin-form > label:nth-child(3), .checkin-page .checkin-form > button { grid-column: 1 / -1; }
+  .checkin-page .session-picker { align-items: stretch; flex-direction: column; }
+  .checkin-page .checkin-setup > .card-head { flex-wrap: wrap; }
+  .checkin-setup-actions { justify-content: flex-start; }
+  .checkin-page .camera-panel { min-height: 400px; }
+  .checkin-page .face-frame { min-height: 240px; }
+  .checkin-page .camera-actions { grid-template-columns: 1fr; gap: 8px; }
+  .checkin-page .detected-card .card-head { flex-wrap: wrap; }
+  .checkin-page .detected-card dl { grid-template-columns: 1fr; }
 }

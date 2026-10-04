@@ -1,0 +1,10 @@
+.student-shell .attendance-history-page .attendance-history-status-tabs { gap: 12px; padding: 4px; }
+.student-shell .attendance-history-page .attendance-history-status-tabs > div { display: flex; flex-wrap: wrap; gap: 12px; }
+.student-shell .attendance-history-page .attendance-history-status-tabs button { min-height: 44px; padding: 10px 20px; border: 1px solid #d5e0eb; border-radius: 999px; background: #f7f9fc; color: #405c7c; font-size: 14px; line-height: 1.5; font-weight: 500; box-shadow: none; transition: background-color 160ms ease-out, border-color 160ms ease-out; }
+.student-shell .attendance-history-page .attendance-history-status-tabs button:not(.is-active) { border-color: #d5e0eb; background: #f7f9fc; color: #405c7c; }
+.student-shell .attendance-history-page .attendance-history-status-tabs button:hover { transform: none; background: #edf4ff; border-color: #9ebff0; }
+.student-shell .attendance-history-page .attendance-history-status-tabs button.is-active { border-color: #1677f2; background: #1677f2; color: #fff; font-weight: 600; }
+.student-shell .attendance-history-page .attendance-history-status-tabs button:focus-visible { outline: 3px solid #1677f2; outline-offset: 4px; }
+.student-shell .attendance-history-page .attendance-history-status-tabs button svg { width: 16px; height: 16px; }
+@media (max-width: 480px) { .student-shell .attendance-history-page .attendance-history-status-tabs > div { gap: 10px; } .student-shell .attendance-history-page .attendance-history-status-tabs button { padding-inline: 16px; } }
+@media (prefers-reduced-motion: reduce) { .student-shell .attendance-history-page .attendance-history-status-tabs button { transition: none; } }

@@ -14,7 +14,7 @@ export type StudentRecord = {
   status: StudentStatus;
 };
 
-export type ClassroomOption = { id: number; name: string; level: string };
+export type ClassroomOption = { id: number; name: string; level: string; advisorName?: string };
 
 export type StudentFormValue = {
   studentCode: string;

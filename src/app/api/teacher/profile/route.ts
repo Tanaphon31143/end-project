@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireTeacher, requestMeta } from "@/lib/api-auth";
+import { revokeAccountSessions } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { getTeacherIdentity } from "@/lib/teacher-data";
@@ -71,7 +72,7 @@ export async function PATCH(request: Request) {
         { message: "รหัสผ่านใหม่ต้องตรงกันและยาวอย่างน้อย 8 ตัวอักษร" },
         { status: 400 },
       );
-    if (!verifyPassword(body.currentPassword ?? "", teacher.passwordHash))
+    if (!(await verifyPassword(body.currentPassword ?? "", teacher.passwordHash)))
       return NextResponse.json(
         { message: "รหัสผ่านเดิมไม่ถูกต้อง" },
         { status: 400 },
@@ -111,6 +112,7 @@ export async function PATCH(request: Request) {
       );
     throw error;
   }
+  if (body.newPassword) await revokeAccountSessions("teacher", teacher.id);
   return NextResponse.json({
     ok: true,
     profile: {

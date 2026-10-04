@@ -1,5 +1,6 @@
 "use client";
 
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
@@ -8,6 +9,7 @@ import {
   Clock3,
   LoaderCircle,
   Play,
+  RefreshCw,
   ScanFace,
   Square,
 } from "lucide-react";
@@ -101,6 +103,35 @@ export function CheckInPanel({
       throw new Error(next.message || "โหลดรายการเช็คชื่อไม่สำเร็จ");
     setRecords(next.records || []);
   }
+  async function refreshData() {
+    setBusy(true);
+    try {
+      await Promise.all([loadData(), loadRecords(sessionId)]);
+      setMessage("โหลดข้อมูลล่าสุดแล้ว");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "โหลดข้อมูลไม่สำเร็จ");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function changeDate(nextDate: string) {
+    stopCamera();
+    setDate(nextDate);
+    setSessionId(null);
+    setRecords([]);
+    setResult(null);
+    if (!nextDate) return;
+    setBusy(true);
+    try {
+      await loadData(nextDate);
+      setMessage("เลือกรอบเช็คชื่อก่อนเปิดกล้อง");
+    } catch (error) {
+      setData((current) => ({ ...current, sessions: [] }));
+      setMessage(error instanceof Error ? error.message : "โหลดรอบเช็คชื่อไม่สำเร็จ");
+    } finally {
+      setBusy(false);
+    }
+  }
   async function selectSession(id: number | null) {
     stopCamera();
     setResult(null);
@@ -146,6 +177,8 @@ export function CheckInPanel({
         next = (await response.json()) as { id?: number; message?: string };
       if (!response.ok)
         throw new Error(next.message || "เปิดรอบเช็คชื่อไม่สำเร็จ");
+      stopCamera();
+      setResult(null);
       await loadData(date, next.id);
       setRecords([]);
       setMessage(next.message || "เปิดรอบเช็คชื่อสำเร็จ");
@@ -243,12 +276,17 @@ export function CheckInPanel({
   }
   return (
     <>
-      <section className="dashboard-card checkin-setup">
+      <section className="dashboard-card checkin-setup" aria-labelledby="checkin-setup-title">
         <div className="card-head">
           <div>
-            <h2>ตั้งค่ารอบเช็คชื่อ</h2>
+            <h2 id="checkin-setup-title">ตั้งค่ารอบเช็คชื่อ</h2>
             <p>เลือกห้อง วิชา และช่วงเวลาก่อนเริ่มสแกน</p>
           </div>
+          <div className="checkin-setup-actions">
+          <button className="admin-button secondary" type="button" onClick={() => void refreshData()} disabled={busy || scanning || starting || !date}>
+            <RefreshCw size={17} aria-hidden="true" />
+            {busy ? "กำลังโหลด…" : "โหลดข้อมูลล่าสุด"}
+          </button>
           {selectedSession && (
             <span
               className={`data-badge ${selectedSession.status === "ACTIVE" ? "green" : "gray"}`}
@@ -256,20 +294,16 @@ export function CheckInPanel({
               {selectedSession.status === "ACTIVE" ? "กำลังเปิด" : "ปิดแล้ว"}
             </span>
           )}
+          </div>
         </div>
         <div className="checkin-form">
           <label>
             วันที่
-            <input
+            <DateTimeInput
               type="date"
               value={date}
-              onChange={(event) => {
-                const next = event.target.value;
-                setDate(next);
-                setSessionId(null);
-                setRecords([]);
-                void loadData(next);
-              }}
+              disabled={busy || scanning || starting}
+              onChange={(event) => void changeDate(event.target.value)}
             />
           </label>
           <label>
@@ -305,7 +339,7 @@ export function CheckInPanel({
           </label>
           <label>
             เริ่ม
-            <input
+            <DateTimeInput
               type="time"
               value={startTime}
               onChange={(event) => setStartTime(event.target.value)}
@@ -313,7 +347,7 @@ export function CheckInPanel({
           </label>
           <label>
             สิ้นสุด
-            <input
+            <DateTimeInput
               type="time"
               value={endTime}
               onChange={(event) => setEndTime(event.target.value)}
@@ -332,7 +366,7 @@ export function CheckInPanel({
           <button
             className="admin-button primary"
             onClick={createSession}
-            disabled={busy}
+            disabled={busy || scanning || starting || !date}
           >
             <Play size={17} />
             เปิดรอบใหม่
@@ -340,9 +374,10 @@ export function CheckInPanel({
         </div>
         <div className="session-picker">
           <label>
-            รอบเรียน
+            เลือกรอบเช็คชื่อที่มีอยู่
             <select
               value={sessionId || ""}
+              disabled={busy || scanning || starting || !date}
               onChange={(event) =>
                 void selectSession(Number(event.target.value) || null)
               }
@@ -378,9 +413,11 @@ export function CheckInPanel({
             </button>
           )}
         </div>
+        <p className="checkin-data-message" role="status">{message}</p>
       </section>
       <div className="checkin-grid">
         <section className={`camera-panel ${camera ? "active" : ""}`}>
+          <div className="checkin-camera-heading"><ScanFace size={22} aria-hidden="true" /><h2>สแกนใบหน้า</h2></div>
           <div className="camera-top">
             <span>
               <i />
@@ -409,7 +446,7 @@ export function CheckInPanel({
             <span />
             <span />
             <ScanFace size={54} />
-            <p>{message}</p>
+            <p role="status" aria-live="polite">{message}</p>
           </div>
           <div className="camera-actions">
             <button
@@ -439,7 +476,7 @@ export function CheckInPanel({
         <section className="dashboard-card detected-card">
           <div className="card-head">
             <div>
-              <h2>ข้อมูลผู้ตรวจพบ</h2>
+              <h2>ผลการสแกนล่าสุด</h2>
               <p>ผลการตรวจจับล่าสุด</p>
             </div>
             <span className="normal">

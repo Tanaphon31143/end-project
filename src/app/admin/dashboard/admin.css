@@ -105,6 +105,64 @@
   padding-top: 8px;
   border-top: 1px solid #ffffff16;
 }
+
+.sidebar-school-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 12px;
+  padding: 13px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.sidebar-school-logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  overflow: hidden;
+  padding: 3px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.sidebar-school-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sidebar-school-card > div {
+  min-width: 0;
+}
+
+.sidebar-school-card > div > strong,
+.sidebar-school-card > div > span {
+  display: block;
+}
+
+.sidebar-school-card > div > strong {
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.sidebar-school-card > div > span {
+  margin-top: 3px;
+  color: #9eb2cc;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.admin-sidebar.collapsed .sidebar-school-card {
+  display: none;
+}
+
 .sidebar-x {
   display: none;
 }
@@ -1031,7 +1089,10 @@
   padding: 9px 15px;
   border: 1px solid transparent;
   border-radius: 9px;
-  font: 600 13px/1 inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -2529,4 +2590,31 @@
     margin-left: 0;
     width: 100%;
   }
+}
+
+/* Admin bell shares the teacher/student notification feedback. */
+.admin-header .bell {
+  transition: transform 150ms ease-out, border-color 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out;
+}
+.admin-header .bell svg { transform-origin: 50% 0; }
+.admin-header .bell .admin-bell-ring { animation: shared-bell-ring 800ms ease-out both; }
+.admin-header .bell .admin-bell-ping { animation: shared-notif-pop 180ms ease-out both, shared-notif-ping 800ms ease-out 80ms both; }
+.admin-header .bell:focus-visible {
+  outline: 2px solid #1763c4;
+  outline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .admin-header .bell:hover { transform: translateY(-2px); border-color: #93c5fd; background: #f7fbff; color: #1763c4; }
+}
+.admin-header .bell:active { transform: scale(.9); }
+@media (prefers-reduced-motion: reduce) {
+  .admin-header .bell { transition: none; }
+  .admin-header .bell:hover, .admin-header .bell:active { transform: none; }
+  .admin-header .bell .admin-bell-ring, .admin-header .bell .admin-bell-ping { animation: none; }
+}
+
+/* Circular school emblem in the admin navigation. */
+.admin-sidebar .brand-scan,
+.admin-sidebar .brand-scan img {
+  border-radius: 50%;
 }

@@ -17,6 +17,7 @@
     "db:student-face-self-enrollment": "node --env-file=.env.local scripts/migrate-student-face-self-enrollment.mjs",
     "db:student-face-identity": "node --env-file=.env.local scripts/migrate-student-face-identity.mjs",
     "db:student-face-email-binding": "node --env-file=.env.local scripts/migrate-student-face-email-binding.mjs",
+    "db:auth-security": "node --env-file=.env.local scripts/migrate-auth-security.mjs",
     "test:student:round3": "node --test tests/student-round3.test.mjs tests/student-round3.integration.test.mjs",
     "test:teacher": "node --test tests/teacher-rules.test.mjs tests/teacher-workflow.integration.test.mjs",
     "test:teacher:integration": "node --env-file=.env.test --test tests/teacher-workflow.integration.test.mjs",
@@ -35,14 +36,14 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^1.40.0",
     "mysql2": "^3.23.2",
-    "next": "^16.3.4",
+    "next": "^16.3.6",
     "prisma": "^6.19.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
     "sharp": "^0.35.4",
     "sweetalert2": "^11.26.25",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -50,7 +51,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4.3.3",
     "typescript": "^5"
   }

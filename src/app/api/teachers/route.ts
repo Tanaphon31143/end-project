@@ -5,7 +5,7 @@ import type {
 } from "mysql2/promise";
 import type { TeacherStatus } from "@/components/admin/teachers/types";
 import { getTeacherPageData } from "@/lib/admin-data";
-import { getAdminSession } from "@/lib/auth";
+import { getAdminSession, revokeAccountSessions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { recordAdminAudit } from "@/lib/admin-audit";
@@ -241,6 +241,7 @@ export async function PUT(request: Request) {
     }
     await assignSubjects(connection, id, parsed.value.subjectIds);
     await connection.commit();
+    await revokeAccountSessions("teacher", id);
     await recordAdminAudit(request, "UPDATE", "teacher", id, `แก้ไขครู ${parsed.value.teacherCode} ${parsed.value.fullName}`);
     return Response.json({ message: "แก้ไขข้อมูลครูสำเร็จ" });
   } catch (error) {
@@ -270,6 +271,7 @@ export async function PATCH(request: Request) {
   );
   if (!result.affectedRows)
     return Response.json({ message: "ไม่พบครู" }, { status: 404 });
+  await revokeAccountSessions("teacher", id);
   await recordAdminAudit(request, "PASSWORD_CHANGE", "teacher", id, `เปลี่ยนรหัสผ่านครูรหัส ${id}`);
   return Response.json({ message: "เปลี่ยนรหัสผ่านสำเร็จ" });
 }

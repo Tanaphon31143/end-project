@@ -1,4 +1,5 @@
 import { LiveScanFeed } from "@/components/teacher/LiveScanFeed";
+import "./live-scan.css";
 export default async function ScanPage({
   params,
 }: {

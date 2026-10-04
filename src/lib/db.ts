@@ -9,7 +9,7 @@ if (!databaseUrl) {
 
 const parsedUrl = new URL(databaseUrl);
 
-const POOL_VERSION = 4;
+const POOL_VERSION = 5;
 
 const globalForDatabase = globalThis as typeof globalThis & {
   mysqlPool?: Pool;
@@ -71,6 +71,14 @@ async function retryOperation<T>(
 }
 
 function createDatabasePool(): Pool {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "false"
+  ) {
+    throw new Error(
+      "DATABASE_SSL_REJECT_UNAUTHORIZED=false is not allowed in production",
+    );
+  }
   const pool = mysql.createPool({
     host: parsedUrl.hostname,
     port: Number(parsedUrl.port || 3306),
@@ -79,7 +87,8 @@ function createDatabasePool(): Pool {
     database: parsedUrl.pathname.replace(/^\//, ""),
     ssl: {
       minVersion: "TLSv1.2",
-      rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+      rejectUnauthorized:
+        process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false",
     },
     connectionLimit: 10,
     // TiDB Cloud may close an idle TLS socket before the client notices. Retire

@@ -1,4 +1,5 @@
 "use client";
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +11,8 @@ import {
   Plus,
   Send,
   Trash2,
+  CircleX,
+  FilePenLine,
 } from "lucide-react";
 import type {
   StudySchedule,
@@ -35,6 +38,8 @@ const labels: Record<RequestStatus, string> = {
   REJECTED: "ไม่อนุมัติ",
   CHANGES_REQUESTED: "ขอแก้ไขข้อมูล",
 };
+const statusIcons = { PENDING: Clock3, APPROVED: CheckCircle2, REJECTED: CircleX, CHANGES_REQUESTED: FilePenLine };
+const statusOrder: RequestStatus[] = ["PENDING", "CHANGES_REQUESTED", "APPROVED", "REJECTED"];
 const blankSchedule = (): StudySchedule => ({
   dayOfWeek: 1,
   periodName: "",
@@ -69,6 +74,8 @@ export function SubjectRequestsClient({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | "ALL">("ALL");
+  const visibleRequests = requests.filter((item) => statusFilter === "ALL" || item.status === statusFilter);
   function startEdit(item: SubjectRequest) {
     setForm({
       subjectName: item.subjectName,
@@ -148,6 +155,9 @@ export function SubjectRequestsClient({
         <button
           className="button primary"
           type="button"
+          disabled={busy}
+          aria-expanded={showForm}
+          aria-controls="subject-request-form"
           onClick={() => {
             setEditing(null);
             setForm(blank(academicYear));
@@ -166,7 +176,7 @@ export function SubjectRequestsClient({
         </p>
       )}
       {showForm && (
-        <form className="subject-request-form" onSubmit={submit}>
+        <form id="subject-request-form" className="subject-request-form" onSubmit={submit}>
           <div className="subject-request-section-head">
             <div>
               <h3>{editing ? "แก้ไขและส่งคำขออีกครั้ง" : "ข้อมูลรายวิชา"}</h3>
@@ -316,7 +326,7 @@ export function SubjectRequestsClient({
                 </label>
                 <label>
                   เริ่ม
-                  <input
+                  <DateTimeInput
                     required
                     type="time"
                     value={schedule.startTime}
@@ -327,7 +337,7 @@ export function SubjectRequestsClient({
                 </label>
                 <label>
                   สิ้นสุด
-                  <input
+                  <DateTimeInput
                     required
                     type="time"
                     value={schedule.endTime}
@@ -386,14 +396,22 @@ export function SubjectRequestsClient({
       <section className="subject-request-history">
         <div className="subject-request-section-head">
           <div>
-            <h3>สถานะคำขอ</h3>
+            <h3>คำขอของฉัน</h3>
             <p>ติดตามผลและดูความเห็นจากผู้ดูแลระบบ</p>
           </div>
           <span>{requests.length} รายการ</span>
         </div>
-        {requests.length ? (
+        <div className="request-status-filters" role="group" aria-label="กรองคำขอตามสถานะ">
+          <button type="button" aria-pressed={statusFilter === "ALL"} onClick={() => setStatusFilter("ALL")} className="request-filter all">ทั้งหมด <b>{requests.length}</b></button>
+          {statusOrder.map((status) => {
+            const Icon = statusIcons[status];
+            return <button key={status} type="button" className={`request-filter ${status.toLowerCase()}`} aria-pressed={statusFilter === status} onClick={() => setStatusFilter(status)}><Icon size={18} /><span>{labels[status]}</span><b>{requests.filter((item) => item.status === status).length}</b></button>;
+          })}
+        </div>
+        <p className="request-list-caption" role="status">{statusFilter === "ALL" ? "คำขอทั้งหมด" : labels[statusFilter]} · {visibleRequests.length} รายการ</p>
+        {visibleRequests.length ? (
           <div className="subject-request-list">
-            {requests.map((item) => (
+            {visibleRequests.map((item) => (
               <article className="subject-request-item" key={item.id}>
                 <div className="subject-request-item-main">
                   <div>
@@ -406,17 +424,13 @@ export function SubjectRequestsClient({
                   <span
                     className={`subject-request-status ${item.status.toLowerCase()}`}
                   >
+                    {(() => { const Icon = statusIcons[item.status]; return <Icon size={16} />; })()}
                     {labels[item.status]}
                   </span>
                 </div>
-                <p className="subject-request-item-schedule">
-                  <Clock3 size={15} />{" "}
-                  {item.schedules
-                    .map(
-                      (s) => `${days[s.dayOfWeek]} ${s.startTime}–${s.endTime}`,
-                    )
-                    .join(" · ") || "ไม่มีข้อมูลตารางเรียน"}
-                </p>
+                <div className="subject-request-item-schedule" aria-label="ตารางเรียน">
+                  {item.schedules.length ? item.schedules.map((s, index) => <span className="request-schedule-slot" key={index}><Clock3 size={15} /><span>{days[s.dayOfWeek]} {s.periodName && `· ${s.periodName}`} {s.startTime}–{s.endTime}</span></span>) : "ไม่มีข้อมูลตารางเรียน"}
+                </div>
                 {item.adminRemark && (
                   <p className="subject-request-remark">
                     <strong>ความเห็นผู้ดูแลระบบ:</strong> {item.adminRemark}
@@ -445,8 +459,8 @@ export function SubjectRequestsClient({
         ) : (
           <div className="subject-request-empty">
             <CalendarDays size={24} />
-            <h4>ยังไม่มีคำขอรายวิชา</h4>
-            <p>เริ่มต้นด้วยการกรอกข้อมูลวิชา ห้องเรียน และตารางเรียน</p>
+            <h4>{requests.length ? `ไม่มีคำขอสถานะ${labels[statusFilter as RequestStatus]}` : "ยังไม่มีคำขอรายวิชา"}</h4>
+            <p>{requests.length ? "เลือกสถานะอื่นหรือดูคำขอทั้งหมด" : "เริ่มต้นด้วยการกรอกข้อมูลวิชา ห้องเรียน และตารางเรียน"}</p>
           </div>
         )}
       </section>

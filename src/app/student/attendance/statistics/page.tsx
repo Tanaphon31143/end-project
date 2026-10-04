@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChartNoAxesColumnIncreasing } from "lucide-react";
+import "./statistics.css";
 import AttendanceFilters from "@/components/student/AttendanceFilters";
 import AttendanceOverview from "@/components/student/AttendanceOverview";
 import { getStudentSession } from "@/lib/auth";
@@ -42,7 +43,7 @@ export default async function Statistics({ searchParams }: { searchParams: Stati
         <Link href="/student/dashboard">หน้าหลัก</Link><ChevronRight aria-hidden="true" /><span aria-current="page">สถิติการเข้าเรียน</span>
       </nav>
       <div className="statistics-page-head">
-        <header className="statistics-heading"><div><h1>สถิติการเข้าเรียน</h1><p>ติดตามภาพรวมและแนวโน้มการเข้าเรียนของคุณ</p></div></header>
+        <header className="statistics-heading"><ChartNoAxesColumnIncreasing className="statistics-title-icon" aria-hidden="true" /><div><h1>สถิติการเข้าเรียน</h1><p>ติดตามภาพรวมและแนวโน้มการเข้าเรียนของคุณ</p></div></header>
         <AttendanceFilters selectedTerm={selectedTerm} selectedSubject={data.filters.subjectId} from={data.filters.from} to={data.filters.to} terms={data.options.terms} subjects={data.options.subjects} status={query.status} />
       </div>
       <AttendanceOverview summary={data.summary} subjects={data.subjects} attendanceDays={data.attendanceDays} selectedSubject={data.filters.subjectId} initialStatus={selectedStatus} />

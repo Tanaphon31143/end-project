@@ -1,9 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
 .appShell {
   min-height: 100dvh;
   background: #f5f9ff;
   color: #18304b;
-  font-family: Kanit, Arial, sans-serif;
+  font-family: var(--font-sf-thonburi), Tahoma, "Leelawadee UI", Arial, Helvetica, sans-serif;
   padding-bottom: 88px;
 }
 .header {

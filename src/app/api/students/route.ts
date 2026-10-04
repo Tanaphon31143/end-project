@@ -1,6 +1,6 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { StudentStatus } from "@/components/admin/students/types";
-import { getAdminSession } from "@/lib/auth";
+import { getAdminSession, revokeAccountSessions } from "@/lib/auth";
 import { getStudentPageData } from "@/lib/admin-data";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
@@ -102,6 +102,7 @@ export async function PUT(request: Request) {
       : await connection.execute<ResultSetHeader>("UPDATE students SET email=?,full_name=?,student_code=?,class_id=?,class_number=?,parent_name=?,phone=?,status=? WHERE id=?", [...fields, id]);
     if (!result.affectedRows) { await connection.rollback(); return Response.json({ message: "ไม่พบนักเรียน" }, { status: 404 }); }
     await connection.commit();
+    await revokeAccountSessions("student", id);
     await recordAdminAudit(request, "UPDATE", "student", id, `แก้ไขนักเรียน ${parsed.value.studentCode} ${parsed.value.fullName}`);
     return Response.json({ message: "แก้ไขข้อมูลนักเรียนสำเร็จ" });
   } catch (error) {

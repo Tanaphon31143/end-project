@@ -354,3 +354,88 @@
     padding-inline: 14px;
   }
 }
+
+/* Attendance course overview, scoped to this page. */
+.attendance-intro-copy { display:flex; align-items:center; gap:16px; }
+.attendance-intro-icon { display:grid; place-items:center; width:56px; height:56px; flex:none; border-radius:50%; background:#e0ecff; color:#176ff2; }
+.attendance-intro-icon svg { width:28px; height:28px; }
+.attendance-page-intro h2 { font-size:28px; font-weight:700; line-height:1.4; }
+.attendance-filter { padding:18px; gap:12px; }
+.attendance-filter label { font-size:12px; color:#405c7c; gap:7px; }
+.attendance-filter input,.attendance-filter select { font-size:14px; min-height:44px; }
+.attendance-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+.attendance-summary > span { --status:#087c4a; --soft:#effbf5; display:grid; grid-template-columns:54px minmax(0,1fr) 20px; align-items:center; gap:14px; padding:18px; border:1px solid color-mix(in srgb,var(--status) 28%,white); border-radius:12px; background:var(--soft); min-width:0; }
+.attendance-summary > .orange { --status:#b76a00; --soft:#fffbf1; }
+.attendance-summary > .red { --status:#d62f3a; --soft:#fff5f6; }
+.attendance-summary > .blue { --status:#176ff2; --soft:#f3f7ff; }
+.attendance-summary > span span { border:0; padding:0; margin:0; background:transparent; }
+.attendance-summary > span .attendance-summary-icon { display:grid; place-items:center; width:54px; height:54px; border-radius:50%; background:color-mix(in srgb,var(--status) 12%,white); color:var(--status); }
+.attendance-summary-icon svg { width:28px; height:28px; }
+.attendance-summary > span .attendance-summary-copy { display:grid; gap:3px; }
+.attendance-summary-copy b { color:#102f54; font-size:28px; line-height:1.2; font-variant-numeric:tabular-nums; }
+.attendance-summary-copy strong { color:var(--status); font-size:14px; }
+.attendance-summary-copy small { color:#52677f; font-size:11px; line-height:1.6; }
+.attendance-summary-chart { width:20px; color:var(--status); opacity:.5; }
+.attendance-subjects { padding:0; overflow:hidden; }
+.attendance-subjects-head { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px; border-bottom:1px solid #edf2f7; }
+.attendance-subjects-head > div:first-child { display:flex; align-items:center; gap:12px; }
+.attendance-subjects-head h2 { margin:0; font-size:20px; font-weight:700; }
+.attendance-subjects-head p { margin:4px 0 0; color:#52677f; font-size:12px; }
+.attendance-view-controls { display:flex; align-items:center; gap:8px; }
+.attendance-view-controls select { min-height:40px; border:1px solid #dbe5f3; border-radius:8px; font:inherit; font-size:12px; background:white; }
+.attendance-view-controls button { display:grid; place-items:center; width:40px; height:40px; border:1px solid #dbe5f3; border-radius:9px; background:white; color:#52677f; cursor:pointer; }
+.attendance-view-controls button[aria-pressed=true] { background:#176ff2; border-color:#176ff2; color:white; }
+.attendance-subject-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:12px; }
+.attendance-subject-card { --course:#176ff2; --course-soft:#e5efff; padding:18px; border:1px solid #e0e9f4; border-radius:14px; min-width:0; background:white; transition:border-color 180ms ease-out,background-color 180ms ease-out; }
+.attendance-subject-card.tone-1 { --course:#d62f3a; --course-soft:#fff0f1; }
+.attendance-subject-card.tone-2 { --course:#087c4a; --course-soft:#ebfaf2; }
+.attendance-subject-card.tone-3 { --course:#7543c9; --course-soft:#f3edff; }
+.attendance-subject-card > header { display:flex; align-items:center; gap:14px; padding-bottom:16px; border-bottom:1px solid #edf2f7; }
+.attendance-course-icon { display:grid; place-items:center; width:60px; height:60px; flex:none; border-radius:50%; background:var(--course-soft); color:var(--course); }
+.attendance-course-icon svg { width:30px; height:30px; }
+.attendance-subject-card header > div { min-width:0; flex:1; }
+.attendance-subject-card h3 { margin:0; color:#102f54; font-size:20px; font-weight:700; overflow-wrap:anywhere; }
+.attendance-subject-card p { margin:5px 0 0; font-size:14px; color:#52677f; }
+.attendance-subject-card header button { display:flex; align-items:center; gap:6px; flex:none; padding:8px 10px; border:1px solid #cfe0fb; border-radius:8px; background:#f5f9ff; color:#075dcc; font:inherit; font-size:12px; cursor:pointer; }
+.attendance-course-info { display:grid; grid-template-columns:120px minmax(0,1fr); gap:10px; margin-top:14px; font-size:13px; color:#52677f; }
+.attendance-course-info > div { display:flex; flex-wrap:wrap; gap:6px; }
+.attendance-course-info strong { justify-self:end; color:#173d69; font-weight:600; }
+.attendance-room-tag { display:inline-block; padding:3px 8px; border:1px solid #dbe7fc; border-radius:6px; background:#f5f9ff; color:#075dcc; }
+.attendance-course-empty { grid-column:1/-1; padding:32px; text-align:center; color:#52677f; }
+@media(hover:hover) { .attendance-subject-card:hover { border-color:#b9d1f5; background:#fbfdff; } .attendance-subject-card header button:hover { background:#e5efff; } }
+.attendance-subjects button:focus-visible { outline:2px solid #176ff2; outline-offset:3px; }
+@media(max-width:1200px) { .attendance-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .attendance-subject-card > header { flex-wrap:wrap; } .attendance-subject-card header button { margin-left:auto; } }
+@media(max-width:850px) { .attendance-subject-grid { grid-template-columns:1fr; } .attendance-subjects-head { flex-wrap:wrap; } }
+@media(max-width:480px) { .attendance-summary { grid-template-columns:1fr; } .attendance-view-controls { flex-wrap:wrap; } .attendance-page-intro h2 { font-size:24px; } .attendance-course-info { grid-template-columns:100px minmax(0,1fr); } }
+@media(prefers-reduced-motion:reduce) { .attendance-subject-card { transition:none; } }
+
+.attendance-subjects .attendance-view-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  min-width: 40px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.attendance-subjects .attendance-view-controls button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin: 0;
+  stroke-width: 2;
+}
+
+.attendance-course-info { grid-template-columns: 120px minmax(0,1fr) 145px minmax(0,.55fr); align-items:center; }
+.attendance-course-info > span { display:flex; align-items:center; gap:8px; }
+.attendance-course-info > span svg { width:16px; height:16px; flex:none; color:#6b88b0; }
+.attendance-course-info > strong { overflow-wrap:anywhere; }
+.attendance-course-info > span:nth-child(5) { grid-column:3; grid-row:1; }
+.attendance-course-info > strong:nth-child(6) { grid-column:4; grid-row:1; }
+.attendance-course-info > span:nth-child(7) { grid-column:3; grid-row:2; }
+.attendance-course-info > strong:nth-child(8) { grid-column:4; grid-row:2; }
+.attendance-course-info > span:nth-child(3) { grid-column:1; grid-row:2; }
+.attendance-course-info > div:nth-child(4) { grid-column:2; grid-row:2; }
+.attendance-grade-tag { display:inline-block; margin-left:8px; padding:3px 7px; border:1px solid #dbe7fc; border-radius:6px; background:#f5f9ff; color:#075dcc; font-size:11px; }
+@media(max-width:1500px) { .attendance-course-info { grid-template-columns:120px minmax(0,1fr); } .attendance-course-info > :nth-child(n) { grid-column:auto; grid-row:auto; } }

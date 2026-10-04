@@ -7,7 +7,6 @@ import {
   Camera,
   Check,
   LoaderCircle,
-  RefreshCw,
   ScanFace,
   SwitchCamera,
   X,
@@ -399,19 +398,19 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
 
   if (!session)
     return (
-      <div className="panel empty">
+      <div className="teacher-live-scan"><div className="panel empty" role={error ? "alert" : "status"}>
         {error || (
           <>
             <LoaderCircle className="spin" size={22} /> กำลังโหลดรอบเช็คชื่อ...
           </>
         )}
-      </div>
+      </div></div>
     );
   const checked = session.attendance.filter(
     (item) => item.status === "PRESENT" || item.status === "LATE",
   ).length;
   return (
-    <>
+    <div className="teacher-live-scan">
       <div className="page-head">
         <div>
           <h2>เช็คชื่อด้วยใบหน้า</h2>
@@ -433,6 +432,13 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
               : "ปิดรอบเช็คชื่อ"}
         </button>
       </div>
+      <dl className="live-session-summary" aria-label="ข้อมูลรอบเช็คชื่อ">
+        <div><dt>ชั้นเรียน</dt><dd>{session.subject.classroom?.name || "ไม่ระบุ"}</dd></div>
+        <div><dt>เวลาเรียน</dt><dd>{dbTime(session.startTime)}–{dbTime(session.endTime)} น.</dd></div>
+        <div><dt>เริ่มนับมาสาย</dt><dd>{dbTime(session.lateAfter)} น.</dd></div>
+        <div><dt>เช็คชื่อแล้ว</dt><dd>{checked} / {session.totalStudents} คน</dd></div>
+        <div><dt>สถานะรอบ</dt><dd className={`status ${session.status === "ACTIVE" ? "active" : "closed"}`}>{session.status === "ACTIVE" ? "เปิดรับเช็คชื่อ" : "ปิดรอบแล้ว"}</dd></div>
+      </dl>
       <section className="scan-grid">
         <article className="panel">
           <div className="panel-head">
@@ -450,7 +456,7 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
             <video ref={videoRef} autoPlay muted playsInline />
             <div className="camera-corners" />
             {!cameraOpen && <ScanFace size={55} />}
-            <p>
+            <p role="status" aria-live="polite">
               {busy && <LoaderCircle className="spin" size={16} />} {message}
             </p>
           </div>
@@ -500,7 +506,7 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
               onClick={() => void scan()}
               disabled={busy || !cameraOpen || session.status === "CLOSED"}
             >
-              <RefreshCw size={17} />
+              <ScanFace size={17} />
               สแกนใบหน้า
             </button>
           </div>
@@ -516,7 +522,7 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
           )}
         </article>
         <article className="panel student-result">
-          <h3>{match ? "ตรวจพบนักเรียน" : "รอผลการตรวจจับ"}</h3>
+          <div className="panel-head"><div><h3>{match ? "ตรวจพบนักเรียน" : "ผลการตรวจจับ"}</h3><span className="muted">ตรวจสอบข้อมูลก่อนยืนยันการเข้าเรียน</span></div></div>
           {match ? (
             <>
               {studentImageFailed ? (
@@ -588,7 +594,8 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
           ) : (
             <div className="empty">
               <ScanFace size={42} />
-              <p>เมื่อพบใบหน้าที่ตรงกับระบบ ข้อมูลนักเรียนจะแสดงที่นี่</p>
+              <h4>รอผลการสแกนใบหน้า</h4>
+              <p>เปิดกล้องและกดสแกน ข้อมูลนักเรียนที่ตรงกับระบบจะแสดงที่นี่</p>
             </div>
           )}
         </article>
@@ -648,6 +655,6 @@ export function LiveScanFeed({ sessionId }: { sessionId: string }) {
           </table>
         </div>
       </article>
-    </>
+    </div>
   );
 }

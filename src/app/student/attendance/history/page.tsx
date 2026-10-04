@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import AttendanceHistoryView from "@/components/student/AttendanceHistoryView";
 import { getStudentSession } from "@/lib/auth";
 import { getStudentAttendance, getStudentCourses } from "@/lib/student-data";
+import "./history-filters.css";
 
 export const dynamic = "force-dynamic";
 

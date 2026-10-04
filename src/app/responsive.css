@@ -432,6 +432,35 @@
   }
 }
 
+@media (min-width: 1024px) {
+  .admin-shell .admin-filters > label {
+    width: auto;
+    flex: 1 1 240px;
+  }
+
+  .admin-shell .admin-filters > select {
+    width: auto;
+    min-width: 145px;
+    flex: 0 1 180px;
+  }
+
+  .admin-shell .admin-filters > button {
+    width: auto;
+    min-width: max-content;
+    flex: 0 0 auto;
+  }
+
+  .admin-shell .report-filters > input {
+    width: auto;
+    min-width: 140px;
+    flex: 1 1 150px;
+  }
+
+  .admin-shell .report-filters > select {
+    flex: 1 1 160px;
+  }
+}
+
 @media (min-width: 640px) and (max-width: 1023px) {
   :is(.stats-row, .teacher-app .dashboard-stats, .student-shell .dashboard-stats-grid, .student-shell .stats-grid) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -443,6 +472,37 @@
 
   .student-shell .student-dashboard.dashboard-refresh .dashboard-stats-grid > :last-child {
     grid-column: auto;
+  }
+
+  /* Give admin filters a deliberate tablet layout instead of letting form
+     controls shrink until their Thai labels collide or get clipped. */
+  .admin-shell .admin-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-shell .admin-filters > label {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-shell .admin-filters > :is(select, button) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-shell .report-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-shell .report-filters > :is(input, select, button) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-shell .report-filters > button {
+    grid-column: 1 / -1;
   }
 }
 
@@ -666,7 +726,7 @@
     flex-direction: column;
   }
 
-  .admin-filters > :is(label, input, select, button) {
+  .admin-shell .admin-filters > :is(label, input, select, button) {
     width: 100%;
     min-width: 0;
   }

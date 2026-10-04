@@ -1,5 +1,6 @@
 "use client";
 
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useCallback, useEffect, useState } from "react";
 import {
   ChartNoAxesCombined,
@@ -241,7 +242,7 @@ export function ReportsClient({
           </label>
           <label className="reports-field">
             <span>ตั้งแต่วันที่</span>
-            <input
+            <DateTimeInput
               type="date"
               value={from}
               onChange={(event) => setFrom(event.target.value)}
@@ -250,7 +251,7 @@ export function ReportsClient({
           </label>
           <label className="reports-field">
             <span>ถึงวันที่</span>
-            <input
+            <DateTimeInput
               type="date"
               value={to}
               onChange={(event) => setTo(event.target.value)}

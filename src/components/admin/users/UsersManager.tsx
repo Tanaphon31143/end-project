@@ -11,6 +11,7 @@ import {
   Search,
   Trash2,
   X,
+  Users, Crown, UserRound, GraduationCap, MoreVertical, Download,
 } from "lucide-react";
 import { Badge, PersonCell } from "@/components/admin/AdminPage";
 import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
@@ -38,6 +39,7 @@ export default function UsersManager({
   const [users, setUsers] = useState(initialUsers);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<UserRole | "">("");
+  const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<ModalMode | null>(null);
   const [selected, setSelected] = useState<AdminUserRecord | null>(null);
@@ -57,9 +59,9 @@ export default function UsersManager({
         [user.id, user.code, user.name, user.email].some((item) =>
           item.toLocaleLowerCase("th").includes(needle),
         );
-      return matchesQuery && (!role || user.role === role);
+      return matchesQuery && (!role || user.role === role) && (!status || user.status === status);
     });
-  }, [query, role, users]);
+  }, [query, role, status, users]);
 
   const totalPages = Math.max(
     1,
@@ -192,7 +194,7 @@ export default function UsersManager({
           : "รายละเอียดผู้ใช้งาน";
 
   return (
-    <main className="admin-content">
+    <main className="admin-content users-page">
       <div className="page-intro">
         <div>
           <h2>บัญชีผู้ใช้งาน</h2>
@@ -203,6 +205,9 @@ export default function UsersManager({
           เพิ่มผู้ใช้งาน
         </button>
       </div>
+      <section className="users-summary" aria-label="จำนวนบัญชีตามบทบาท">
+        {[{ label: "ผู้ใช้งานทั้งหมด", count: users.length, Icon: Users, tone: "blue" }, { label: "ผู้ดูแลระบบ", count: users.filter((u) => u.role === "admin").length, Icon: Crown, tone: "purple" }, { label: "ครู", count: users.filter((u) => u.role === "teacher").length, Icon: UserRound, tone: "blue" }, { label: "นักเรียน", count: users.filter((u) => u.role === "student").length, Icon: GraduationCap, tone: "green" }].map(({ label, count, Icon, tone }) => <div className="users-summary-item" key={label}><span className={`users-summary-icon ${tone}`}><Icon size={30} /></span><div><h3>{label}</h3><strong>{count} <small>บัญชี</small></strong></div></div>)}
+      </section>
       <div className="admin-filters">
         <label>
           <Search size={18} />
@@ -225,15 +230,17 @@ export default function UsersManager({
           }}
         >
           <option value="">ทุกบทบาท</option>
-          <option value="admin">Admin</option>
-          <option value="teacher">Teacher</option>
-          <option value="student">Student</option>
+          <option value="admin">ผู้ดูแลระบบ</option>
+          <option value="teacher">ครู</option>
+          <option value="student">นักเรียน</option>
         </select>
+        <select aria-label="สถานะบัญชี" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="">ทุกสถานะ</option><option value="ACTIVE">ใช้งาน</option><option value="INACTIVE">ระงับ</option></select>
         <button
-          className="admin-button secondary"
+          className="admin-button secondary filter-reset-button"
           onClick={() => {
             setQuery("");
             setRole("");
+            setStatus("");
             setPage(1);
           }}
         >
@@ -248,7 +255,11 @@ export default function UsersManager({
               แสดง {pageStart}–{pageEnd} จาก {filtered.length} บัญชี
             </p>
           </div>
-          <span className="row-count">15 รายการต่อหน้า</span>
+          <div className="users-list-tools"><span className="row-count">{filtered.length} บัญชี</span><button className="admin-button secondary" onClick={() => {
+            const escape = (text: string) => `"${(/^[\s]*[=+@-]/.test(text) ? "'" + text : text).replaceAll('"', '""')}"`;
+            const csv = "\uFEFF" + [["รหัส", "ชื่อ", "อีเมล", "บทบาท", "สถานะ"], ...filtered.map((u) => [u.code || u.id, u.name, u.email, ROLE_LABELS[u.role], u.status === "ACTIVE" ? "ใช้งาน" : "ระงับ"])].map((row) => row.map(escape).join(",")).join("\r\n");
+            const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = "users.csv"; link.click(); URL.revokeObjectURL(url);
+          }}><Download size={17} />ส่งออกข้อมูล</button></div>
         </div>
         <div className="admin-data-wrap">
           <table>
@@ -289,8 +300,9 @@ export default function UsersManager({
                       <div className="table-actions">
                         <button onClick={() => open("view", user)} title="ดู">
                           <Eye size={16} />
-                          <span>ดู</span>
+                          <span>ดูรายละเอียด</span>
                         </button>
+                        <details className="users-action-menu"><summary aria-label={`จัดการบัญชี ${user.name}`}><MoreVertical size={18} /></summary><div>
                         <button
                           onClick={() => open("edit", user)}
                           title="แก้ไข"
@@ -314,6 +326,7 @@ export default function UsersManager({
                           <Trash2 size={16} />
                           <span>ลบ</span>
                         </button>
+                        </div></details>
                       </div>
                     </td>
                   </tr>

@@ -1,0 +1,91 @@
+/* Shared select menus for every role. Keep native form and keyboard behavior. */
+@supports (appearance: base-select) {
+  html body select:not([multiple]):not([size]),
+  html body select[size="1"] {
+    appearance: base-select !important;
+    background-image: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    box-sizing: border-box;
+    padding-block: 8px !important;
+    padding-inline: 12px !important;
+    line-height: 1.5 !important;
+    min-block-size: 40px;
+    cursor: pointer;
+    gap: 8px;
+  }
+
+  select:not([multiple]):not([size])::picker(select),
+  select[size="1"]::picker(select) {
+    appearance: base-select;
+    box-sizing: border-box;
+    min-inline-size: anchor-size(self-inline);
+    max-inline-size: min(480px, calc(100vw - 24px));
+    max-block-size: min(320px, 60vh);
+    margin-block: 6px;
+    padding: 5px;
+    border: 1px solid #d5e4f7;
+    border-radius: 10px;
+    background: #fff;
+    color: #173d69;
+    box-shadow: 0 12px 28px -12px rgba(16, 47, 84, .25);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #bdd0e8 #fff;
+  }
+
+  html body select::picker-icon {
+    color: #52739d;
+    margin-inline-start: auto;
+    align-self: center;
+    line-height: 1;
+    transition: rotate 160ms ease-out;
+  }
+
+  html body select:open::picker-icon { rotate: 180deg; }
+
+  html body select option {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-block-size: 40px;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: #fff;
+    color: #173d69;
+    font: inherit;
+    line-height: 1.6;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  html body select option:checked { background: #e3efff; color: #075dcc; font-weight: 600; }
+  html body select option:hover,
+  html body select option:focus { background: #edf5ff; outline: none; }
+  html body select option:checked:hover { background: #d8eaff; }
+  html body select option:disabled { color: #718198; background: #f8fafc; cursor: default; }
+  html body select option::checkmark { color: #176ff2; margin-inline-start: auto; order: 1; }
+  html body select:focus-visible { outline: 2px solid #176ff2; outline-offset: 2px; }
+  html body select:disabled { cursor: not-allowed; }
+
+  /* These wrappers already draw their own chevron. */
+  .classes-filter select::picker-icon,
+  .dashboard-week-select select::picker-icon,
+  .statistics-field-control select::picker-icon { display: none; }
+
+  /* Leave room for the chevron drawn by the surrounding field. */
+  html body .classes-filter select,
+  html body .dashboard-week-select select {
+    padding-inline-end: 34px !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html body select::picker-icon { transition: none; }
+  }
+}

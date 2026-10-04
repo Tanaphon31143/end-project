@@ -125,7 +125,7 @@ export default function ClassesManager({ initialClasses, teachers, academicYear,
             <button className="danger" onClick={() => void remove(classroom)}><Trash2 size={15} />ลบห้องเรียน</button>
           </div>}
         </article>)}
-        {!filteredClasses.length && <div className="classes-empty"><Search size={24} /><h3>ไม่พบห้องเรียนที่ค้นหา</h3><p>ลองเปลี่ยนคำค้นหาหรือตัวกรองระดับชั้น</p><button onClick={() => { setQuery(""); setLevel("ทั้งหมด"); }}>ล้างตัวกรอง</button></div>}
+        {!filteredClasses.length && <div className="classes-empty"><Search size={24} /><h3>ไม่พบห้องเรียนที่ค้นหา</h3><p>ลองเปลี่ยนคำค้นหาหรือตัวกรองระดับชั้น</p><button className="filter-reset-button" onClick={() => { setQuery(""); setLevel("ทั้งหมด"); }}>ล้างตัวกรอง</button></div>}
       </div>
     </section>
 

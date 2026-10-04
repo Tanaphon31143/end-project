@@ -4151,6 +4151,14 @@
 .student-shell .course-modal-description p:last-child {
   margin: 0;
 }
+.student-shell .course-modal-primary-action,
+.student-shell .course-modal-primary-action:visited,
+.student-shell .course-modal-primary-action:hover,
+.student-shell .course-modal-primary-action:focus,
+.student-shell .course-modal-primary-action span,
+.student-shell .course-modal-primary-action svg {
+  color: #fff;
+}
 .student-shell .course-modal-footer {
   padding: 16px 24px;
   background: #f8fafc;
@@ -6533,6 +6541,19 @@
   padding: 20px 22px;
   gap: 15px 18px;
 }
+.student-shell .attendance-history-filters .attendance-history-search {
+  display: grid !important;
+  align-items: stretch;
+  min-width: 0;
+  gap: 8px;
+}
+.student-shell .attendance-history-search > div {
+  min-width: 0;
+  width: 100%;
+}
+.student-shell .attendance-history-search input {
+  width: 100%;
+}
 .student-shell .attendance-history-filters > header h2,
 .student-shell .attendance-history-list-head h2 {
   font-size: 18px;
@@ -6560,11 +6581,42 @@
 }
 .student-shell .attendance-history-table th,
 .student-shell .attendance-history-table td {
-  padding: 12px 14px;
+  padding: 16px;
   font-size: 15px;
+  line-height: 1.6;
+  vertical-align: middle;
 }
 .student-shell .attendance-history-table th {
   font-size: 14px;
+}
+.student-shell .attendance-history-table th:first-child,
+.student-shell .attendance-history-table td:first-child {
+  padding-left: 22px;
+}
+.student-shell .attendance-history-table th:last-child,
+.student-shell .attendance-history-table td:last-child {
+  padding-right: 22px;
+}
+.student-shell .attendance-history-table th:nth-child(2),
+.student-shell .attendance-history-table td:nth-child(2) {
+  width: 88px;
+  min-width: 88px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .attendance-history-table td:first-child,
+.student-shell .attendance-history-table td:nth-child(4) {
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .attendance-history-table td:nth-child(3) {
+  width: auto;
+  min-width: 180px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.student-shell .attendance-history-table td:nth-child(6) {
+  min-width: 180px;
+  overflow-wrap: anywhere;
 }
 .student-shell .attendance-history-badge {
   min-height: 28px;
@@ -6622,17 +6674,37 @@
 .student-shell .attendance-history-calendar-grid > .weekday {
   min-height: 26px;
   font-size: 12px;
+  line-height: 1.5;
 }
 .student-shell .attendance-history-calendar-grid > button,
 .student-shell .attendance-history-calendar-grid > .is-empty {
-  min-height: 39px;
+  min-height: 52px;
+  grid-template-rows: 20px 18px;
+  align-content: center;
+  gap: 2px;
+  padding: 5px 2px;
   border-radius: 9px;
 }
 .student-shell .attendance-history-calendar-grid > button strong {
+  grid-row: 1;
   font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .student-shell .attendance-history-calendar-grid > button small {
+  grid-row: 2;
   font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.student-shell .attendance-history-calendar-grid > button small + i {
+  display: none;
+}
+.student-shell .attendance-history-calendar-grid > button:focus-visible {
+  outline: 2px solid #176ff2;
+  outline-offset: 2px;
 }
 .student-shell .attendance-history-month-summary {
   min-height: 0;
@@ -6690,6 +6762,16 @@
 }
 
 @media (max-width: 720px) {
+  .student-shell .attendance-history-filters {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 20px;
+  }
+  .student-shell .attendance-history-filter-actions {
+    grid-column: 1;
+  }
+  .student-shell .attendance-history-mobile-list {
+    padding: 16px;
+  }
   .student-shell .attendance-history-page {
     width: calc(100% - 20px);
   }
@@ -6711,6 +6793,129 @@
   }
   .student-shell .attendance-history-calendar-grid > button,
   .student-shell .attendance-history-calendar-grid > .is-empty {
-    min-height: 46px;
+    min-height: 52px;
   }
+}
+
+/* Monthly attendance: status color and a proportional detail on hover. */
+.student-shell .attendance-history-month-summary > div > span {
+  transition: transform 200ms cubic-bezier(.16, 1, .3, 1), box-shadow 200ms ease-out;
+}
+.student-shell .attendance-history-month-summary header > span {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #edf5ff;
+}
+.student-shell .attendance-history-month-summary > div > .attendance-month-stat {
+  position: relative;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 3px 9px;
+  padding: 14px 12px 22px;
+  border-color: color-mix(in srgb, var(--month-accent) 18%, #e4ebf3);
+  background: color-mix(in srgb, var(--month-accent) 4%, white);
+  overflow: hidden;
+  transition: transform 200ms cubic-bezier(.16, 1, .3, 1), box-shadow 200ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out;
+}
+.student-shell .attendance-month-stat.is-present { --month-accent: #087b58; }
+.student-shell .attendance-month-stat.is-late { --month-accent: #a86300; }
+.student-shell .attendance-month-stat.is-absent { --month-accent: #c82e40; }
+.student-shell .attendance-month-stat.is-leave { --month-accent: #6941c6; }
+.student-shell .attendance-month-stat-icon {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--month-accent);
+  background: color-mix(in srgb, var(--month-accent) 10%, white);
+}
+.student-shell .attendance-month-stat-icon svg { width: 18px; height: 18px; }
+.student-shell .attendance-month-stat small { color: var(--month-accent); }
+.student-shell .attendance-month-stat strong { font-size: 20px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.student-shell .attendance-month-stat em { color: #52677f; font-size: 12px; }
+.student-shell .attendance-month-stat-ratio {
+  grid-column: 2;
+  color: var(--month-accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .attendance-month-stat-track {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  right: 12px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--month-accent) 12%, white);
+}
+.student-shell .attendance-month-stat-track > span {
+  display: block;
+  height: 100%;
+  background: var(--month-accent);
+  border-radius: inherit;
+  transform-origin: left;
+  transition: transform 260ms cubic-bezier(.16, 1, .3, 1);
+}
+@media (hover: hover) {
+  .student-shell .attendance-history-month-summary > div > span:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px -10px rgba(16, 47, 84, .3);
+  }
+  .student-shell .attendance-history-month-summary > div > .attendance-month-stat:hover {
+    border-color: color-mix(in srgb, var(--month-accent) 45%, white);
+    background: color-mix(in srgb, var(--month-accent) 8%, white);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-shell .attendance-history-month-summary > div > span { transition: none; }
+  .student-shell .attendance-history-month-summary > div > span:hover { transform: none; }
+  .student-shell .attendance-history-month-summary > div > .attendance-month-stat,
+  .student-shell .attendance-month-stat-track > span { transition: none; }
+}
+
+/* Keep the rate centered in the ring, with one clear text column. */
+.student-shell .attendance-history-rate {
+  width: 340px;
+  max-width: 100%;
+  flex-shrink: 0;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 18px;
+  padding: 20px;
+}
+.student-shell .attendance-history-rate .attendance-history-rate-ring {
+  display: grid;
+  place-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 76px;
+  height: 76px;
+}
+.student-shell .attendance-history-rate-ring::after { width: 60px; height: 60px; }
+.student-shell .attendance-history-rate .attendance-history-rate-ring strong {
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 700;
+  text-align: center;
+}
+.student-shell .attendance-history-rate .attendance-history-rate-copy {
+  display: grid;
+  justify-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+.student-shell .attendance-history-rate-copy > span {
+  color: #173d69;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.student-shell .attendance-history-rate-copy > small {
+  color: #52677f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+@media (max-width: 900px) {
+  .student-shell .attendance-history-rate { width: 100%; max-width: 430px; }
 }

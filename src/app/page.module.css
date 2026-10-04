@@ -84,7 +84,7 @@
   height: 52px;
   place-items: center;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 50%;
   background: #ffffff;
 }
 
@@ -672,4 +672,14 @@
   .pointerOrb {
     display: none;
   }
+}
+.faceAttendanceTitle {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: clamp(20px, 2.4vw, 40px);
+}
+.faceAttendanceDescription {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: clamp(9px, 1.05vw, 14px);
 }

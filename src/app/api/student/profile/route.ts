@@ -1,5 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, revokeAccountSessions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 export const runtime = "nodejs";
@@ -33,7 +33,7 @@ export async function PATCH(request: Request) {
     );
     if (
       !rows[0] ||
-      !verifyPassword(String(body.currentPassword || ""), rows[0].passwordHash)
+      !(await verifyPassword(String(body.currentPassword || ""), rows[0].passwordHash))
     )
       return Response.json(
         { message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" },
@@ -43,6 +43,7 @@ export async function PATCH(request: Request) {
       `UPDATE students SET password_hash=? WHERE id=?`,
       [hashPassword(body.newPassword), student.id],
     );
+    await revokeAccountSessions("student", student.id);
     return Response.json({ message: "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว" });
   }
   const email =

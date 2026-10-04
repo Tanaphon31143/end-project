@@ -1,0 +1,232 @@
+.student-shell .attendance-statistics { max-width: 1600px; width: 100%; min-width: 0; container: statistics / inline-size; gap: 20px; }
+.student-shell .attendance-statistics, .student-shell .attendance-statistics * { box-sizing: border-box; }
+.student-shell .attendance-statistics :is(h1, h2, h3, p) { overflow-wrap: anywhere; }
+.student-shell .attendance-statistics :is(h2, h3) { font-weight: 600; line-height: 1.5; }
+.student-shell .attendance-statistics .statistics-toolbar > label > span { min-width: 0; flex: 1; }
+.student-shell .attendance-statistics .statistics-toolbar :is(select, input) { font-size: 14px; min-width: 0; }
+.student-shell .attendance-statistics .statistics-toolbar small { font-size: 12px; color: #526681; }
+.student-shell .attendance-statistics .statistics-range-toggle { min-height: 44px; font-size: 14px; }
+.student-shell .attendance-statistics .statistics-range-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.student-shell .attendance-statistics .statistics-range-fields input { width: 100%; min-height: 44px; }
+.student-shell .attendance-statistics .statistics-weekly .attendance-section-heading { flex-direction: row; align-items: center; }
+.student-shell .attendance-statistics .statistics-weekly .attendance-section-heading select { width: auto; flex: 0 1 auto; max-width: 180px; }
+.student-shell .attendance-statistics .attendance-status-bar { margin-bottom: 24px; height: 14px; min-width: 0; }
+.student-shell .attendance-statistics .attendance-threshold { opacity: 1; animation: none; }
+.student-shell .attendance-statistics .attendance-threshold span { font-size: 12px; top: 27px; max-width: 140px; }
+.student-shell .attendance-statistics .attendance-status-segment { min-width: 0; animation: none; }
+.student-shell .attendance-statistics .attendance-subject-row { opacity: 1; animation: none; gap: 12px; }
+.student-shell .attendance-statistics .attendance-subject-name strong { font-size: 15px; overflow-wrap: anywhere; }
+.student-shell .attendance-statistics .attendance-subject-name small { font-size: 12px; }
+.student-shell .attendance-statistics .attendance-month-nav strong { min-width: 0; font-size: 14px; }
+.student-shell .attendance-statistics .statistics-rate-ring .ring-value { transition: stroke-dasharray 500ms cubic-bezier(.16, 1, .3, 1); }
+.student-shell .attendance-statistics .statistics-chart-track > span { transform-origin: bottom; animation: statistics-bar-fill 450ms cubic-bezier(.16, 1, .3, 1); }
+.student-shell .attendance-statistics :is(.attendance-legend-item, .attendance-month-nav button, .attendance-subject-row, .statistics-clear-filter) { transition: background-color 160ms ease-out, border-color 160ms ease-out; }
+@keyframes statistics-bar-fill { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+@media (prefers-reduced-motion: reduce) { .student-shell .attendance-statistics .statistics-chart-track > span { animation: none; } .student-shell .attendance-statistics .statistics-rate-ring .ring-value { transition: none; } }
+.student-shell .attendance-statistics .statistics-page-head { grid-template-columns: minmax(260px, 1fr) minmax(0, 1.6fr); align-items: center; gap: 24px; }
+.student-shell .attendance-statistics .statistics-heading { display: flex; align-items: center; gap: 16px; }
+.student-shell .attendance-statistics .statistics-title-icon { flex: none; box-sizing: content-box; padding: 12px; width: 28px; height: 28px; background: #1764ee; border-radius: 12px; color: #fff; }
+.student-shell .attendance-statistics .statistics-heading h1 { font-size: 30px; margin: 0 0 8px; }
+.student-shell .attendance-statistics .statistics-heading p { color: #526681; font-size: 15px; }
+.student-shell .attendance-statistics .statistics-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.student-shell .attendance-statistics .statistics-toolbar > label { flex: 1 1 160px; min-width: 0; }
+.student-shell .attendance-statistics .statistics-date-disclosure { flex: 1 1 260px; min-width: 0; }
+.student-shell .attendance-statistics .statistics-toolbar select { max-width: 100%; }
+.student-shell .attendance-statistics .attendance-overview { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.student-shell .attendance-statistics .attendance-overview > * { min-width: 0; }
+.student-shell .attendance-statistics .statistics-metrics { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.student-shell .attendance-statistics .statistics-metric { display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: 12px; border: 8px solid #fff; background: #edf5ff; }
+.student-shell .attendance-statistics .statistics-metric > svg { flex: none; color: #1764ee; }
+.student-shell .attendance-statistics .statistics-metric.green { background: #ebfaf2; }
+.student-shell .attendance-statistics .statistics-metric.green > svg { color: #087c4a; }
+.student-shell .attendance-statistics .statistics-metric.red { background: #fff0f1; }
+.student-shell .attendance-statistics .statistics-metric.red > svg { color: #b42318; }
+.student-shell .attendance-statistics .statistics-metric.amber { background: #fff6e7; }
+.student-shell .attendance-statistics .statistics-metric.amber > svg { color: #9a4d0a; }
+.student-shell .attendance-statistics .statistics-metric h2 { margin: 0; font-size: 15px; line-height: 1.5; }
+.student-shell .attendance-statistics .statistics-metric strong { font-size: 28px; font-variant-numeric: tabular-nums; }
+.student-shell .attendance-statistics .statistics-metric p { margin: 0; font-size: 14px; color: #526681; }
+.student-shell .attendance-statistics :is(.attendance-hero, .attendance-calendar-section, .attendance-subject-section, .statistics-weekly, .statistics-recent) { padding: 20px; border: 1px solid #dfe7f2; border-radius: 12px; background: #fff; }
+.student-shell .attendance-statistics .attendance-hero { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px 20px; align-items: center; }
+.student-shell .attendance-statistics .statistics-panel-title { grid-column: 1 / -1; font-size: 20px; margin: 0; }
+.student-shell .attendance-statistics .statistics-rate-ring { position: relative; grid-row: 2 / 6; width: 160px; height: 160px; }
+.student-shell .attendance-statistics .statistics-rate-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke: #edf2f7; stroke-width: 11px; }
+.student-shell .attendance-statistics .statistics-rate-ring .ring-value { stroke: #277bf4; }
+.student-shell .attendance-statistics .statistics-rate-ring > div { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.student-shell .attendance-statistics .statistics-rate-ring strong { font-size: 30px; }
+.student-shell .attendance-statistics .statistics-rate-ring span { font-size: 12px; color: #526681; }
+.student-shell .attendance-statistics .attendance-hero-copy h2 { font-size: 20px; font-weight: 600; letter-spacing: normal; line-height: 1.5; }
+.student-shell .attendance-statistics .attendance-hero-copy p { margin: 4px 0; font-size: 14px; color: #526681; }
+.student-shell .attendance-statistics .attendance-threshold-note { margin: 8px 0 0; font-size: 13px; }
+.student-shell .attendance-statistics .attendance-status-legend { gap: 4px; flex-wrap: wrap; }
+.student-shell .attendance-statistics .attendance-legend-item { min-height: 44px; padding: 4px; }
+.student-shell .attendance-statistics .attendance-section-heading { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.student-shell .attendance-statistics .attendance-section-heading h2 { font-size: 19px; margin: 0; }
+.student-shell .attendance-statistics .statistics-weekly select { max-width: 100%; min-height: 44px; padding: 8px; border: 1px solid #dfe7f2; border-radius: 8px; font: inherit; font-size: 14px; }
+.student-shell .attendance-statistics .statistics-week-chart { display: flex; gap: 12px; height: 200px; margin-top: 24px; }
+.student-shell .attendance-statistics .statistics-chart-axis { height: 150px; display: flex; flex-direction: column; justify-content: space-between; font-size: 12px; color: #526681; }
+.student-shell .attendance-statistics .statistics-chart-columns { display: flex; flex: 1; min-width: 0; gap: 12px; }
+.student-shell .attendance-statistics .statistics-chart-column { flex: 1; min-width: 0; text-align: center; }
+.student-shell .attendance-statistics .statistics-chart-track { height: 150px; position: relative; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid #dfe7f2; }
+.student-shell .attendance-statistics .statistics-chart-track > span { width: 80%; background: #277bf4; border-radius: 4px 4px 0 0; }
+.student-shell .attendance-statistics .statistics-chart-track b { position: absolute; top: -22px; font-size: 14px; }
+.student-shell .attendance-statistics .statistics-chart-column small { display: block; font-size: 11px; color: #526681; margin-top: 4px; overflow-wrap: anywhere; }
+.student-shell .attendance-statistics .attendance-calendar-section { grid-column: 1; grid-row: 3 / 5; }
+.student-shell .attendance-statistics .statistics-recent { grid-column: 2; }
+.student-shell .attendance-statistics .attendance-subject-section { grid-column: 2; }
+.student-shell .attendance-statistics .attendance-calendar { gap: 4px; }
+.student-shell .attendance-statistics .attendance-calendar-day { min-height: 44px; }
+.student-shell .attendance-statistics .statistics-table-scroll { overflow-x: auto; max-width: 100%; }
+.student-shell .attendance-statistics .statistics-recent table { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 13px; }
+.student-shell .attendance-statistics .statistics-recent :is(th, td) { padding: 10px 8px; text-align: left; border-bottom: 1px solid #edf2f7; }
+.student-shell .attendance-statistics .statistics-recent th { background: #f3f7fc; color: #526681; }
+.student-shell .attendance-statistics .statistics-record-status { display: inline-block; padding: 4px 8px; border-radius: 8px; white-space: nowrap; }
+.student-shell .attendance-statistics .attendance-subject-row { padding: 12px 0; grid-template-columns: minmax(0, 1fr) minmax(60px, .7fr) auto; }
+.student-shell .attendance-statistics :is(button, select, a):focus-visible { outline: 3px solid #1764ee; outline-offset: 3px; }
+@container statistics (max-width: 1100px) {
+  .student-shell .attendance-statistics .statistics-page-head { grid-template-columns: minmax(0, 1fr); }
+  .student-shell .attendance-statistics .statistics-metric { padding: 12px; gap: 8px; }
+  .student-shell .attendance-statistics .attendance-hero { grid-template-columns: 120px minmax(0, 1fr); gap: 12px; }
+  .student-shell .attendance-statistics .statistics-rate-ring { width: 120px; height: 120px; }
+}
+@container statistics (max-width: 800px) {
+  .student-shell .attendance-statistics .attendance-overview { grid-template-columns: minmax(0, 1fr); }
+  .student-shell .attendance-statistics :is(.attendance-calendar-section, .statistics-recent, .attendance-subject-section) { grid-column: auto; grid-row: auto; }
+  .student-shell .attendance-statistics .statistics-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container statistics (max-width: 480px) {
+  .student-shell .attendance-statistics .statistics-heading h1 { font-size: 24px; }
+  .student-shell .attendance-statistics .statistics-title-icon { padding: 8px; }
+  .student-shell .attendance-statistics .statistics-metric { border-width: 4px; padding: 12px 8px; }
+  .student-shell .attendance-statistics .statistics-metric > svg { width: 24px; }
+  .student-shell .attendance-statistics .statistics-metric h2 { font-size: 13px; }
+  .student-shell .attendance-statistics .statistics-metric p { font-size: 12px; }
+  .student-shell .attendance-statistics .attendance-hero { display: flex; flex-direction: column; align-items: stretch; }
+  .student-shell .attendance-statistics .statistics-rate-ring { align-self: center; width: 160px; height: 160px; }
+  .student-shell .attendance-statistics .statistics-chart-columns { gap: 4px; }
+  .student-shell .attendance-statistics .attendance-subject-row { grid-template-columns: minmax(0, 1fr) auto; }
+}
+/* Framed toolbar: two groups with labels above their dropdown controls. */
+.student-shell .attendance-statistics .statistics-toolbar { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.student-shell .attendance-statistics .statistics-filter-group { display: grid; gap: 16px; padding: 16px; border: 1px solid #dfe7f2; border-radius: 12px; background: #fff; min-width: 0; align-items: end; }
+.student-shell .attendance-statistics .term-date-group { grid-template-columns: minmax(200px, .95fr) minmax(0, 1.2fr); }
+.student-shell .attendance-statistics .subject-reset-group { grid-template-columns: minmax(0, 1fr) auto; }
+.student-shell .attendance-statistics .statistics-framed-field { position: relative; display: grid; gap: 10px; min-width: 0; padding: 0; border: 0; background: transparent; }
+.student-shell .attendance-statistics .statistics-framed-field > small { font-size: 12px; color: #526681; font-weight: 600; }
+.student-shell .attendance-statistics .statistics-field-control { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 48px; min-width: 0; border: 1px solid #d9e3ee; border-radius: 8px; transition: border-color 160ms ease-out, background-color 160ms ease-out; }
+.student-shell .attendance-statistics .statistics-field-control > svg { width: 16px; height: 16px; flex: none; color: #1764ee; }
+.student-shell .attendance-statistics .statistics-field-control > span { flex: 1; min-width: 0; }
+.student-shell .attendance-statistics .statistics-field-control select { width: 100%; height: 46px; min-height: 0; border: 0; border-radius: 0; padding: 8px 6px; background: transparent; appearance: none; font-size: 14px; line-height: 1.6; color: #173e69; cursor: pointer; box-shadow: none; }
+.student-shell .attendance-statistics .statistics-field-control select:focus-visible { outline: none; box-shadow: none; }
+.student-shell .attendance-statistics .statistics-field-control:focus-within { outline: 3px solid #1764ee; outline-offset: 2px; border-color: #1764ee; background: #f8fbff; }
+.student-shell .attendance-statistics .statistics-field-control option { font-size: 14px; }
+.student-shell .attendance-statistics .statistics-range-toggle { width: 100%; height: 48px; padding: 0 14px; border-radius: 8px; font-size: 14px; font-weight: 500; gap: 12px; }
+.student-shell .attendance-statistics .statistics-range-toggle span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #173e69; }
+.student-shell .attendance-statistics .statistics-range-toggle svg { flex: none; }
+.student-shell .attendance-statistics .statistics-clear-filter { width: auto; min-width: 0; min-height: 48px; white-space: nowrap; padding: 0 16px; border-radius: 8px; font-size: 14px; background: #f1f6ff; }
+.student-shell .attendance-statistics .statistics-date-disclosure .statistics-range-fields { position: absolute; top: calc(100% + 8px); right: 0; width: min(320px, 100cqi); z-index: 20; max-height: none; opacity: 1; overflow: visible; padding: 14px; border: 1px solid #d9e3ee; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px #1634531f; }
+.student-shell .attendance-statistics .statistics-range-fields[hidden] { display: none; }
+@container statistics (max-width: 1200px) { .student-shell .attendance-statistics .statistics-page-head { grid-template-columns: minmax(0, 1fr); } }
+@container statistics (max-width: 640px) { .student-shell .attendance-statistics .statistics-toolbar { grid-template-columns: minmax(0, 1fr); } }
+@container statistics (max-width: 380px) { .student-shell .attendance-statistics .term-date-group { grid-template-columns: minmax(0, 1fr); } .student-shell .attendance-statistics .subject-reset-group { grid-template-columns: minmax(0, 1fr); } .student-shell .attendance-statistics .statistics-date-disclosure .statistics-range-fields { right: 0; width: 100%; } }
+.student-shell .attendance-statistics .attendance-subject-row { padding: 16px 12px; gap: 20px; border-radius: 8px; }
+.student-shell .attendance-statistics .attendance-subject-name { gap: 6px; }
+.student-shell .attendance-statistics .statistics-dropdown-trigger { display: flex; align-items: center; gap: 10px; width: 100%; height: 48px; min-height: 48px; padding: 8px 12px; border: 1px solid #d9e3ee; border-radius: 8px; background: #fff; color: #173e69; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.student-shell .attendance-statistics .statistics-dropdown-trigger > svg { width: 16px; height: 16px; flex: none; color: #1764ee; }
+.student-shell .attendance-statistics .statistics-dropdown-trigger > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+.student-shell .attendance-statistics .statistics-custom-dropdown:has([aria-expanded="true"]) { z-index: 30; }
+.student-shell .attendance-statistics .statistics-dropdown-options { position: absolute; top: calc(100% + 8px); left: 0; right: 0; padding: 6px; max-height: 280px; overflow-y: auto; border: 1px solid #d9e3ee; border-radius: 10px; background: #fff; box-shadow: 0 8px 24px #1634531f; }
+.student-shell .attendance-statistics .statistics-dropdown-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 6px; background: #fff; color: #173e69; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.student-shell .attendance-statistics .statistics-dropdown-option span { min-width: 0; overflow-wrap: anywhere; }
+.student-shell .attendance-statistics .statistics-dropdown-option svg { flex: none; }
+.student-shell .attendance-statistics .statistics-dropdown-option:hover, .student-shell .attendance-statistics .statistics-dropdown-option[aria-pressed="true"] { background: #edf4ff; color: #1459be; }
+.student-shell .attendance-statistics .statistics-filter-group { padding: 12px 16px; align-items: start; }
+.student-shell .attendance-statistics .statistics-framed-field { gap: 8px; }
+.student-shell .attendance-statistics .statistics-framed-field > small { min-height: 18px; line-height: 18px; }
+.student-shell .attendance-statistics .subject-reset-group > .statistics-clear-filter { align-self: end; height: 48px; }
+.student-shell .attendance-statistics :is(.statistics-metric, .attendance-hero, .statistics-weekly, .attendance-calendar-section, .statistics-recent, .attendance-subject-section) {
+  transition: transform 180ms cubic-bezier(.16, 1, .3, 1), box-shadow 180ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .student-shell .attendance-statistics :is(.statistics-metric, .attendance-hero, .statistics-weekly, .attendance-calendar-section, .statistics-recent, .attendance-subject-section):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px #18304f12;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-shell .attendance-statistics :is(.statistics-metric, .attendance-hero, .statistics-weekly, .attendance-calendar-section, .statistics-recent, .attendance-subject-section) { transition: none; }
+  .student-shell .attendance-statistics :is(.statistics-metric, .attendance-hero, .statistics-weekly, .attendance-calendar-section, .statistics-recent, .attendance-subject-section):hover { transform: none; }
+}
+@container statistics (min-width: 641px) and (max-width: 1000px) {
+  .student-shell .attendance-statistics .statistics-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .student-shell .attendance-statistics .term-date-group { grid-template-columns: minmax(200px, .8fr) minmax(0, 1.2fr); }
+}
+@container statistics (max-width: 480px) {
+  .student-shell .attendance-statistics .term-date-group { grid-template-columns: minmax(0, 1fr); }
+}
+.student-shell .attendance-statistics .attendance-subject-rate { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px 12px; padding-right: 4px; }
+.student-shell .attendance-statistics .attendance-subject-rate strong { font-size: 15px; }
+.student-shell .attendance-statistics .attendance-subject-rate small { font-size: 13px; line-height: 1.6; }
+@container statistics (max-width: 480px) { .student-shell .attendance-statistics .attendance-subject-row { gap: 12px; } .student-shell .attendance-statistics .attendance-subject-rate { flex-direction: column; align-items: flex-end; gap: 4px; } .student-shell .attendance-statistics .subject-reset-group { grid-template-columns: minmax(0, 1fr); } }
+
+/* Statistics summary: quiet surfaces, strong figures, compact status marks. */
+.student-shell .attendance-statistics .statistics-metric {
+  --metric-accent: #1764ee;
+  --metric-soft: #edf5ff;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+  min-height: 156px;
+  padding: 22px;
+  border: 1px solid #dfe7f2;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: none;
+  transition: transform 220ms cubic-bezier(.16, 1, .3, 1), box-shadow 220ms ease-out, border-color 180ms ease-out;
+}
+.student-shell .attendance-statistics .statistics-metric.green { --metric-accent: #087c4a; --metric-soft: #ebfaf2; background: #fff; }
+.student-shell .attendance-statistics .statistics-metric.red { --metric-accent: #b42318; --metric-soft: #fff0f1; background: #fff; }
+.student-shell .attendance-statistics .statistics-metric.amber { --metric-accent: #9a4d0a; --metric-soft: #fff6e7; background: #fff; }
+.student-shell .attendance-statistics .statistics-metric > svg {
+  grid-column: 2;
+  grid-row: 1;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border-radius: 12px;
+  color: var(--metric-accent);
+  background: var(--metric-soft);
+  transition: background-color 180ms ease-out;
+}
+.student-shell .attendance-statistics .statistics-metric > div {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.student-shell .attendance-statistics .statistics-metric h2 { color: #405c7c; font-size: 14px; font-weight: 500; line-height: 1.6; }
+.student-shell .attendance-statistics .statistics-metric strong { color: #102f54; font-size: 36px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+.student-shell .attendance-statistics .statistics-metric p { font-size: 13px; line-height: 1.6; }
+@media (hover: hover) and (pointer: fine) {
+  .student-shell .attendance-statistics .statistics-metric:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--metric-accent) 35%, #dfe7f2);
+    box-shadow: 0 12px 24px -16px rgba(16, 47, 84, .3);
+  }
+}
+@container statistics (max-width: 600px) {
+  .student-shell .attendance-statistics .statistics-metric { padding: 16px; min-height: 148px; grid-template-columns: minmax(0, 1fr) 36px; gap: 8px; }
+  .student-shell .attendance-statistics .statistics-metric > svg { width: 36px; height: 36px; padding: 8px; border-radius: 10px; }
+  .student-shell .attendance-statistics .statistics-metric strong { font-size: 30px; }
+}
+@container statistics (max-width: 360px) {
+  .student-shell .attendance-statistics .statistics-metrics { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-shell .attendance-statistics .statistics-metric { transition: none; }
+  .student-shell .attendance-statistics .statistics-metric:hover { transform: none; }
+}

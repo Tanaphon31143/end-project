@@ -16,21 +16,21 @@ type Status =
 const sampleNews = [
   {
     number: "01",
-    type: "Announcements",
-    title: "ข่าวสารจากโรงเรียน",
-    summary: "ประกาศสำคัญและการสื่อสารภายในโรงเรียน",
+    type: "Face Recognition",
+    title: "สแกนใบหน้าเพื่อเช็คชื่อ",
+    summary: "ตรวจจับและยืนยันตัวตนนักเรียนก่อนบันทึกเวลาเข้าเรียน",
   },
   {
     number: "02",
-    type: "Learning",
-    title: "ตารางเรียนและข้อมูลรายวิชา",
-    summary: "รวมข้อมูลการเรียนที่ค้นหาได้ง่าย",
+    type: "Attendance",
+    title: "บันทึกการเข้าเรียนอัตโนมัติ",
+    summary: "จัดเก็บวัน เวลา วิชา ห้องเรียน และสถานะการเข้าเรียน",
   },
   {
     number: "03",
-    type: "Documents",
-    title: "เอกสารสำหรับนักเรียนและคุณครู",
-    summary: "เข้าถึงเอกสารที่ใช้งานร่วมกันได้ง่ายขึ้น",
+    type: "Reports",
+    title: "ตรวจสอบและสรุปผลการเข้าเรียน",
+    summary: "ดูประวัติการเข้าเรียน สถิติการมาเรียน และส่งออกรายงาน",
   },
 ];
 
@@ -146,6 +146,12 @@ export default function Home() {
     if (errorParam === "google_account_inactive") {
       return "บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ";
     }
+    if (errorParam === "google_email_unverified") {
+      return "บัญชี Google ต้องมีอีเมลที่ยืนยันแล้ว";
+    }
+    if (errorParam === "google_link_required") {
+      return "บัญชีผู้ดูแลหรือครูต้องเชื่อม Google จากบัญชีเดิมก่อน";
+    }
     if (errorParam === "google_access_denied") {
       return "การยืนยันตัวตนด้วย Google ถูกยกเลิก";
     }
@@ -209,19 +215,20 @@ export default function Home() {
 
           <div className={styles.newsMain}>
             <div className={styles.newsIntro}>
-              <p className={styles.sectionLabel}>School News</p>
+              <p className={styles.sectionLabel}>Face Attendance</p>
               <h1 id="news-title">
-                ทุกเรื่องสำคัญ
+                เช็คชื่อง่าย
                 <br />
-                อยู่ในที่เดียว
+                <span className={styles.faceAttendanceTitle}>ด้วยการสแกนใบหน้า</span>
               </h1>
               <p>
-                ติดตามประกาศ ข้อมูลการเรียน
-                และเอกสารที่จำเป็นสำหรับนักเรียนและคุณครู
+                ระบบบันทึกเวลาเข้าเรียนด้วยเทคโนโลยีจดจำใบหน้า
+                <br />
+                <span className={styles.faceAttendanceDescription}>ช่วยให้การเช็คชื่อรวดเร็ว แม่นยำ และตรวจสอบข้อมูลได้สะดวก</span>
               </p>
             </div>
 
-            <div className={styles.newsList} aria-label="หมวดข่าวสารตัวอย่าง">
+            <div className={styles.newsList} aria-label="ความสามารถของระบบเช็คชื่อ">
               {sampleNews.map((item) => (
                 <article className={styles.newsItem} key={item.number}>
                   <span className={styles.newsNumber}>{item.number}</span>

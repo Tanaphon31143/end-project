@@ -27,9 +27,6 @@ export default function SubjectsManager({
   const [query, setQuery] = useState("");
   const [room, setRoom] = useState("");
   const [semester, setSemester] = useState("");
-  const [pendingRequestCount, setPendingRequestCount] = useState(
-    initialRequests.filter((request) => request.status === "PENDING").length,
-  );
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<SubjectRecord | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -110,18 +107,12 @@ export default function SubjectsManager({
         </button>
       </div>
         <SubjectStats
-          pendingRequests={pendingRequestCount}
           subjectCount={subjects.length}
+          activeSubjectCount={subjects.filter((subject) => subject.isActive).length}
           classroomCount={classrooms.length}
-          teacherCount={teachers.length}
         />
         <SubjectRequestsQueue
           initialRequests={initialRequests}
-          onRequestsChange={(requests) =>
-            setPendingRequestCount(
-              requests.filter((request) => request.status === "PENDING").length,
-            )
-          }
           onApproved={() => {
             void reload().catch((error: unknown) =>
               notify(
@@ -154,6 +145,7 @@ export default function SubjectsManager({
             }}
           />
           <SubjectTable
+            key={`${query}:${room}:${semester}`}
             subjects={filtered}
             onEdit={(subject) => {
               setEditing(subject);

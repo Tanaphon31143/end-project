@@ -1,4 +1,5 @@
 "use client";
+import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useState } from "react";
 import {
   Bell,
@@ -91,7 +92,7 @@ export function SettingsForm({
           <div className="form-fields two">
             <label>
               เวลาเริ่มเรียน
-              <input
+              <DateTimeInput
                 type="time"
                 value={value.schoolStartTime}
                 onChange={(e) =>
@@ -101,7 +102,7 @@ export function SettingsForm({
             </label>
             <label>
               นับว่ามาสายหลัง
-              <input
+              <DateTimeInput
                 type="time"
                 value={value.lateAfter}
                 onChange={(e) =>

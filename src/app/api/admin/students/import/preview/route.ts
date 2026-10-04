@@ -88,7 +88,10 @@ export async function POST(request: Request) {
 
   let matrix: unknown[][];
   try {
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const workbook = XLSX.read(await file.arrayBuffer(), {
+      type: "array",
+      sheetRows: 532,
+    });
     const firstSheet = workbook.SheetNames[0];
     if (!firstSheet)
       return Response.json(

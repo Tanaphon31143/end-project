@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { randomBytes } from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { createSignedSession, getStudentSession, type AppRole } from "@/lib/auth";
+import { createSession, getStudentSession, type AppRole } from "@/lib/auth";
 import { completeStudentFaceIdentity, failStudentFaceIdentity } from "@/lib/student-face-identity";
 import { exchangeCodeForTokens, getGoogleUserInfo } from "@/lib/google-auth";
 import { hashPassword } from "@/lib/password";
@@ -18,6 +18,11 @@ type Account = RowDataPacket & {
   status: string;
   profile_image: Buffer | null;
   profile_image_mime: string | null;
+};
+
+type OAuthBinding = RowDataPacket & {
+  accountId: number;
+  role: AppRole;
 };
 
 /**
@@ -110,27 +115,50 @@ export async function GET(request: Request) {
     }
 
     const email = googleUser.email ? googleUser.email.trim().toLowerCase() : "";
-    if (!email) {
-      homeUrl.searchParams.set("error", "google_email_missing");
+    const googleSub = googleUser.sub?.trim() ?? "";
+    if (!email || googleUser.email_verified !== true || !googleSub || googleSub.length > 255) {
+      homeUrl.searchParams.set("error", "google_email_unverified");
       const res = NextResponse.redirect(homeUrl);
       res.cookies.delete("google_oauth_state");
       return res;
     }
 
-    // 1. Lookup user in admins, teachers, or students tables
-    const [rows] = await db.execute<Account[]>(
-      `
-      SELECT id, email, full_name, 'admin' AS role, status, NULL AS profile_image, NULL AS profile_image_mime FROM admins WHERE email = ?
-      UNION ALL
-      SELECT id, email, full_name, 'teacher' AS role, status, profile_image, profile_image_mime FROM teachers WHERE email = ?
-      UNION ALL
-      SELECT id, email, full_name, 'student' AS role, status, profile_image, profile_image_mime FROM students WHERE email = ?
-      LIMIT 1
-      `,
-      [email, email, email],
+    const [bindings] = await db.execute<OAuthBinding[]>(
+      `SELECT account_id accountId, account_role role
+       FROM oauth_accounts WHERE provider='google' AND provider_subject=? LIMIT 1`,
+      [googleSub],
     );
-
-    let account = rows[0];
+    const binding = bindings[0];
+    let account: Account | undefined;
+    let shouldCreateBinding = false;
+    if (binding) {
+      const table = binding.role === "admin" ? "admins" : binding.role === "teacher" ? "teachers" : "students";
+      const imageColumns = binding.role === "admin"
+        ? "NULL AS profile_image, NULL AS profile_image_mime"
+        : "profile_image, profile_image_mime";
+      const [rows] = await db.execute<Account[]>(
+        `SELECT id,email,full_name,? AS role,status,${imageColumns}
+         FROM ${table} WHERE id=? LIMIT 1`,
+        [binding.role, binding.accountId],
+      );
+      account = rows[0];
+    } else {
+      const [rows] = await db.execute<Account[]>(
+        `SELECT id,email,full_name,'admin' role,status,NULL profile_image,NULL profile_image_mime FROM admins WHERE email=?
+         UNION ALL SELECT id,email,full_name,'teacher',status,profile_image,profile_image_mime FROM teachers WHERE email=?
+         UNION ALL SELECT id,email,full_name,'student',status,profile_image,profile_image_mime FROM students WHERE email=?
+         LIMIT 1`,
+        [email, email, email],
+      );
+      account = rows[0];
+      if (account && account.role !== "student") {
+        homeUrl.searchParams.set("error", "google_link_required");
+        const res = NextResponse.redirect(homeUrl);
+        res.cookies.delete("google_oauth_state");
+        return res;
+      }
+      shouldCreateBinding = true;
+    }
 
     // 2. If user exists, link/update avatar if not already set, and keep existing role (Admin/Teacher/Student)
     if (account) {
@@ -192,6 +220,15 @@ export async function GET(request: Request) {
       } as Account;
     }
 
+    if (shouldCreateBinding) {
+      await db.execute(
+        `INSERT INTO oauth_accounts
+          (provider, provider_subject, account_role, account_id, verified_email)
+         VALUES ('google', ?, ?, ?, ?)`,
+        [googleSub, account.role, account.id, email],
+      );
+    }
+
     // 4. Redirect based on strict role mapping:
     // ADMIN -> /admin/dashboard
     // TEACHER -> /teacher/dashboard
@@ -212,7 +249,7 @@ export async function GET(request: Request) {
     // Set signed session cookie
     response.cookies.set(
       "school_os_session",
-      createSignedSession(
+      await createSession(
         {
           id: account.id,
           role: account.role,

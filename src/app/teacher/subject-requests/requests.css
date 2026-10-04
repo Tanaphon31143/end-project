@@ -356,3 +356,66 @@
 .subject-request-item:last-child {
   border-bottom: 0;
 }
+/* Request workspace: compact form, status-first history, content-aware reflow. */
+.subject-request-page { container: requests / inline-size; width: 100%; font-size: 16px; }
+.subject-request-page .subject-request-heading { align-items: flex-start; gap: 24px; }
+.subject-request-page .subject-request-heading > div { min-width: 0; max-width: 72ch; }
+.subject-request-page .subject-request-heading > .button { flex-shrink: 0; }
+.subject-request-page :is(.subject-request-heading p, .subject-request-section-head p, .subject-request-schedule-head p) { color: #526681; font-size: 15px; }
+.subject-request-page .button { min-height: 44px; font-size: 15px; white-space: normal; }
+.subject-request-page .button:hover:not(:disabled) { transform: none; }
+.subject-request-page :is(button, a):focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.subject-request-page .subject-request-form { max-width: 960px; margin-inline: auto; }
+.subject-request-page .subject-request-history { padding: 24px; }
+.subject-request-page .subject-request-section-head h3 { font-size: 22px; }
+.subject-request-page .subject-request-section-head > span { font-size: 14px; color: #526681; flex-shrink: 0; }
+.subject-request-page .subject-request-fields { gap: 16px; margin-top: 20px; }
+.subject-request-page :is(.subject-request-fields label, .subject-request-schedule label) { font-size: 15px; }
+.subject-request-page :is(input, select, textarea) { font-size: 16px; min-height: 44px; }
+.subject-request-page .subject-request-study-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.subject-request-page .subject-request-schedule { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 44px; }
+.subject-request-page .subject-request-schedule > button { width: 44px; height: 44px; }
+.subject-request-page .request-status-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-bottom: 20px; border-bottom: 1px solid #dfe7f2; }
+.subject-request-page .request-filter { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; min-height: 44px; border: 1px solid #d5dfed; border-radius: 10px; background: #fff; color: #526681; font: inherit; font-size: 15px; cursor: pointer; }
+.subject-request-page .request-filter b { font-size: 14px; font-variant-numeric: tabular-nums; }
+.subject-request-page .request-filter:hover { background: #f5f8fc; }
+.subject-request-page .request-filter[aria-pressed="true"] { border-color: currentColor; background: #edf4ff; color: #205bb6; font-weight: 600; }
+.subject-request-page .request-filter.pending[aria-pressed="true"] { background: #fff3dd; color: #805100; }
+.subject-request-page .request-filter.approved[aria-pressed="true"] { background: #e8f7ee; color: #14613d; }
+.subject-request-page .request-filter.rejected[aria-pressed="true"] { background: #fff0f0; color: #a72e39; }
+.subject-request-page .request-list-caption { margin: 20px 0 0; font-size: 14px; color: #526681; }
+.subject-request-page .subject-request-list { margin-top: 4px; gap: 0; }
+.subject-request-page .subject-request-item { padding-block: 24px; }
+.subject-request-page .subject-request-item-main { align-items: flex-start; }
+.subject-request-page .subject-request-item h4 { font-size: 18px; line-height: 1.5; }
+.subject-request-page .subject-request-item-main p { font-size: 15px; color: #526681; margin-top: 8px; }
+.subject-request-page .subject-request-status { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 14px; }
+.subject-request-page .subject-request-status svg { flex-shrink: 0; }
+.subject-request-page .subject-request-item-schedule { flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.subject-request-page .request-schedule-slot { display: inline-flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-radius: 8px; background: #f3f6fa; color: #435b77; font-size: 14px; line-height: 1.6; }
+.subject-request-page .subject-request-remark { font-size: 15px; margin: 16px 0 0; padding: 12px 16px; }
+.subject-request-page .subject-request-item-foot { margin-top: 16px; flex-wrap: wrap; }
+.subject-request-page .subject-request-item-foot > span { font-size: 14px; color: #526681; }
+.subject-request-page .subject-request-item-foot .button { font-size: 14px; min-height: 44px; }
+.subject-request-page :is(.subject-request-empty p, .subject-request-notice) { font-size: 15px; color: #526681; }
+.subject-request-page .subject-request-notice.error { color: #b43d48; }
+.subject-request-page .subject-request-notice.success { color: #166d4e; }
+.subject-request-page ::selection { background: #dbeafe; color: #18304f; }
+@container requests (max-width: 760px) {
+  .subject-request-page .subject-request-heading { flex-wrap: wrap; }
+  .subject-request-page .subject-request-schedule { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .subject-request-page .subject-request-schedule > button { justify-self: end; grid-column: 2; }
+  .subject-request-page .subject-request-study-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container requests (max-width: 480px) {
+  .subject-request-page :is(.subject-request-form, .subject-request-history) { padding: 16px; }
+  .subject-request-page .subject-request-heading > .button { width: 100%; }
+  .subject-request-page .request-status-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .subject-request-page .request-filter { padding: 10px 8px; font-size: 14px; flex-wrap: wrap; }
+  .subject-request-page .request-filter.all { grid-column: 1 / -1; }
+  .subject-request-page :is(.subject-request-fields, .subject-request-study-fields) { grid-template-columns: minmax(0, 1fr); }
+  .subject-request-page :is(.subject-request-item-main, .subject-request-schedule-head) { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .subject-request-page .subject-request-item-main .subject-request-status { order: -1; }
+  .subject-request-page .subject-request-actions { flex-wrap: wrap; }
+  .subject-request-page .subject-request-actions > .button { flex: 1 1 140px; }
+}

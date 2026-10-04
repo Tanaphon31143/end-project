@@ -164,7 +164,7 @@ export default function FacesManager({
           <option value="NEEDS_IMAGES">ควรเพิ่มรูป</option>
         </select>
         <button
-          className="admin-button secondary"
+          className="admin-button secondary filter-reset-button"
           onClick={() => {
             setQuery("");
             setStatus("");
