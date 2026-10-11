@@ -6919,3 +6919,10 @@
 @media (max-width: 900px) {
   .student-shell .attendance-history-rate { width: 100%; max-width: 430px; }
 }
+
+.dashboard-announcements { padding: 0 20px 20px; }
+.dashboard-announcements article { padding: 16px 0; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+.dashboard-announcements article:last-child { border-bottom: 0; }
+.dashboard-announcements h3 { font-size: 16px; }
+.dashboard-announcements time { color: #526078; font-size: 12px; }
+.dashboard-announcements p { white-space: pre-wrap; margin-top: 8px; font-size: 14px; line-height: 1.7; }

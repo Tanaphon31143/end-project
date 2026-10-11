@@ -1,0 +1,8 @@
+.env*
+.agents/
+.codex/
+.impeccable/
+.next*/
+outputs/
+*.log
+*.tsbuildinfo

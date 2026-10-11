@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   House,
+  Megaphone,
   LogOut,
   ScanFace,
   School,
@@ -23,6 +24,7 @@ import {
 
 export const adminNavigation = [
   ["แดชบอร์ด", House, "/admin/dashboard"],
+  ["ประกาศจากโรงเรียน", Megaphone, "/admin/announcements"],
   ["จัดการผู้ใช้งาน", Users, "/admin/users"],
   ["จัดการนักเรียน", GraduationCap, "/admin/students"],
   ["จัดการครู", UserRound, "/admin/teachers"],

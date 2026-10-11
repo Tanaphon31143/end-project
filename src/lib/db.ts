@@ -9,7 +9,7 @@ if (!databaseUrl) {
 
 const parsedUrl = new URL(databaseUrl);
 
-const POOL_VERSION = 5;
+const POOL_VERSION = 6;
 
 const globalForDatabase = globalThis as typeof globalThis & {
   mysqlPool?: Pool;
@@ -50,7 +50,7 @@ function isTransientError(err: unknown): boolean {
 
 async function retryOperation<T>(
   operation: () => Promise<T>,
-  maxRetries = 5,
+  maxRetries = 3,
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -97,7 +97,7 @@ function createDatabasePool(): Pool {
     maxIdle: 2,
     idleTimeout: 120_000,
     waitForConnections: true,
-    queueLimit: 0,
+    queueLimit: 100,
     connectTimeout: 10_000,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
@@ -106,13 +106,19 @@ function createDatabasePool(): Pool {
   const rawExecute = pool.execute.bind(pool);
   // @ts-expect-error mysql2 overloaded execute
   pool.execute = (...args: Parameters<typeof rawExecute>) => {
-    return retryOperation(() => rawExecute(...args));
+    const sql = typeof args[0] === "string" ? args[0] : args[0].sql;
+    return /^\s*(SELECT|SHOW|DESCRIBE|EXPLAIN)\b/i.test(sql)
+      ? retryOperation(() => rawExecute(...args))
+      : rawExecute(...args);
   };
 
   const rawQuery = pool.query.bind(pool);
   // @ts-expect-error mysql2 overloaded query
   pool.query = (...args: Parameters<typeof rawQuery>) => {
-    return retryOperation(() => rawQuery(...args));
+    const sql = typeof args[0] === "string" ? args[0] : args[0].sql;
+    return /^\s*(SELECT|SHOW|DESCRIBE|EXPLAIN)\b/i.test(sql)
+      ? retryOperation(() => rawQuery(...args))
+      : rawQuery(...args);
   };
 
   const rawGetConnection = pool.getConnection.bind(pool);
@@ -125,9 +131,7 @@ function createDatabasePool(): Pool {
         try {
           conn.destroy();
         } catch {}
-        if (isTransientError(err)) {
-          throw err;
-        }
+        throw err;
       }
       return conn;
     });
@@ -138,7 +142,7 @@ function createDatabasePool(): Pool {
 
 export const db = globalForDatabase.mysqlPool ?? createDatabasePool();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForDatabase.mysqlPool = db;
-  globalForDatabase.mysqlPoolVersion = POOL_VERSION;
-}
+// Reuse connections across requests and separately bundled routes in the same
+// warm server instance, including Vercel production functions.
+globalForDatabase.mysqlPool = db;
+globalForDatabase.mysqlPoolVersion = POOL_VERSION;

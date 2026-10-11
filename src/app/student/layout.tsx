@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getStudentSession } from "@/lib/auth";
 import StudentShell from "@/components/student/StudentShell";
@@ -6,6 +7,10 @@ import { getStudentIdentity } from "@/lib/student-data";
 import "./student.css";
 import "../portal-ui.css";
 import "../responsive.css";
+
+export const metadata: Metadata = {
+  title: "ระบบสำหรับนักเรียน | School OS",
+};
 
 export default async function StudentLayout({
   children,

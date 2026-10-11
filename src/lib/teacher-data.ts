@@ -68,14 +68,7 @@ async function loadTeacherCourses(teacherId: number) {
       `SELECT sc.id,sc.subject_id subjectId,sc.day_of_week dayOfWeek,sc.period_name periodName,TIME_FORMAT(sc.start_time,'%H:%i') startTime,TIME_FORMAT(sc.end_time,'%H:%i') endTime FROM schedules sc JOIN subjects sb ON sb.id=sc.subject_id WHERE sb.teacher_id=? AND sc.is_active=1 ORDER BY sc.day_of_week,sc.start_time`,
       [teacherId],
     )
-    .then(([rows]) => rows)
-    .catch((error): ScheduleRow[] => {
-      console.warn(
-        "Schedules are not migrated yet; using legacy subject times",
-        error,
-      );
-      return [];
-    });
+    .then(([rows]) => rows);
   const [subjects, scheduleRows] = await Promise.all([
     subjectsPromise,
     scheduleRowsPromise,
@@ -472,7 +465,12 @@ export async function getTeacherSessionDetail(
     include: {
       subject: { include: { classroom: true } },
       attendance: {
-        include: { student: true },
+        select: {
+          studentId: true,
+          status: true,
+          checkInTime: true,
+          confidence: true,
+        },
         orderBy: { student: { studentCode: "asc" } },
       },
     },
@@ -480,6 +478,7 @@ export async function getTeacherSessionDetail(
   if (!session) return null;
   const students = await prisma.student.findMany({
     where: { classId: session.classroomId, status: "ACTIVE" },
+    select: { id: true, studentCode: true, fullName: true },
     orderBy: { studentCode: "asc" },
   });
   const attendance = new Map(

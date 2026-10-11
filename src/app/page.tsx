@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./page.module.css";
 import { RippleButton } from "@/components/portal/RippleButton";
 
@@ -10,10 +11,9 @@ type Status =
   | "error"
   | "loading"
   | "authenticated"
-  | "google"
-  | "forgot";
+  | "google";
 
-const sampleNews = [
+const systemFeatures = [
   {
     number: "01",
     type: "Face Recognition",
@@ -176,13 +176,6 @@ export default function Home() {
     window.location.assign("/api/auth/google");
   }
 
-  function announceAction(
-    nextStatus: Exclude<Status, "idle" | "error" | "loading" | "authenticated">,
-  ) {
-    setErrors({ email: "", password: "" });
-    setAuthErrorMessage("");
-    setStatus(nextStatus);
-  }
 
   return (
     <main className={styles.page} ref={pageRef}>
@@ -229,7 +222,7 @@ export default function Home() {
             </div>
 
             <div className={styles.newsList} aria-label="ความสามารถของระบบเช็คชื่อ">
-              {sampleNews.map((item) => (
+              {systemFeatures.map((item) => (
                 <article className={styles.newsItem} key={item.number}>
                   <span className={styles.newsNumber}>{item.number}</span>
                   <div>
@@ -242,9 +235,6 @@ export default function Home() {
             </div>
           </div>
 
-          <p className={styles.sampleNote}>
-            Sample content · พร้อมเชื่อมต่อข้อมูลจริง
-          </p>
         </div>
       </section>
 
@@ -319,14 +309,8 @@ export default function Home() {
                 <span className={styles.customCheckbox} aria-hidden="true" />
                 <span>จำการเข้าสู่ระบบ</span>
               </label>
-              <button
-                data-cursor-target
-                type="button"
-                className={styles.forgotLink}
-                onClick={() => announceAction("forgot")}
-              >
-                ลืมรหัสผ่าน?
-              </button>
+              <Link className={styles.forgotLink} href="/forgot-password">ลืมรหัสผ่าน?</Link>
+
             </div>
 
             <RippleButton
@@ -355,8 +339,7 @@ export default function Home() {
                     : "กำลังเตรียมการเชื่อมต่อระบบ")}
                 {status === "authenticated" &&
                   "เข้าสู่ระบบสำเร็จ · เชื่อมต่อข้อมูลโรงเรียนแล้ว"}
-                {status === "forgot" &&
-                  "การกู้คืนรหัสผ่านจะเชื่อมต่อในขั้นตอนถัดไป"}
+
                 {status === "google" && "กำลังเชื่อมต่อระบบ Google Login…"}
               </p>
             )}

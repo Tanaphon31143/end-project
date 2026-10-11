@@ -20,6 +20,7 @@
 
 .checkin-page .checkin-form { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 12px; }
 .checkin-page .checkin-form > label:nth-child(-n+3) { grid-column: span 2; }
+.checkin-page .checkin-form > label:nth-child(4) { grid-column: span 3; }
 .checkin-page .checkin-form > button { grid-column: span 3; }
 .checkin-page :is(.checkin-form, .session-picker) label { display: block; color: #334155; font-size: 15px; font-weight: 600; }
 .checkin-page :is(.checkin-form input, .checkin-form select, .session-picker select) {
@@ -97,7 +98,7 @@
   .checkin-page .dashboard-card, .checkin-page .camera-panel { padding: 16px; }
   .checkin-page .checkin-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .checkin-page .checkin-form > label:nth-child(-n+2) { grid-column: auto; }
-  .checkin-page .checkin-form > label:nth-child(3), .checkin-page .checkin-form > button { grid-column: 1 / -1; }
+  .checkin-page .checkin-form > label:nth-child(3), .checkin-page .checkin-form > label:nth-child(4), .checkin-page .checkin-form > button { grid-column: 1 / -1; }
   .checkin-page .session-picker { align-items: stretch; flex-direction: column; }
   .checkin-page .checkin-setup > .card-head { flex-wrap: wrap; }
   .checkin-setup-actions { justify-content: flex-start; }

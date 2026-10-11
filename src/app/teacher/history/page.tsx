@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { getTeacherSession } from "@/lib/auth";
 import { getTeacherCourses, getTeacherHistory } from "@/lib/teacher-data";
 import { EmptyState } from "@/components/teacher/EmptyState";
+import { AttendanceIssues } from "@/components/portal/AttendanceIssues";
+import { getAttendanceIssues } from "@/lib/attendance-issues";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const value = (input: string | string[] | undefined) =>
@@ -27,9 +29,10 @@ export default async function History({
     search: value(query.search),
     page: Number(value(query.page)) || 1,
   };
-  const [courses, history] = await Promise.all([
+  const [courses, history, issues] = await Promise.all([
     getTeacherCourses(session.id),
     getTeacherHistory(session.id, filters),
+    getAttendanceIssues(session.id),
   ]);
   const pageHref = (page: number) => {
     const params = new URLSearchParams();
@@ -190,6 +193,7 @@ export default async function History({
           </nav>
         )}
       </section>
+      <AttendanceIssues initial={issues} />
     </>
   );
 }

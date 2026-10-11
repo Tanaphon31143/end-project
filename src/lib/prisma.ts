@@ -15,4 +15,5 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   datasources: { db: { url: prismaDatabaseUrl() } },
 });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Each warm server instance owns one client/pool, also in production.
+globalForPrisma.prisma = prisma;

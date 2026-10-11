@@ -1,0 +1,16 @@
+.portal-search { position: relative; min-width: 0; }
+.portal-search-input { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #d8dfe8; border-radius:10px; background:#fff; color:#475569; }
+.portal-search-input input { width:240px; min-width:0; border:0; outline:none; font:inherit; background:transparent; color:#172338; }
+.portal-search-input input::placeholder { color:#64748b; }
+.portal-search-input kbd { font-size:11px; white-space:nowrap; }
+.portal-search-results { position:absolute; inset-inline-end:0; top:calc(100% + 8px); width: min(420px, calc(100vw - 32px)); max-height:60vh; overflow:auto; z-index:90; background:white; border:1px solid #d8dfe8; border-radius:12px; padding:8px; color:#172338; }
+.portal-search-results > button { display:flex; flex-direction:column; width:100%; text-align:start; padding:12px; border:0; background:white; color:inherit; cursor:pointer; font:inherit; border-radius:6px; }
+.portal-search-results small { color:#526078; overflow-wrap:anywhere; }
+.portal-search-results strong { overflow-wrap:anywhere; }
+.portal-search-results > button:hover, .portal-search-results > button[aria-selected="true"] { background:#edf3fa; }
+.portal-search:focus-within .portal-search-input { outline:2px solid #2563eb; outline-offset:2px; }
+.portal-search-results button:focus-visible { outline:2px solid #2563eb; }
+.portal-search-results p { padding:8px; font-size:14px; }
+.portal-search-toggle { display:none; }
+@media(max-width:900px) { .portal-search-input input { width:170px; } .portal-search-input kbd { display:none; } }
+@media(max-width:639px) { .portal-search-toggle { display:flex; border:0; background:transparent; padding:10px; color:#334155; } .portal-search-input { display:none; } .portal-search.is-expanded .portal-search-input { display:flex; position:fixed; top:72px; inset-inline:16px; z-index:91; } .portal-search.is-expanded .portal-search-input input { width:100%; font-size:16px; } .portal-search-results { position:fixed; top:126px; inset-inline:16px; width:auto; } }

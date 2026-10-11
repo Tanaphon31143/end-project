@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, BookOpen, Check, ChevronDown, MoreHorizontal, Pencil, Plus, Save, Search, Trash2, UsersRound, X } from "lucide-react";
 import type { Classroom, ClassroomValue, TeacherOption } from "./types";
-import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
+import { confirmDanger, showActionError, showActionSuccess } from "@/lib/sweet-alert";
 
 type Props = { initialClasses: Classroom[]; teachers: TeacherOption[]; academicYear: string; semester: "1" | "2" };
 
@@ -50,6 +50,7 @@ export default function ClassesManager({ initialClasses, teachers, academicYear,
   async function reload() {
     const response = await fetch("/api/classes", { cache: "no-store" });
     const data = await response.json();
+    if (!response.ok || !Array.isArray(data.classrooms)) throw new Error(data.message || "โหลดรายชื่อห้องเรียนไม่สำเร็จ กรุณาโหลดหน้าใหม่");
     setClasses(data.classrooms);
   }
 
@@ -73,13 +74,23 @@ export default function ClassesManager({ initialClasses, teachers, academicYear,
   }
 
   async function remove(classroom: Classroom) {
+    if (busy) return;
     setMenu(null);
     const confirmed = await confirmDanger({ title: "ลบห้องเรียน?", text: `ห้อง ${classroom.name} จะถูกนำออกจากระบบ`, confirmText: "ลบห้องเรียน" });
     if (!confirmed) return;
-    const response = await fetch(`/api/classes?id=${classroom.id}`, { method: "DELETE" });
-    const data = await response.json();
-    if (response.ok) { await reload(); void showActionSuccess(data.message || "ลบห้องเรียนสำเร็จ"); }
-    else setError(data.message || "ลบห้องเรียนไม่สำเร็จ");
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/classes?id=${classroom.id}`, { method: "DELETE" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || "ลบห้องเรียนไม่สำเร็จ กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง");
+      // Preserve the confirmed deletion locally even if the follow-up refresh fails.
+      setClasses((rooms) => rooms.filter((room) => room.id !== classroom.id));
+      try { await reload(); }
+      catch { await showActionError("ลบห้องเรียนแล้ว แต่โหลดรายชื่อใหม่ไม่สำเร็จ กรุณาโหลดหน้าใหม่ก่อนทำรายการต่อ"); return; }
+      void showActionSuccess(data?.message || "ลบห้องเรียนสำเร็จ");
+    } catch (caught) {
+      await showActionError(caught instanceof Error ? caught.message : "เชื่อมต่อระบบไม่สำเร็จ กรุณาโหลดหน้าใหม่เพื่อตรวจสอบผลก่อนลองอีกครั้ง");
+    } finally { setBusy(false); }
   }
 
   return <main className="admin-content classes-page">

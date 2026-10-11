@@ -1,9 +1,10 @@
 "use client";
+import PortalSearch from "@/components/portal/PortalSearch";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Menu, Search, UserRound } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronDown, Menu, UserRound } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import NotificationBell, { type NotificationItem } from "@/components/notifications/NotificationBell";
 import type { TeacherIdentity } from "@/lib/teacher-data";
@@ -33,16 +34,10 @@ export function TeacherShell({
     createdAt: string;
   }>;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLFormElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -56,39 +51,14 @@ export function TeacherShell({
     href: item.href,
     read: item.isRead,
   }));
-  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const query = searchQuery.trim().toLocaleLowerCase("th");
-    const match = searchableRoutes.find(([label]) =>
-      label.toLocaleLowerCase("th").includes(query),
-    );
-    if (query && match) {
-      router.push(match[1]);
-      setSearchQuery("");
-      setSearchOpen(false);
-    }
-  }
-  const filteredRoutes = searchableRoutes.filter(([label]) =>
-    label.toLocaleLowerCase("th").includes(searchQuery.trim().toLocaleLowerCase("th")),
-  );
-  function chooseSearchRoute(path: (typeof searchableRoutes)[number][1]) {
-    router.push(path);
-    setSearchQuery("");
-    setSearchOpen(false);
-  }
   useEffect(() => {
     function dismiss(event: MouseEvent) {
       if (!profileRef.current?.contains(event.target as Node))
         setProfileOpen(false);
-      if (!searchRef.current?.contains(event.target as Node))
-        setSearchOpen(false);
     }
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setProfileOpen(false);
-        setSearchOpen(false);
-        setSearchExpanded(false);
-      }
+        setProfileOpen(false);      }
     }
     document.addEventListener("pointerdown", dismiss);
     document.addEventListener("keydown", escape);
@@ -111,9 +81,7 @@ export function TeacherShell({
   useEffect(() => {
     queueMicrotask(() => {
       setOpen(false);
-      setProfileOpen(false);
-      setSearchOpen(false);
-    });
+      setProfileOpen(false);    });
   }, [pathname]);
   useResponsiveOverlay({
     open,
@@ -159,50 +127,7 @@ export function TeacherShell({
             </div>
           </div>
           <div className="topbar-user">
-            <button
-              type="button"
-              className="teacher-search-toggle"
-              aria-label={searchExpanded ? "ปิดช่องค้นหา" : "เปิดช่องค้นหา"}
-              aria-expanded={searchExpanded}
-              onClick={() => {
-                setSearchExpanded((value) => !value);
-                queueMicrotask(() => searchInputRef.current?.focus());
-              }}
-            >
-              <Search size={19} />
-            </button>
-            <form className={`teacher-search ${searchExpanded ? "is-expanded" : ""}`} role="search" onSubmit={submitSearch} ref={searchRef}>
-              <Search size={19} aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                aria-label="ค้นหาเมนู"
-                role="combobox"
-                aria-autocomplete="list"
-                aria-controls="teacher-search-results"
-                aria-expanded={searchOpen}
-                autoComplete="off"
-                placeholder="ค้นหา..."
-                value={searchQuery}
-                onFocus={() => setSearchOpen(true)}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value);
-                  setSearchOpen(true);
-                }}
-              />
-              {searchOpen && (
-                <div className="teacher-search-results" id="teacher-search-results" role="listbox" aria-label="ผลการค้นหาเมนู">
-                  {filteredRoutes.length ? (
-                    filteredRoutes.map(([label, path]) => (
-                      <button type="button" role="option" aria-selected="false" key={path} onClick={() => chooseSearchRoute(path)}>
-                        {label}
-                      </button>
-                    ))
-                  ) : (
-                    <p>ไม่พบเมนูที่ค้นหา</p>
-                  )}
-                </div>
-              )}
-            </form>
+            <PortalSearch role="teacher" menus={searchableRoutes} />
             <NotificationBell role="teacher" items={notificationItems} onRead={(id) => void markNotification(id)} onReadAll={() => void markNotification()} />
             <div className="teacher-profile-menu-wrap" ref={profileRef}>
               <button

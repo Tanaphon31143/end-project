@@ -45,7 +45,7 @@ export default async function CourseStudentsPage({
           <table>
             <thead><tr><th>เลขที่</th><th>รหัสนักเรียน</th><th>ชื่อ-นามสกุล</th></tr></thead>
             <tbody>{students.map((student, index) => (
-              <tr key={student.id}>
+              <tr key={student.id} id={`student-${student.id}`}>
                 <td>{student.classNumber ?? index + 1}</td>
                 <td>{student.studentCode}</td>
                 <td>{student.fullName}</td>

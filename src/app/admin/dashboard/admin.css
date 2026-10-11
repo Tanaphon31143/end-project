@@ -5,6 +5,7 @@
   color: #0f172a;
 }
 .admin-main {
+  min-width: 0;
   min-height: 100dvh;
   margin-left: var(--sidebar-w);
   transition: margin 0.25s;
@@ -166,7 +167,7 @@
 .sidebar-x {
   display: none;
 }
-.sidebar-is-collapsed {
+.admin-shell.sidebar-is-collapsed {
   --sidebar-w: 78px;
 }
 .admin-sidebar.collapsed {
@@ -221,10 +222,30 @@
   font-size: 0.75rem;
   white-space: nowrap;
 }
-.header-actions {
+.admin-header .header-actions {
   display: flex;
+  flex: 1;
+  min-width: 0;
+  width: auto;
   align-items: center;
+  justify-content: flex-end;
+  margin-inline-start: auto;
   gap: 12px;
+}
+@media (min-width: 640px) {
+  .admin-header .portal-search {
+    flex: 0 1 360px;
+    min-width: 120px;
+  }
+  .admin-header .portal-search-input input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+  }
+}
+.admin-header .admin-notification-wrap,
+.admin-header .admin-profile-wrap {
+  flex-shrink: 0;
 }
 .search-box {
   width: 280px;

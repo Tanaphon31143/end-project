@@ -1,5 +1,6 @@
 "use client";
 import DateTimeInput from "@/components/forms/DateTimeInput";
+import { Plus, Trash2 } from "lucide-react";
 import type { ClassroomOption, SubjectFormValue, SubjectOption } from "./types";
 
 export type SubjectErrors = Partial<Record<keyof SubjectFormValue, string>>;
@@ -127,45 +128,25 @@ export default function SubjectForm({
             <span>หน่วยกิต</span>
           </div>
         </Field>
-        <div className="subject-field subject-wide">
-          <span>
-            วันและเวลาเรียน <b>*</b>
-          </span>
-          <div className="day-options">
-            {DAYS.map((day) => (
-              <label key={day}>
-                <input
-                  type="checkbox"
-                  checked={value.studyDays.includes(day)}
-                  onChange={(e) =>
-                    set(
-                      "studyDays",
-                      e.target.checked
-                        ? [...value.studyDays, day]
-                        : value.studyDays.filter((d) => d !== day),
-                    )
-                  }
-                />
-                {day}
-              </label>
-            ))}
-          </div>
-          {errors.studyDays && <small>{errors.studyDays}</small>}
-        </div>
-        <Field label="เวลาเริ่มเรียน" required error={errors.startTime}>
-          <DateTimeInput
-            type="time"
-            value={value.startTime}
-            onChange={(e) => set("startTime", e.target.value)}
-          />
-        </Field>
-        <Field label="เวลาเลิกเรียน" required error={errors.endTime}>
-          <DateTimeInput
-            type="time"
-            value={value.endTime}
-            onChange={(e) => set("endTime", e.target.value)}
-          />
-        </Field>
+        <section className="subject-wide subject-period-editor" aria-label="ตารางคาบเรียน">
+          <header><div><h3>ตารางคาบเรียน</h3><p>กำหนดวันและเวลาแยกได้ในแต่ละคาบ</p></div>
+          <button type="button" className="admin-button secondary" disabled={busy} onClick={() => set("schedules", [...(value.schedules || []), { dayOfWeek: 1, periodName: "", startTime: "", endTime: "" }])}><Plus size={16} />เพิ่มคาบเรียน</button></header>
+          {!value.schedules?.length && <p>ยังไม่มีคาบเรียน กดเพิ่มคาบเรียนเพื่อกำหนดตาราง</p>}
+          {value.schedules?.map((schedule, index) => {
+            const update = (patch: Partial<typeof schedule>) => {
+              const schedules = value.schedules!.map((item, i) => i === index ? { ...item, ...patch } : item);
+              onChange({ ...value, schedules, studyDays: [...new Set(schedules.map(item => DAYS[item.dayOfWeek - 1]))], startTime: schedules[0]?.startTime || "", endTime: schedules[0]?.endTime || "" });
+            };
+            return <div className="subject-period-row" key={index}>
+              <label>วันเรียน<select disabled={busy} value={schedule.dayOfWeek} onChange={event => update({ dayOfWeek: Number(event.target.value) })}>{DAYS.map((day, i) => <option key={day} value={i + 1}>{day}</option>)}</select></label>
+              <label>คาบ / ชื่อคาบ<input disabled={busy} required maxLength={50} placeholder="เช่น คาบที่ 1" value={schedule.periodName} onChange={event => update({ periodName: event.target.value })} /></label>
+              <label>เวลาเริ่ม<DateTimeInput required disabled={busy} type="time" value={schedule.startTime} onChange={event => update({ startTime: event.target.value })} /></label>
+              <label>เวลาสิ้นสุด<DateTimeInput required disabled={busy} type="time" value={schedule.endTime} onChange={event => update({ endTime: event.target.value })} /></label>
+              <button type="button" className="subject-period-remove" disabled={busy} aria-label={`ลบคาบเรียนที่ ${index + 1}`} onClick={() => set("schedules", value.schedules!.filter((_, i) => i !== index))}><Trash2 size={17} /></button>
+            </div>;
+          })}
+          {errors.schedules && <p role="alert" className="subject-period-error">{errors.schedules}</p>}
+        </section>
         <Field label="ห้องเรียน/สถานที่เรียน" error={errors.location} wide>
           <input
             value={value.location}

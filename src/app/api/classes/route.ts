@@ -18,6 +18,20 @@ type Payload = {
 async function admin() {
   return Boolean(await getAdminSession());
 }
+async function readPayload(request: Request): Promise<Payload | null> {
+  try {
+    const body: unknown = await request.json();
+    return body && typeof body === "object" && !Array.isArray(body) ? body as Payload : null;
+  } catch { return null; }
+}
+function validId(id: number) { return Number.isSafeInteger(id) && id > 0; }
+function databaseError(error: unknown) {
+  const code = error && typeof error === "object" && "code" in error ? error.code : null;
+  if (code === "ER_DUP_ENTRY") return Response.json({ message: "ห้องเรียนนี้มีอยู่ในระบบแล้ว" }, { status: 409 });
+  if (code === "ER_NO_REFERENCED_ROW_2") return Response.json({ message: "ไม่พบครูที่ปรึกษาที่เลือก กรุณาโหลดข้อมูลใหม่" }, { status: 400 });
+  if (code === "ER_ROW_IS_REFERENCED_2") return Response.json({ message: "ห้องเรียนนี้ยังมีรายวิชาหรือตารางเรียนอ้างอิงอยู่ ไม่สามารถลบได้" }, { status: 409 });
+  return Response.json({ message: "ระบบฐานข้อมูลขัดข้อง กรุณาลองใหม่" }, { status: 500 });
+}
 function parse(b: Payload) {
   const className = String(b.className || "").trim(),
     gradeLevel = String(b.gradeLevel || "").trim(),
@@ -55,8 +69,11 @@ export async function GET() {
 export async function POST(r: Request) {
   if (!(await admin()))
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
-  const p = parse(await r.json());
+  const body = await readPayload(r);
+  if (!body) return Response.json({ message: "รูปแบบข้อมูลไม่ถูกต้อง" }, { status: 400 });
+  const p = parse(body);
   if ("error" in p) return Response.json({ message: p.error }, { status: 400 });
+  try {
   const v = p.value,
     [dup] = await db.execute<RowDataPacket[]>(
       "SELECT id FROM classrooms WHERE name=? AND academic_year=? AND semester=?",
@@ -82,13 +99,17 @@ export async function POST(r: Request) {
   );
   await recordAdminAudit(r, "CREATE", "classroom", v.className, `เพิ่มห้องเรียน ${v.className}`);
   return Response.json({ message: "เพิ่มห้องเรียนสำเร็จ" }, { status: 201 });
+  } catch (error) { return databaseError(error); }
 }
 export async function PUT(r: Request) {
   if (!(await admin()))
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
-  const b = (await r.json()) as Payload,
+  const b = await readPayload(r);
+  if (!b) return Response.json({ message: "รูปแบบข้อมูลไม่ถูกต้อง" }, { status: 400 });
+  const
     p = parse(b),
     id = Number(b.id);
+  if (!validId(id)) return Response.json({ message: "รหัสห้องเรียนไม่ถูกต้อง" }, { status: 400 });
   if ("error" in p) return Response.json({ message: p.error }, { status: 400 });
   const v = p.value;
   try {
@@ -110,17 +131,14 @@ export async function PUT(r: Request) {
       return Response.json({ message: "ไม่พบห้องเรียน" }, { status: 404 });
     await recordAdminAudit(r, "UPDATE", "classroom", id, `แก้ไขห้องเรียน ${v.className}`);
     return Response.json({ message: "แก้ไขห้องเรียนสำเร็จ" });
-  } catch {
-    return Response.json(
-      { message: "ห้องเรียนนี้มีอยู่ในระบบแล้ว" },
-      { status: 409 },
-    );
-  }
+  } catch (error) { return databaseError(error); }
 }
 export async function DELETE(r: Request) {
   if (!(await admin()))
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   const id = Number(new URL(r.url).searchParams.get("id"));
+  if (!validId(id)) return Response.json({ message: "รหัสห้องเรียนไม่ถูกต้อง" }, { status: 400 });
+  try {
   const [count] = await db.execute<(RowDataPacket & { total: number })[]>(
     "SELECT COUNT(*) total FROM students WHERE class_id=?",
     [id],
@@ -133,7 +151,9 @@ export async function DELETE(r: Request) {
       },
       { status: 409 },
     );
-  await db.execute("DELETE FROM classrooms WHERE id=?", [id]);
+  const [result] = await db.execute<ResultSetHeader>("DELETE FROM classrooms WHERE id=?", [id]);
+  if (!result.affectedRows) return Response.json({ message: "ไม่พบห้องเรียน" }, { status: 404 });
   await recordAdminAudit(r, "DELETE", "classroom", id, `ลบห้องเรียนรหัส ${id}`);
   return Response.json({ message: "ลบห้องเรียนสำเร็จ" });
+  } catch (error) { return databaseError(error); }
 }

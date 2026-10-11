@@ -16,7 +16,6 @@ export type AppSession = {
 };
 
 type SessionPayload = AppSession & { exp: number };
-type SessionRow = RowDataPacket & { accountId: number; role: AppRole };
 type AccountRow = RowDataPacket & {
   id: number;
   name: string;
@@ -91,35 +90,21 @@ export async function createSession(
   return createSignedSession({ ...account, sessionId }, maxAgeMs);
 }
 
-async function activeAccount(role: AppRole, id: number) {
-  const table =
-    role === "admin" ? "admins" : role === "teacher" ? "teachers" : "students";
-  const [rows] = await db.execute<AccountRow[]>(
-    `SELECT id, full_name name, email, status FROM ${table}
-     WHERE id=? AND status='ACTIVE' LIMIT 1`,
-    [id],
-  );
-  return rows[0] ?? null;
-}
-
 async function verifiedSession(value?: string): Promise<AppSession | null> {
   const decoded = decodeSignedSession(value);
   if (!decoded) return null;
-  const [rows] = await db.execute<SessionRow[]>(
-    `SELECT account_id accountId, account_role role
-     FROM auth_sessions
-     WHERE session_hash=? AND revoked_at IS NULL AND expires_at>NOW(3)
-     LIMIT 1`,
-    [sessionHash(decoded.sessionId)],
+  // The role has already been validated by decodeSignedSession; table names
+  // come exclusively from this allowlist, never from cookie text.
+  const table = decoded.role === "admin" ? "admins" : decoded.role === "teacher" ? "teachers" : "students";
+  const [rows] = await db.execute<AccountRow[]>(
+    `SELECT a.id, a.full_name name, a.email, a.status
+     FROM auth_sessions s JOIN ${table} a ON a.id=s.account_id
+     WHERE s.session_hash=? AND s.account_id=? AND s.account_role=?
+       AND s.revoked_at IS NULL AND s.expires_at>NOW(3)
+       AND a.status='ACTIVE' LIMIT 1`,
+    [sessionHash(decoded.sessionId), decoded.id, decoded.role],
   );
-  const stored = rows[0];
-  if (
-    !stored ||
-    Number(stored.accountId) !== decoded.id ||
-    stored.role !== decoded.role
-  )
-    return null;
-  const account = await activeAccount(decoded.role, decoded.id);
+  const account = rows[0];
   if (!account) return null;
   return {
     id: account.id,

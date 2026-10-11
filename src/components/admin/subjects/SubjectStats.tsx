@@ -39,11 +39,13 @@ export function SubjectStats({
     <section className="subject-stats" aria-label="สรุปข้อมูลรายวิชา">
       {items.map(({ label, value, unit, tone, icon: Icon }) => (
         <article className={`subject-stat subject-stat--${tone}`} key={label}>
-          <span className="subject-stat-icon" aria-hidden="true">
-            <Icon size={20} />
-          </span>
-          <div>
+          <div className="subject-stat-heading">
             <p>{label}</p>
+            <span className="subject-stat-icon" aria-hidden="true">
+              <Icon size={22} strokeWidth={1.8} />
+            </span>
+          </div>
+          <div className="subject-stat-value">
             <strong>{value.toLocaleString("th-TH")}</strong>
             <span>{unit}</span>
           </div>

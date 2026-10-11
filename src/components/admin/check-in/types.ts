@@ -7,6 +7,7 @@ export type CheckInSubject = {
   className: string;
   startTime: string;
   endTime: string;
+  schedules?: Array<{ id: number; dayOfWeek: number; periodName: string; startTime: string; endTime: string }>;
 };
 export type CheckInSession = {
   id: number;

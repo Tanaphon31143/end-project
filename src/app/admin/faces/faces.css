@@ -17,8 +17,16 @@
   color: #5b76a0;
 }
 .face-enroll-modal {
-  width: min(820px, 100%);
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+.face-enroll-modal > header { flex-shrink: 0; padding: 20px 24px 16px; border-bottom: 1px solid #e5eaf2; }
+.face-enroll-modal .face-enroll-body { min-height: 0; max-height: none; padding: 20px 24px; }
+.face-enroll-modal .subject-modal-footer { flex-shrink: 0; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #e5eaf2; background: #f8fafc; }
+.face-enroll-modal :is(button,select,input):focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 .face-enroll-body,
 .face-test-body {
   overflow-y: auto;
@@ -48,13 +56,13 @@
 }
 .face-capture-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 185px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 16px;
 }
 .face-camera-box {
   position: relative;
   overflow: hidden;
-  min-height: 285px;
+  min-height: 220px;
   border-radius: 13px;
   background: radial-gradient(circle, #314b6b, #08182d);
   color: #c2d1e4;
@@ -151,6 +159,14 @@
   color: #94a3b8;
   object-fit: cover;
 }
+.face-enroll-modal .face-sample-grid { gap: 12px; margin-top: 20px; }
+.face-enroll-modal .face-sample-grid article > span,
+.face-enroll-modal .face-sample-grid img { height: 88px; aspect-ratio: auto; }
+.face-enroll-modal .face-sample-grid select { font-size: 12px; }
+.face-enroll-modal .face-camera-box { background: #142b46; min-height: 300px; }
+.face-enroll-modal .face-student-select { margin-bottom: 20px; }
+.face-enroll-modal .face-capture-actions { gap: 12px; }
+.face-enroll-modal .face-process-message { line-height: 1.6; text-align: center; margin-top: 16px; margin-bottom: 12px; }
 .face-sample-grid article.ready img {
   border-style: solid;
   border-color: #67cf9f;
@@ -248,6 +264,14 @@
   font-size: 10px;
 }
 @media (max-width: 640px) {
+  .face-enroll-modal > header { padding: 16px; }
+  .face-enroll-modal .face-enroll-body { padding: 16px; }
+  .face-enroll-modal .face-camera-box { min-height: 280px; }
+  .face-enroll-modal .subject-modal-footer { padding: 12px 16px; flex-wrap: wrap; }
+  .face-enroll-modal .face-capture-actions > * { flex: 1 1 130px; }
+  .face-enroll-modal .face-sample-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+  .face-enroll-modal .face-sample-grid article > span,
+  .face-enroll-modal .face-sample-grid img { height: 64px; }
   .face-page-actions {
     flex-direction: column;
   }

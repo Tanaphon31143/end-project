@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   }
 
-  const [profileRequests] = await db.execute<(RowDataPacket & {
+  const profileRequestsPromise = db.execute<(RowDataPacket & {
       id: number;
       studentName: string;
       studentCode: string;
@@ -36,7 +36,7 @@ export async function GET() {
        ORDER BY r.created_at DESC, r.id DESC`,
   );
 
-  const [subjectRequests] = await db.execute<(RowDataPacket & {
+  const subjectRequestsPromise = db.execute<(RowDataPacket & {
     id: number;
     teacherName: string;
     subjectName: string;
@@ -58,6 +58,11 @@ export async function GET() {
      WHERE r.status = 'PENDING'
      ORDER BY r.updated_at DESC, r.id DESC`,
   );
+
+  const [[profileRequests], [subjectRequests]] = await Promise.all([
+    profileRequestsPromise,
+    subjectRequestsPromise,
+  ]);
 
   const requests = [
     ...profileRequests.map((item) => ({

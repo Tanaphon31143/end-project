@@ -16,7 +16,7 @@ import { Badge, PersonCell } from "@/components/admin/AdminPage";
 import FaceEnrollmentModal from "./FaceEnrollmentModal";
 import FaceRecognitionModal from "./FaceRecognitionModal";
 import type { FaceRecord, FaceStatus, FaceStudentOption } from "./types";
-import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
+import { confirmDanger, showActionSuccess, showActionError } from "@/lib/sweet-alert";
 
 const STATUS_LABEL: Record<FaceStatus, string> = {
   READY: "พร้อมใช้งาน",
@@ -39,11 +39,7 @@ export default function FacesManager({
     ),
     [viewing, setViewing] = useState<FaceRecord | null>(null),
     [testing, setTesting] = useState(false),
-    [busyId, setBusyId] = useState<number | null>(null),
-    [toast, setToast] = useState<{
-      message: string;
-      tone: "success" | "error";
-    } | null>(null);
+    [busyId, setBusyId] = useState<number | null>(null);
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("th");
     return faces.filter(
@@ -56,8 +52,8 @@ export default function FacesManager({
     );
   }, [faces, query, status]);
   function notify(message: string, tone: "success" | "error") {
-    setToast({ message, tone });
-    window.setTimeout(() => setToast(null), 3500);
+    if (tone === "success") void showActionSuccess(message);
+    else void showActionError(message);
   }
   async function reload(message?: string) {
     const response = await fetch("/api/faces", { cache: "no-store" }),
@@ -109,7 +105,7 @@ export default function FacesManager({
         data = (await response.json()) as { message?: string };
       if (!response.ok)
         throw new Error(data.message || "เปลี่ยนสถานะไม่สำเร็จ");
-      await reload(data.message);
+      await reload(data.message || "เปลี่ยนสถานะข้อมูลใบหน้าสำเร็จ");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "เกิดข้อผิดพลาด",
@@ -355,9 +351,6 @@ export default function FacesManager({
           </section>
         </div>
       )}{" "}
-      {toast && (
-        <div className={`subject-toast ${toast.tone}`}>{toast.message}</div>
-      )}
     </main>
   );
 }

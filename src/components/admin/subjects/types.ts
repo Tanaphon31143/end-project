@@ -31,7 +31,9 @@ export type SubjectRecord = {
 export type SubjectOption = { id: number; name: string };
 export type ClassroomOption = SubjectOption & { level: string };
 
-export type SubjectFormValue = Omit<SubjectRecord, "databaseId" | "teacherName" | "className" | "studentCount" | "scheduleSource" | "schedules">;
+export type SubjectFormValue = Omit<SubjectRecord, "databaseId" | "teacherName" | "className" | "studentCount" | "scheduleSource" | "schedules"> & {
+  schedules?: Array<Omit<SubjectRecord["schedules"][number], "id"> & { id?: number }>;
+};
 
 export const EMPTY_SUBJECT: SubjectFormValue = {
   subjectCode: "", subjectName: "", teacherId: null, gradeLevel: "ม.5", classId: null,

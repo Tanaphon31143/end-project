@@ -1,4 +1,5 @@
 "use client";
+import PortalSearch from "@/components/portal/PortalSearch";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,7 +13,6 @@ import {
   LogOut,
   Maximize2,
   Menu,
-  Search,
   X,
   XCircle,
 } from "lucide-react";
@@ -67,7 +67,6 @@ export function Header({
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [bellPulse, setBellPulse] = useState(0);
@@ -82,12 +81,14 @@ export function Header({
   const notificationRef = useRef<HTMLDivElement>(null);
   const notificationPanelRef = useRef<HTMLDivElement>(null);
   const notificationTriggerRef = useRef<HTMLButtonElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const selectedRequest = requests.find(
     (item) => `${item.kind}:${item.id}` === selectedKey,
   );
 
+  const notificationLoadingRef = useRef(false);
   const loadNotifications = useCallback(async () => {
+    if (notificationLoadingRef.current) return;
+    notificationLoadingRef.current = true;
     setNotificationError("");
     try {
       const response = await fetch("/api/admin/notifications", { cache: "no-store" });
@@ -105,6 +106,7 @@ export function Header({
     } catch {
       setNotificationError("โหลดการแจ้งเตือนไม่สำเร็จ กรุณาลองใหม่");
     } finally {
+      notificationLoadingRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -127,7 +129,6 @@ export function Header({
       if (event.key === "Escape") {
         setNotificationsOpen(false);
         setProfileOpen(false);
-        setSearchOpen(false);
         notificationTriggerRef.current?.focus();
       }
     }
@@ -220,24 +221,7 @@ export function Header({
         </div>
       </div>
       <div className="header-actions">
-        <button
-          type="button"
-          className="admin-search-toggle"
-          aria-label={searchOpen ? "ปิดช่องค้นหา" : "เปิดช่องค้นหา"}
-          aria-expanded={searchOpen}
-          onClick={() => {
-            setSearchOpen((value) => !value);
-            queueMicrotask(() => searchInputRef.current?.focus());
-          }}
-        >
-          <Search size={19} />
-        </button>
-        <label className={`search-box ${searchOpen ? "is-open" : ""}`}>
-          <span className="sr-only">ค้นหา</span>
-          <Search size={19} />
-          <input ref={searchInputRef} placeholder="ค้นหานักเรียน, ครู, รายวิชา, ชั้นเรียน..." />
-          <kbd>Ctrl K</kbd>
-        </label>
+        <PortalSearch role="admin" />
         <div className="admin-notification-wrap" ref={notificationRef}>
           <button
             ref={notificationTriggerRef}

@@ -1,7 +1,7 @@
 /* Shared select menus for every role. Keep native form and keyboard behavior. */
 @supports (appearance: base-select) {
-  html body select:not([multiple]):not([size]),
-  html body select[size="1"] {
+  html body select:not(.swal2-select):not([multiple]):not([size]),
+  html body select[size="1"]:not(.swal2-select) {
     appearance: base-select !important;
     background-image: none !important;
     display: inline-flex !important;
@@ -15,8 +15,8 @@
     gap: 8px;
   }
 
-  select:not([multiple]):not([size])::picker(select),
-  select[size="1"]::picker(select) {
+  select:not(.swal2-select):not([multiple]):not([size])::picker(select),
+  select[size="1"]:not(.swal2-select)::picker(select) {
     appearance: base-select;
     box-sizing: border-box;
     min-inline-size: anchor-size(self-inline);

@@ -46,10 +46,10 @@ const blankSchedule = (): StudySchedule => ({
   startTime: "08:30",
   endTime: "09:30",
 });
-const blank = (academicYear: string): SubjectRequestInput => ({
+const blank = (academicYear: string, semester: number): SubjectRequestInput => ({
   subjectName: "",
   subjectCode: "",
-  semester: 1,
+  semester,
   academicYear,
   description: "",
   classroomId: 0,
@@ -59,15 +59,17 @@ export function SubjectRequestsClient({
   initialRequests,
   classrooms,
   academicYear,
+  semester,
 }: {
   initialRequests: SubjectRequest[];
   classrooms: { id: number; name: string; level: string }[];
   academicYear: string;
+  semester: number;
 }) {
   const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
   const [form, setForm] = useState<SubjectRequestInput>(() =>
-    blank(academicYear),
+    blank(academicYear, semester),
   );
   const [editing, setEditing] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -126,7 +128,7 @@ export function SubjectRequestsClient({
       setMessage(result.message || "ส่งคำขอแล้ว");
       setShowForm(false);
       setEditing(null);
-      setForm(blank(academicYear));
+      setForm(blank(academicYear, semester));
       void showActionSuccess(
         result.message || (editing ? "ส่งคำขอที่แก้ไขแล้ว" : "ส่งคำขอแล้ว"),
       );
@@ -160,7 +162,7 @@ export function SubjectRequestsClient({
           aria-controls="subject-request-form"
           onClick={() => {
             setEditing(null);
-            setForm(blank(academicYear));
+            setForm(blank(academicYear, semester));
             setShowForm((current) => !current);
             setError("");
           }}

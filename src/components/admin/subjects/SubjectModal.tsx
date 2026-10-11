@@ -20,7 +20,7 @@ type Props = {
   onSaved: () => Promise<void>;
   onToast: (message: string, tone: "success" | "error") => void;
 };
-const SUBJECT_CODE_PATTERN = /^(?:[A-Za-z0-9]|\p{Script=Thai})+$/u;
+const SUBJECT_CODE_PATTERN = /^(?:[A-Za-z0-9.]|\p{Script=Thai})+$/u;
 export default function SubjectModal({
   open,
   subject,
@@ -53,12 +53,13 @@ export default function SubjectModal({
                 academicYear: subject.academicYear,
                 credits: subject.credits,
                 studyDays: subject.studyDays,
-                startTime: subject.startTime || "08:30",
-                endTime: subject.endTime || "09:20",
+                startTime: subject.startTime,
+                endTime: subject.endTime,
                 location: subject.location,
                 attendanceMode: subject.attendanceMode,
                 isActive: subject.isActive,
                 description: subject.description,
+                schedules: subject.schedules.length ? subject.schedules.map(schedule => ({ ...schedule })) : subject.studyDays.map(day => ({ dayOfWeek: ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].indexOf(day) + 1, periodName: "คาบเรียน", startTime: subject.startTime, endTime: subject.endTime })),
               }
             : { ...EMPTY_SUBJECT, academicYear },
         );
@@ -80,9 +81,11 @@ export default function SubjectModal({
   if (!open) return null;
   function validate() {
     const next: SubjectErrors = {};
+    if (!value.schedules?.length) next.schedules = "กรุณาเพิ่มคาบเรียนอย่างน้อย 1 คาบ";
+    else if (value.schedules.some(item => !item.periodName.trim() || !item.startTime || !item.endTime || item.endTime <= item.startTime)) next.schedules = "ระบุชื่อคาบและเวลาให้ครบ เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม";
     if (!value.subjectCode.trim()) next.subjectCode = "กรุณากรอกรหัสวิชา";
     else if (!SUBJECT_CODE_PATTERN.test(value.subjectCode.trim()))
-      next.subjectCode = "ใช้เฉพาะตัวอักษรไทย อังกฤษ และตัวเลข";
+      next.subjectCode = "ใช้เฉพาะตัวอักษรไทย อังกฤษ ตัวเลข และจุด (.)";
     if (!value.subjectName.trim()) next.subjectName = "กรุณากรอกชื่อวิชา";
     if (!value.teacherId) next.teacherId = "กรุณาเลือกครู";
     if (!value.classId) next.classId = "กรุณาเลือกห้องเรียน";
@@ -107,6 +110,11 @@ export default function SubjectModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...value,
+          ...(value.schedules?.length ? {
+            studyDays: [...new Set(value.schedules.map(schedule => ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"][schedule.dayOfWeek - 1]))],
+            startTime: value.schedules[0].startTime,
+            endTime: value.schedules[0].endTime,
+          } : {}),
           subjectCode: value.subjectCode.trim(),
           subjectName: value.subjectName.trim(),
           id: subject?.databaseId,

@@ -302,7 +302,14 @@ export default function UsersManager({
                           <Eye size={16} />
                           <span>ดูรายละเอียด</span>
                         </button>
-                        <details className="users-action-menu"><summary aria-label={`จัดการบัญชี ${user.name}`}><MoreVertical size={18} /></summary><div>
+                        <button type="button" className="users-menu-trigger" aria-label={`จัดการบัญชี ${user.name}`} popoverTarget={`user-actions-${user.id}`} onClick={(event) => {
+                          const menu = document.getElementById(`user-actions-${user.id}`);
+                          if (!menu) return;
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          menu.style.left = `${Math.max(8, Math.min(rect.right - 208, window.innerWidth - 216))}px`;
+                          menu.style.top = `${rect.bottom + 150 > window.innerHeight ? Math.max(8, rect.top - 150) : rect.bottom + 8}px`;
+                        }}><MoreVertical size={18} /></button>
+                        <div id={`user-actions-${user.id}`} popover="auto" className="users-action-popover" aria-label={`จัดการบัญชี ${user.name}`} onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.hidePopover(); }}>
                         <button
                           onClick={() => open("edit", user)}
                           title="แก้ไข"
@@ -326,7 +333,7 @@ export default function UsersManager({
                           <Trash2 size={16} />
                           <span>ลบ</span>
                         </button>
-                        </div></details>
+                        </div>
                       </div>
                     </td>
                   </tr>

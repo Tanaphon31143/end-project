@@ -2,6 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getCheckInPageData } from "@/lib/admin-data";
 import { getAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 type Body = {
   id?: unknown;
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   const date =
     new URL(request.url).searchParams.get("date") ||
-    new Date().toISOString().slice(0, 10);
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   if (!validDate(date))
     return Response.json({ message: "วันที่ไม่ถูกต้อง" }, { status: 400 });
   return Response.json(await getCheckInPageData(date));
@@ -100,7 +101,8 @@ export async function POST(request: Request) {
   }
 }
 export async function PATCH(request: Request) {
-  if (!(await getAdminSession()))
+  const admin = await getAdminSession();
+  if (!admin)
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   const body = (await request.json()) as Body,
     id = Number(body.id),
@@ -115,13 +117,42 @@ export async function PATCH(request: Request) {
       { message: "ข้อมูลรอบเช็คชื่อไม่ถูกต้อง" },
       { status: 400 },
     );
-  const [result] = await db.execute<ResultSetHeader>(
-    "UPDATE check_in_sessions SET status=? WHERE id=?",
-    [status, id],
-  );
-  if (!result.affectedRows)
-    return Response.json({ message: "ไม่พบรอบเช็คชื่อ" }, { status: 404 });
-  return Response.json({
-    message: status === "CLOSED" ? "ปิดรอบเช็คชื่อแล้ว" : "เปิดรอบเช็คชื่อแล้ว",
-  });
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const session = await tx.checkInSession.findUnique({ where: { id: BigInt(id) } });
+      if (!session) return null;
+      // Claim the transition once. Both staff roles use the same session and
+      // attendance tables; repeated closes must not create duplicate absences.
+      const claimed = await tx.checkInSession.updateMany({
+        where: { id: session.id, status: status === "CLOSED" ? "ACTIVE" : "CLOSED" },
+        data: { status },
+      });
+      if (!claimed.count) return { absentCreated: 0 };
+      let absentCreated = 0;
+      if (status === "CLOSED") {
+        const students = await tx.student.findMany({
+          where: { classId: session.classroomId, status: "ACTIVE" }, select: { id: true },
+        });
+        const existing = await tx.attendanceRecord.findMany({
+          where: { checkInSessionId: session.id }, select: { studentId: true },
+        });
+        const checked = new Set(existing.map(record => record.studentId));
+        const missing = students.filter(student => !checked.has(student.id));
+        absentCreated = missing.length;
+        if (missing.length) await tx.attendanceRecord.createMany({
+          data: missing.map(student => ({ studentId: student.id, subjectId: session.subjectId,
+            attendanceDate: session.sessionDate, status: "ABSENT", checkInSessionId: session.id })),
+        });
+      }
+      await tx.auditLog.create({ data: {
+        userId: admin.id, action: status === "CLOSED" ? "CLOSE" : "OPEN", entity: "check_in_session",
+        entityId: String(id), description: `Admin ${status === "CLOSED" ? "ปิด" : "เปิด"}รอบเช็คชื่อ บันทึกขาดเรียน ${absentCreated} คน`,
+      } });
+      return { absentCreated };
+    }, { maxWait: 10_000, timeout: 30_000 });
+    if (!result) return Response.json({ message: "ไม่พบรอบเช็คชื่อ" }, { status: 404 });
+    return Response.json({ message: status === "CLOSED" ? "ปิดรอบเช็คชื่อแล้ว" : "เปิดรอบเช็คชื่อแล้ว", ...result });
+  } catch {
+    return Response.json({ message: "เปลี่ยนสถานะรอบไม่สำเร็จ กรุณาลองใหม่" }, { status: 500 });
+  }
 }

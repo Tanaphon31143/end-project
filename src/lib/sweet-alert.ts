@@ -7,7 +7,18 @@ type ConfirmOptions = {
 
 async function loadSweetAlert() {
   const { default: Swal } = await import("sweetalert2");
-  return Swal;
+  // These shared alerts never collect input. Keep the library's dormant
+  // controls out of layout even when application-wide form CSS uses !important.
+  return Swal.mixin({
+    willOpen: (popup) => {
+      popup.querySelectorAll<HTMLElement>(
+        ".swal2-input, .swal2-file, .swal2-range, .swal2-select, .swal2-radio, .swal2-checkbox, .swal2-textarea",
+      ).forEach((control) => {
+        control.hidden = true;
+        control.style.setProperty("display", "none", "important");
+      });
+    },
+  });
 }
 
 export async function confirmDanger({
@@ -52,6 +63,10 @@ export async function showActionSuccess(message: string) {
     showConfirmButton: false,
     timer: 2800,
     timerProgressBar: true,
+    didOpen: (popup) => {
+      popup.addEventListener("mouseenter", () => Swal.stopTimer());
+      popup.addEventListener("mouseleave", () => Swal.resumeTimer());
+    },
     heightAuto: false,
     customClass: {
       container: "app-swal-container app-swal-toast-container",

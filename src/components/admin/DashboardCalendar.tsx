@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 export function DashboardCalendar({ activeDates }: { activeDates: string[] }) {
   const [today, setToday] = useState<Date | null>(null);
   const [offset, setOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => setToday(new Date()));
@@ -16,14 +17,12 @@ export function DashboardCalendar({ activeDates }: { activeDates: string[] }) {
     const month = new Date(base.getFullYear(), base.getMonth() + offset, 1);
     const firstDay = month.getDay();
     const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-    const previousDays = new Date(month.getFullYear(), month.getMonth(), 0).getDate();
     return {
       month,
       cells: Array.from({ length: 42 }, (_, index) => {
         const day = index - firstDay + 1;
-        if (day < 1) return { day: previousDays + day, muted: true };
-        if (day > daysInMonth) return { day: day - daysInMonth, muted: true };
-        return { day, muted: false };
+        const date = new Date(month.getFullYear(), month.getMonth(), day);
+        return { day: date.getDate(), date, muted: day < 1 || day > daysInMonth };
       }),
     };
   }, [today, offset]);
@@ -44,7 +43,7 @@ export function DashboardCalendar({ activeDates }: { activeDates: string[] }) {
         <button type="button" aria-label="เดือนก่อนหน้า" onClick={() => setOffset((value) => value - 1)}><ChevronLeft size={17} /></button>
         <strong>{monthLabel}</strong>
         <button type="button" aria-label="เดือนถัดไป" onClick={() => setOffset((value) => value + 1)}><ChevronRight size={17} /></button>
-        <button type="button" className="calendar-today" onClick={() => setOffset(0)}>วันนี้</button>
+        <button type="button" className="calendar-today" onClick={() => { setOffset(0); setSelectedDate(today); }}>วันนี้</button>
       </div>
       <div className="calendar-grid calendar-weekdays">
         {["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"].map((day) => <span key={day}>{day}</span>)}
@@ -52,18 +51,20 @@ export function DashboardCalendar({ activeDates }: { activeDates: string[] }) {
       <div className="calendar-grid calendar-days">
         {calendar.cells.map((cell, index) => {
           const cellDate = [
-            calendar.month.getFullYear(),
-            String(calendar.month.getMonth() + 1).padStart(2, "0"),
+            cell.date.getFullYear(),
+            String(cell.date.getMonth() + 1).padStart(2, "0"),
             String(cell.day).padStart(2, "0"),
           ].join("-");
-          const active = !cell.muted && activeDateSet.has(cellDate);
+          const active = activeDateSet.has(cellDate);
+          const selected = selectedDate?.toDateString() === cell.date.toDateString();
           return (
-            <span key={`${cell.day}-${index}`} className={`${cell.muted ? "muted" : ""} ${cell.day === currentDay && !cell.muted ? "today" : ""}`}>
+            <button type="button" key={`${cell.day}-${index}`} aria-label={cell.date.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })} aria-pressed={selected} aria-current={cell.day === currentDay && !cell.muted ? "date" : undefined} onClick={() => { setSelectedDate(cell.date); if (cell.muted && today) setOffset((cell.date.getFullYear() - today.getFullYear()) * 12 + cell.date.getMonth() - today.getMonth()); }} className={`${cell.muted ? "muted" : ""} ${cell.day === currentDay && !cell.muted ? "today" : ""} ${selected ? "selected" : ""}`}>
               {cell.day}{active && <i />}
-            </span>
+            </button>
           );
         })}
       </div>
+      {selectedDate && <div className="calendar-selection" role="status"><strong>{selectedDate.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</strong></div>}
     </section>
   );
 }

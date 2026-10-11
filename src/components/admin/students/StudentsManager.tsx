@@ -30,6 +30,14 @@ export default function StudentsManager({
   const [statusFilter, setStatusFilter] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [groupFilter, setGroupFilter] = useState<number | "unregistered" | null>(null);
+  const [expandedRooms, setExpandedRooms] = useState<Set<number | "unregistered">>(new Set());
+  function toggleRoom(key: number | "unregistered") {
+    setExpandedRooms(previous => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
   const [mode, setMode] = useState<Mode | null>(null);
   const [selected, setSelected] = useState<StudentRecord | null>(null);
   const [value, setValue] = useState<StudentFormValue>(EMPTY_STUDENT);
@@ -194,7 +202,7 @@ export default function StudentsManager({
 
   const readOnly = mode === "view";
   return (
-    <main className="admin-content">
+    <main className={`admin-content ${styles.page}`}>
       <div className={`page-intro ${styles.intro}`}>
         <div>
           <h2>ทะเบียนนักเรียน</h2>
@@ -207,7 +215,7 @@ export default function StudentsManager({
         { label: "นักเรียนที่ใช้งานอยู่", count: students.filter(item => item.status === "ACTIVE").length, unit: "คน", Icon: UserRound },
         { label: "จำนวนห้องเรียน", count: classrooms.length, unit: "ห้อง", Icon: School },
         { label: "ยังไม่ได้ลงทะเบียนชั้น/ห้อง", count: students.filter(unassigned).length, unit: "คน", Icon: GraduationCap },
-      ].map(({ label, count, unit, Icon }) => <div key={label}><span><Icon aria-hidden="true" /></span><div><p>{label}</p><strong>{count} <small>{unit}</small></strong></div></div>)}</div>
+      ].map(({ label, count, unit, Icon }) => <button type="button" key={label} className={styles.metricAction} onClick={() => { setQuery(""); setLevel(""); setRoom(""); setStatusFilter(label === "นักเรียนที่ใช้งานอยู่" ? "ACTIVE" : ""); setGroupFilter(label === "ยังไม่ได้ลงทะเบียนชั้น/ห้อง" ? "unregistered" : null); setView(label === "จำนวนห้องเรียน" ? "grid" : "list"); }}><span><Icon aria-hidden="true" /></span><div><p>{label}</p><strong>{count} <small>{unit}</small></strong></div><ChevronRight className={styles.metricArrow} size={16} /></button>)}</div>
       <div className="admin-filters">
         <label>
           <Search size={18} />
@@ -260,8 +268,12 @@ export default function StudentsManager({
         </button>
       </div>
       <section className={styles.roster}>
+        <nav className={styles.roomTabs} aria-label="เลือกห้องเรียนแบบรวดเร็ว">
+          <button type="button" aria-pressed={!room && groupFilter === null} onClick={() => { setRoom(""); setGroupFilter(null); }}>ทุกห้อง <span>{filtered.length}</span></button>
+          {classrooms.filter(item => !level || item.level === level).map(item => <button key={item.id} type="button" aria-pressed={room === String(item.id)} onClick={() => { setRoom(String(item.id)); setGroupFilter(null); }} >{item.name}<span>{students.filter(student => student.classId === item.id && !unassigned(student)).length}</span></button>)}
+        </nav>
         <header className={styles.heading}><div><h2>นักเรียนแยกตามชั้น/ห้อง</h2><p>พบ {groups.length} ห้องเรียน และนักเรียนที่ยังไม่ได้ลงทะเบียนชั้น/ห้อง {unregistered.length} คน</p></div><div className={styles.views}><button type="button" aria-label="มุมมองการ์ด" aria-pressed={view === "grid"} onClick={() => { setView("grid"); setGroupFilter(null); }}><LayoutGrid size={19} /></button><button type="button" aria-label="มุมมองตาราง" aria-pressed={view === "list"} onClick={() => { setView("list"); setGroupFilter(null); }}><List size={19} /></button></div></header>
-        {view === "grid" && <div className={styles.grid}>{[...groups.map(group => ({ key: group.id as number | "unregistered", name: group.name, advisor: group.advisorName, members: group.members })), ...(unregistered.length ? [{ key: "unregistered" as const, name: "ยังไม่ได้ลงทะเบียน", advisor: undefined, members: unregistered }] : [])].map((group, index) => <article key={group.key} className={`${styles.card} ${group.key === "unregistered" ? styles.unregistered : ""}`} data-tone={index % 4}><header><span className={styles.roomIcon}><Users aria-hidden="true" /></span><div><h3>{group.name}</h3><p>นักเรียน {group.members.length} คน</p></div></header><div className={styles.body}>{group.key === "unregistered" ? <p className={styles.hint}>นักเรียนที่ยังไม่ได้กำหนดชั้น/ห้องเรียน</p> : <div className={styles.advisor}><UserRound size={20} /><div><strong>{group.advisor || "ยังไม่กำหนดครูที่ปรึกษา"}</strong><small>ครูที่ปรึกษา</small></div></div>}<ul>{group.members.slice(0, 3).map(student => <li key={student.databaseId}><span>{student.fullName.replace(/^(เด็กชาย|เด็กหญิง|นาย|นางสาว)/, "").trim().slice(0, 1)}</span><button type="button" onClick={() => open("view", student)}>{student.fullName}</button></li>)}</ul>{group.members.length > 3 && <span className={styles.more}>+{group.members.length - 3} คน</span>}{!group.members.length && <p className={styles.hint}>ยังไม่มีนักเรียนในห้องนี้</p>}<button className={styles.showAll} type="button" onClick={() => { setGroupFilter(group.key); setView("list"); }}>ดูนักเรียนทั้งหมด <span>{group.members.length}</span><ChevronRight size={17} /></button></div></article>)}{!groups.length && !unregistered.length && <p>ไม่พบข้อมูลตามตัวกรองที่เลือก</p>}</div>}
+        {view === "grid" && <div className={styles.grid} key={`${room}-${level}-${statusFilter}-${view}`}>{[...groups.map(group => ({ key: group.id as number | "unregistered", name: group.name, advisor: group.advisorName, members: group.members })), ...(unregistered.length ? [{ key: "unregistered" as const, name: "ยังไม่ได้ลงทะเบียน", advisor: undefined, members: unregistered }] : [])].map((group, index) => <article key={group.key} className={`${styles.card} ${group.key === "unregistered" ? styles.unregistered : ""}`} data-tone={index % 4}><header><span className={styles.roomIcon}><Users aria-hidden="true" /></span><div><h3>{group.name}</h3><p>นักเรียน {group.members.length} คน</p></div></header><div className={styles.body}>{group.key === "unregistered" ? <p className={styles.hint}>นักเรียนที่ยังไม่ได้กำหนดชั้น/ห้องเรียน</p> : <div className={styles.advisor}><UserRound size={20} /><div><strong>{group.advisor || "ยังไม่กำหนดครูที่ปรึกษา"}</strong><small>ครูที่ปรึกษา</small></div></div>}<ul>{group.members.slice(0, expandedRooms.has(group.key) ? 12 : 3).map(student => <li key={student.databaseId}><span>{student.fullName.replace(/^(เด็กชาย|เด็กหญิง|นาย|นางสาว)/, "").trim().slice(0, 1)}</span><button type="button" onClick={() => open("view", student)}>{student.fullName}</button></li>)}</ul>{group.members.length > 3 && <button type="button" className={styles.expandNames} aria-expanded={expandedRooms.has(group.key)} onClick={() => toggleRoom(group.key)}>{expandedRooms.has(group.key) ? "ย่อรายชื่อ" : `ดูรายชื่อเพิ่มอีก ${Math.min(9, group.members.length - 3)} คน`}<ChevronRight size={15} /></button>}{expandedRooms.has(group.key) && group.members.length > 12 && <span className={styles.more}>อีก {group.members.length - 12} คน · ดูครบในตาราง</span>}{!group.members.length && <p className={styles.hint}>ยังไม่มีนักเรียนในห้องนี้</p>}<button className={styles.showAll} type="button" onClick={() => { setGroupFilter(group.key); setView("list"); }}>ดูนักเรียนทั้งหมด <span>{group.members.length}</span><ChevronRight size={17} /></button></div></article>)}{!groups.length && !unregistered.length && <p>ไม่พบข้อมูลตามตัวกรองที่เลือก</p>}</div>}
       </section>
       {view === "list" && <section className="dashboard-card admin-table-card">
         <div className="card-head">

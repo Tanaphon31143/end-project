@@ -66,6 +66,7 @@ model Student {
   classroom    Classroom?         @relation(fields: [classId], references: [id])
   attendance   AttendanceRecord[]
 
+  @@index([classId, status], map: "idx_student_class_status")
   @@map("students")
 }
 
@@ -204,6 +205,7 @@ model AttendanceRecord {
   @@index([subjectId, attendanceDate], map: "idx_attendance_subject_date")
   @@index([attendanceDate], map: "idx_attendance_date")
   @@index([studentId], map: "idx_attendance_student")
+  @@index([studentId, attendanceDate, checkInTime], map: "idx_attendance_student_date_time")
   @@index([checkInSessionId], map: "idx_attendance_session")
   @@map("attendance_records")
 }

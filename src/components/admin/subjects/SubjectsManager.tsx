@@ -9,6 +9,7 @@ import { SubjectRequestsQueue } from "./SubjectRequestsQueue";
 import { SubjectFilters } from "./SubjectFilters";
 import { SubjectStats } from "./SubjectStats";
 import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
+import { RippleButton } from "@/components/portal/RippleButton";
 type Props = {
   initialSubjects: SubjectRecord[];
   initialRequests: SubjectRequest[];
@@ -95,7 +96,8 @@ export default function SubjectsManager({
           <p>จัดการรายวิชา ครูผู้สอน และคำขอเปิดรายวิชาในภาคเรียนปัจจุบัน</p>
             </div>
         </div>
-        <button
+        <RippleButton
+          type="button"
           className="admin-button primary"
           onClick={() => {
             setEditing(null);
@@ -104,7 +106,7 @@ export default function SubjectsManager({
         >
           <Plus size={18} />
           เพิ่มรายวิชา
-        </button>
+        </RippleButton>
       </div>
         <SubjectStats
           subjectCount={subjects.length}
@@ -128,7 +130,7 @@ export default function SubjectsManager({
               <h2>รายวิชาที่เปิดสอน</h2>
               <p>ข้อมูลรายวิชาและครูผู้รับผิดชอบในภาคเรียนปัจจุบัน</p>
             </div>
-            <span>{subjects.length.toLocaleString("th-TH")} รายวิชา</span>
+            <span role="status" aria-live="polite" aria-atomic="true">{filtered.length.toLocaleString("th-TH")} รายวิชา</span>
           </div>
           <SubjectFilters
             query={query}

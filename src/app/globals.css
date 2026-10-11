@@ -191,7 +191,7 @@ a {
   color: #171717 !important;
   font-size: 1.35rem !important;
   line-height: 1.4 !important;
-  letter-spacing: -0.02em !important;
+  letter-spacing: normal !important;
 }
 
 .app-swal-copy {
@@ -200,7 +200,17 @@ a {
   color: #525252 !important;
   font-size: 0.95rem !important;
   line-height: 1.65 !important;
+  overflow-wrap: anywhere;
 }
+
+/* Do not expose SweetAlert's inactive inputs through shared form styles. */
+.app-swal-container .swal2-select { appearance: auto !important; }
+/* Hidden library controls must stay hidden despite application form rules. */
+.app-swal-container :is(.swal2-input,.swal2-file,.swal2-range,.swal2-select,.swal2-radio,.swal2-checkbox,.swal2-textarea)[style*="display: none"] { display: none !important; }
+.app-swal-container .swal2-select::picker-icon { display: none !important; }
+.app-swal-container [hidden] { display: none !important; }
+.app-swal-popup .swal2-icon:is(.swal2-warning,.swal2-error,.swal2-info,.swal2-question) { width: 64px; height: 64px; margin: 8px auto 20px; }
+.app-swal-popup .swal2-icon .swal2-icon-content { font-size: 48px; }
 
 .app-swal-actions {
   width: 100% !important;
@@ -252,7 +262,17 @@ a {
   border-radius: 14px !important;
   background: #fff !important;
   color: #171717 !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  column-gap: 12px;
+  min-height: 0 !important;
+  height: auto !important;
 }
+
+.app-swal-toast.swal2-toast .swal2-icon { grid-column: 1 !important; grid-row: 1 !important; margin: 0 !important; font-size: 16px; }
+.app-swal-toast.swal2-toast .app-swal-toast-title { grid-column: 2 !important; grid-row: 1 !important; margin: 0 !important; padding: 0 !important; overflow-wrap: anywhere; }
+.app-swal-toast.swal2-toast .swal2-close { grid-column: 3 !important; grid-row: 1 !important; }
+.app-swal-toast .swal2-timer-progress-bar-container { grid-column: 1 / -1; }
 
 .app-swal-toast-title {
   color: #171717 !important;

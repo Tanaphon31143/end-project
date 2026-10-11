@@ -683,3 +683,8 @@
   white-space: nowrap;
   font-size: clamp(9px, 1.05vw, 14px);
 }
+
+.recoveryPage { --ink: #171717; --muted-ink: #595959; --quiet-border: #e5e5e5; min-height: 100svh; display: grid; place-items: center; padding: 32px 20px; background: #f5f7fa; color: var(--ink); }
+.recoveryPage > section { width: min(100%, 460px); padding: 32px; background: white; border-radius: 16px; }
+.recoveryPage h1 { font-size: 28px; line-height: 1.4; }
+.recoveryPage a { text-decoration: underline; text-underline-offset: 3px; }

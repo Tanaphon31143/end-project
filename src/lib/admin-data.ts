@@ -38,48 +38,13 @@ import type {
   ReportRecord,
 } from "@/components/admin/reports/types";
 
-const TRANSIENT_DATABASE_ERRORS = new Set([
-  "ECONNRESET",
-  "EPIPE",
-  "ETIMEDOUT",
-  "PROTOCOL_CONNECTION_LOST",
-]);
-
-function databaseErrorCode(error: unknown) {
-  if (typeof error !== "object" || error === null) return undefined;
-
-  const candidate = error as { code?: unknown; cause?: unknown };
-  if (typeof candidate.code === "string") return candidate.code;
-  return databaseErrorCode(candidate.cause);
-}
-
-function wait(milliseconds: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
-}
+// Database servers may use UTC. School-day filters must use Thailand's date.
+const schoolTodaySql = "DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)";
 
 async function rows<T extends RowDataPacket>(sql: string) {
-  const maxAttempts = 2;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      const [result] = await db.execute<T[]>(sql);
-      return result;
-    } catch (error) {
-      const code = databaseErrorCode(error);
-      const shouldRetry =
-        attempt < maxAttempts &&
-        code !== undefined &&
-        TRANSIENT_DATABASE_ERRORS.has(code);
-
-      if (!shouldRetry) throw error;
-
-      // The pool discards the broken socket. A short delay lets the retry use
-      // a fresh connection without retrying any write operation.
-      await wait(150 * attempt);
-    }
-  }
-
-  throw new Error("Database read failed after retry");
+  // Transient read failures are retried centrally by the pool wrapper.
+  const [result] = await db.execute<T[]>(sql);
+  return result;
 }
 
 export async function getAdminCounts() {
@@ -91,7 +56,7 @@ export async function getAdminCounts() {
       attendanceToday: number;
     }
   >(
-    `SELECT (SELECT COUNT(*) FROM students WHERE status='ACTIVE') students,(SELECT COUNT(*) FROM teachers WHERE status='ACTIVE') teachers,(SELECT COUNT(*) FROM subjects WHERE is_active=1) subjects,(SELECT COUNT(DISTINCT student_id) FROM attendance_records WHERE attendance_date=CURRENT_DATE AND status IN ('PRESENT','LATE')) attendanceToday`,
+    `SELECT (SELECT COUNT(*) FROM students WHERE status='ACTIVE') students,(SELECT COUNT(*) FROM teachers WHERE status='ACTIVE') teachers,(SELECT COUNT(*) FROM subjects WHERE is_active=1) subjects,(SELECT COUNT(DISTINCT student_id) FROM attendance_records WHERE attendance_date=${schoolTodaySql} AND status IN ('PRESENT','LATE')) attendanceToday`,
   );
   return (
     result[0] ?? { students: 0, teachers: 0, subjects: 0, attendanceToday: 0 }
@@ -112,7 +77,7 @@ export async function getDashboardData() {
       `SELECT st.student_code id,st.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN classrooms c ON c.id=st.class_id ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 5`,
     ),
     rows<RowDataPacket & { date: string; students: number; rate: number }>(
-      `SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date,COUNT(DISTINCT CASE WHEN status IN ('PRESENT','LATE') THEN student_id END) students,ROUND(100*SUM(status IN ('PRESENT','LATE'))/COUNT(*),2) rate FROM attendance_records WHERE attendance_date BETWEEN CURRENT_DATE-INTERVAL 29 DAY AND CURRENT_DATE GROUP BY attendance_date ORDER BY attendance_date`,
+      `SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date,COUNT(DISTINCT CASE WHEN status IN ('PRESENT','LATE') THEN student_id END) students,ROUND(100*SUM(status IN ('PRESENT','LATE'))/COUNT(*),2) rate FROM attendance_records WHERE attendance_date BETWEEN ${schoolTodaySql}-INTERVAL 29 DAY AND ${schoolTodaySql} GROUP BY attendance_date ORDER BY attendance_date`,
     ),
     rows<
       RowDataPacket & {
@@ -123,7 +88,7 @@ export async function getDashboardData() {
         recorded: number;
       }
     >(
-      `SELECT COALESCE(SUM(a.status='PRESENT'),0) present,COALESCE(SUM(a.status='LATE'),0) late,COALESCE(SUM(a.status='ABSENT'),0) absent,COALESCE(SUM(a.status='LEAVE'),0) \`leave\`,COUNT(*) recorded FROM attendance_records a JOIN (SELECT student_id,MAX(id) id FROM attendance_records WHERE attendance_date=CURRENT_DATE GROUP BY student_id) latest ON latest.id=a.id`,
+      `SELECT COALESCE(SUM(a.status='PRESENT'),0) present,COALESCE(SUM(a.status='LATE'),0) late,COALESCE(SUM(a.status='ABSENT'),0) absent,COALESCE(SUM(a.status='LEAVE'),0) \`leave\`,COUNT(*) recorded FROM attendance_records a JOIN (SELECT student_id,MAX(id) id FROM attendance_records WHERE attendance_date=${schoolTodaySql} GROUP BY student_id) latest ON latest.id=a.id`,
     ),
     rows<
       RowDataPacket & {
@@ -146,23 +111,24 @@ export async function getDashboardData() {
       `SELECT school_name schoolName,semester,academic_year academicYear FROM school_settings ORDER BY id LIMIT 1`,
     ),
     rows<RowDataPacket & { date: string }>(
-      `SELECT DISTINCT date FROM (SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date FROM attendance_records WHERE attendance_date>=DATE_FORMAT(CURRENT_DATE,'%Y-%m-01') UNION ALL SELECT DATE_FORMAT(created_at,'%Y-%m-%d') date FROM audit_logs WHERE created_at>=DATE_FORMAT(CURRENT_DATE,'%Y-%m-01')) dashboard_dates ORDER BY date`,
+      `SELECT DISTINCT date FROM (SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date FROM attendance_records WHERE attendance_date>=DATE_FORMAT(${schoolTodaySql},'%Y-%m-01') UNION ALL SELECT DATE_FORMAT(created_at + INTERVAL 7 HOUR,'%Y-%m-%d') date FROM audit_logs WHERE created_at>=DATE_FORMAT(${schoolTodaySql},'%Y-%m-01')-INTERVAL 7 HOUR) dashboard_dates ORDER BY date`,
     ),
   ]);
   const dailyByDate = new Map(dailyRows.map((row) => [row.date, row]));
+  const schoolNow = Date.now() + 7 * 60 * 60 * 1000;
   const daily = Array.from({ length: 30 }, (_, index) => {
-    const date = new Date();
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() - (29 - index));
+    const date = new Date(schoolNow);
+    date.setUTCHours(12, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - (29 - index));
     const key = [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0"),
+      date.getUTCFullYear(),
+      String(date.getUTCMonth() + 1).padStart(2, "0"),
+      String(date.getUTCDate()).padStart(2, "0"),
     ].join("-");
     const row = dailyByDate.get(key);
     return {
       date: key,
-      day: `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`,
+      day: `${String(date.getUTCDate()).padStart(2, "0")}/${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
       students: Number(row?.students ?? 0),
       rate: Number(row?.rate ?? 0),
     };
@@ -229,30 +195,27 @@ export async function getReportData(
       `SELECT COUNT(*) students FROM students WHERE status='ACTIVE'`,
     ),
   ]);
-  const total = records.length,
-    present = records.filter((x) => x.status === "PRESENT").length,
-    late = records.filter((x) => x.status === "LATE").length,
-    absent = records.filter((x) => x.status === "ABSENT").length,
-    leave = records.filter((x) => x.status === "LEAVE").length;
-  const map = new Map<string, ReportRecord[]>();
-  records.forEach((x) => map.set(x.date, [...(map.get(x.date) || []), x]));
+  const total = records.length;
+  let present = 0, late = 0, absent = 0, leave = 0;
+  const map = new Map<string, { total: number; students: number }>();
+  // Aggregate once without repeatedly copying a day's entire record array.
+  for (const record of records) {
+    if (record.status === "PRESENT") present++;
+    else if (record.status === "LATE") late++;
+    else if (record.status === "ABSENT") absent++;
+    else if (record.status === "LEAVE") leave++;
+    const day = map.get(record.date) || { total: 0, students: 0 };
+    day.total++;
+    if (record.status === "PRESENT" || record.status === "LATE") day.students++;
+    map.set(record.date, day);
+  }
   const daily = [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, list]) => ({
+    .map(([day, counts]) => ({
       day: day.slice(5).split("-").reverse().join("/"),
-      students: list.filter(
-        (x) => x.status === "PRESENT" || x.status === "LATE",
-      ).length,
-      rate: list.length
-        ? Number(
-            (
-              (100 *
-                list.filter(
-                  (x) => x.status === "PRESENT" || x.status === "LATE",
-                ).length) /
-              list.length
-            ).toFixed(2),
-          )
+      students: counts.students,
+      rate: counts.total
+        ? Number(((100 * counts.students) / counts.total).toFixed(2))
         : 0,
     }));
   return {
@@ -378,8 +341,8 @@ export async function getSubjectPageData() {
     description: string | null;
     studentCount: number;
   };
-  const subjectQuery = `SELECT s.id databaseId,s.subject_code subjectCode,s.subject_name subjectName,s.teacher_id teacherId,COALESCE(t.full_name,'ยังไม่กำหนด') teacherName,s.grade_level gradeLevel,s.classroom_id classId,COALESCE(c.name,'ยังไม่กำหนด') className,s.semester,s.academic_year academicYear,CAST(s.credits AS CHAR) credits,COALESCE(s.study_days,'') studyDays,IFNULL(TIME_FORMAT(s.start_time,'%H:%i'),'') startTime,IFNULL(TIME_FORMAT(s.end_time,'%H:%i'),'') endTime,COALESCE(s.location,'') location,s.attendance_mode attendanceMode,s.is_active isActive,COALESCE(s.description,'') description,(SELECT COUNT(*) FROM students st WHERE st.class_id=s.classroom_id) studentCount FROM subjects s LEFT JOIN teachers t ON t.id=s.teacher_id LEFT JOIN classrooms c ON c.id=s.classroom_id ORDER BY s.subject_code`;
-  const legacySubjectQuery = `SELECT s.id databaseId,s.subject_code subjectCode,s.subject_name subjectName,s.teacher_id teacherId,COALESCE(t.full_name,'ยังไม่กำหนด') teacherName,c.level gradeLevel,s.classroom_id classId,COALESCE(c.name,'ยังไม่กำหนด') className,COALESCE(ss.semester,1) semester,COALESCE(ss.academic_year,'') academicYear,'1.0' credits,'' studyDays,'' startTime,'' endTime,'' location,'EVERY_PERIOD' attendanceMode,1 isActive,'' description,(SELECT COUNT(*) FROM students st WHERE st.class_id=s.classroom_id) studentCount FROM subjects s LEFT JOIN teachers t ON t.id=s.teacher_id LEFT JOIN classrooms c ON c.id=s.classroom_id LEFT JOIN (SELECT semester,academic_year FROM school_settings ORDER BY id LIMIT 1) ss ON 1=1 ORDER BY s.subject_code`;
+  const subjectQuery = `SELECT s.id databaseId,s.subject_code subjectCode,s.subject_name subjectName,s.teacher_id teacherId,COALESCE(t.full_name,'ยังไม่กำหนด') teacherName,s.grade_level gradeLevel,s.classroom_id classId,COALESCE(c.name,'ยังไม่กำหนด') className,s.semester,s.academic_year academicYear,CAST(s.credits AS CHAR) credits,COALESCE(s.study_days,'') studyDays,IFNULL(TIME_FORMAT(s.start_time,'%H:%i'),'') startTime,IFNULL(TIME_FORMAT(s.end_time,'%H:%i'),'') endTime,COALESCE(s.location,'') location,s.attendance_mode attendanceMode,s.is_active isActive,COALESCE(s.description,'') description,(SELECT COUNT(*) FROM students st WHERE st.class_id=s.classroom_id AND st.status='ACTIVE') studentCount FROM subjects s LEFT JOIN teachers t ON t.id=s.teacher_id LEFT JOIN classrooms c ON c.id=s.classroom_id ORDER BY s.subject_code`;
+  const legacySubjectQuery = `SELECT s.id databaseId,s.subject_code subjectCode,s.subject_name subjectName,s.teacher_id teacherId,COALESCE(t.full_name,'ยังไม่กำหนด') teacherName,c.level gradeLevel,s.classroom_id classId,COALESCE(c.name,'ยังไม่กำหนด') className,COALESCE(ss.semester,1) semester,COALESCE(ss.academic_year,'') academicYear,'1.0' credits,'' studyDays,'' startTime,'' endTime,'' location,'EVERY_PERIOD' attendanceMode,1 isActive,'' description,(SELECT COUNT(*) FROM students st WHERE st.class_id=s.classroom_id AND st.status='ACTIVE') studentCount FROM subjects s LEFT JOIN teachers t ON t.id=s.teacher_id LEFT JOIN classrooms c ON c.id=s.classroom_id LEFT JOIN (SELECT semester,academic_year FROM school_settings ORDER BY id LIMIT 1) ss ON 1=1 ORDER BY s.subject_code`;
   const subjectPromise = rows<SubjectRow>(subjectQuery).catch(
     (error: unknown) => {
       if ((error as { code?: string }).code === "ER_BAD_FIELD_ERROR")
@@ -405,9 +368,14 @@ export async function getSubjectPageData() {
     schedulePromise,
   ]);
   const dayNames = ["", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
+  const schedulesBySubject = new Map<number, ScheduleRow[]>();
+  for (const schedule of scheduleRows) {
+    const group = schedulesBySubject.get(schedule.subjectId) || [];
+    group.push(schedule);
+    schedulesBySubject.set(schedule.subjectId, group);
+  }
   const subjects: SubjectRecord[] = subjectRows.map((row) => {
-    const schedules = scheduleRows
-      .filter((schedule) => schedule.subjectId === row.databaseId)
+    const schedules = (schedulesBySubject.get(row.databaseId) || [])
       .map((schedule) => ({ ...schedule, periodName: schedule.periodName || "คาบเรียน" }));
     const firstSchedule = schedules[0];
     const scheduleSource = schedules.length === 0
@@ -541,11 +509,15 @@ export async function getFacePageData() {
       `SELECT s.id,s.student_code code,s.full_name name,COALESCE(c.name,'ยังไม่ระบุ') className,f.status faceStatus FROM students s LEFT JOIN classrooms c ON c.id=s.class_id LEFT JOIN face_data f ON f.student_id=s.id WHERE s.status='ACTIVE' ORDER BY s.student_code`,
     ),
   ]);
+  const sampleIdsByStudent = new Map<number, number[]>();
+  for (const sample of sampleRows) {
+    const ids = sampleIdsByStudent.get(sample.studentId) || [];
+    ids.push(sample.id);
+    sampleIdsByStudent.set(sample.studentId, ids);
+  }
   const faces: FaceRecord[] = faceRows.map((face) => ({
     ...face,
-    sampleIds: sampleRows
-      .filter((sample) => sample.studentId === face.studentId)
-      .map((sample) => sample.id),
+    sampleIds: sampleIdsByStudent.get(face.studentId) || [],
   }));
   return { faces, students: studentRows };
 }
@@ -564,7 +536,7 @@ export async function getAttendance() {
   );
 }
 export async function getAttendancePageData(): Promise<AttendancePageData> {
-  const [records, students, subjects, classrooms, catalogSubjects] = await Promise.all([
+  const [records, students, subjectData] = await Promise.all([
     rows<RowDataPacket & AttendanceRecord>(
       `SELECT a.id,a.student_id studentId,st.student_code studentCode,st.full_name studentName,st.class_id classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subjectName,DATE_FORMAT(a.attendance_date,'%Y-%m-%d') attendanceDate,IFNULL(TIME_FORMAT(a.check_in_time,'%H:%i:%s'),NULL) checkInTime,a.status,IFNULL(CAST(a.confidence AS DECIMAL(5,2)),NULL) confidence,DATE_FORMAT(a.created_at,'%d/%m/%Y %H:%i') createdAt FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN classrooms c ON c.id=st.class_id LEFT JOIN subjects sb ON sb.id=a.subject_id ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 500`,
     ),
@@ -579,39 +551,34 @@ export async function getAttendancePageData(): Promise<AttendancePageData> {
     >(
       `SELECT s.id,s.student_code code,s.full_name name,s.class_id classroomId,COALESCE(c.name,'ยังไม่ระบุ') className FROM students s LEFT JOIN classrooms c ON c.id=s.class_id WHERE s.status='ACTIVE' ORDER BY s.student_code`,
     ),
-    rows<
-      RowDataPacket & {
-        id: number;
-        code: string;
-        name: string;
-        classroomId: number | null;
-      }
-    >(
-      `SELECT id,subject_code code,subject_name name,classroom_id classroomId FROM subjects WHERE is_active=1 ORDER BY subject_code`,
-    ),
-    rows<RowDataPacket & { id: number; name: string }>(
-      `SELECT id,name FROM classrooms ORDER BY level,name`,
-    ),
-    getSubjectPageData().then(data => data.subjects.map(subject => ({
+    getSubjectPageData(),
+  ]);
+  // Reuse this request's catalog rather than querying subjects/classrooms twice.
+  const subjects = subjectData.subjects.filter(subject => subject.isActive).map(subject => ({
+    id: subject.databaseId, code: subject.subjectCode, name: subject.subjectName,
+    classroomId: subject.classId,
+  }));
+  const classrooms = subjectData.classrooms.map(({ id, name }) => ({ id, name }));
+  const catalogSubjects = subjectData.subjects.map(subject => ({
       id: subject.databaseId, code: subject.subjectCode, name: subject.subjectName,
       classroomId: subject.classId, teacherName: subject.teacherName, gradeLevel: subject.gradeLevel,
       weeklyPeriods: subject.schedules.length || (subject.startTime && subject.endTime && subject.studyDays.length ? subject.studyDays.length : null),
-    }))),
-  ]);
+    }));
   return { records, students, subjects, classrooms, catalogSubjects };
 }
 export async function getCheckInPageData(date: string) {
-  const [classrooms, subjects, sessionResult] = await Promise.all([
+  const [classrooms, subjects, sessionResult, schedules] = await Promise.all([
     rows<RowDataPacket & CheckInClassroom>(
       `SELECT id,name,level FROM classrooms ORDER BY level,name`,
     ),
     rows<RowDataPacket & CheckInSubject>(
-      `SELECT s.id,s.subject_code code,s.subject_name name,s.classroom_id classroomId,COALESCE(c.name,'ยังไม่กำหนด') className,COALESCE(TIME_FORMAT(s.start_time,'%H:%i'),'08:00') startTime,COALESCE(TIME_FORMAT(s.end_time,'%H:%i'),'09:00') endTime FROM subjects s LEFT JOIN classrooms c ON c.id=s.classroom_id WHERE s.is_active=1 AND s.classroom_id IS NOT NULL ORDER BY s.subject_code`,
+      `SELECT s.id,s.subject_code code,s.subject_name name,s.classroom_id classroomId,COALESCE(c.name,'ยังไม่กำหนด') className,COALESCE(TIME_FORMAT(s.start_time,'%H:%i'),'') startTime,COALESCE(TIME_FORMAT(s.end_time,'%H:%i'),'') endTime FROM subjects s LEFT JOIN classrooms c ON c.id=s.classroom_id WHERE s.is_active=1 AND s.classroom_id IS NOT NULL ORDER BY s.subject_code`,
     ),
     db.execute<(RowDataPacket & CheckInSession)[]>(
       `SELECT cs.id,cs.subject_id subjectId,s.subject_code subjectCode,s.subject_name subjectName,cs.classroom_id classroomId,c.name className,DATE_FORMAT(cs.session_date,'%Y-%m-%d') sessionDate,TIME_FORMAT(cs.start_time,'%H:%i') startTime,TIME_FORMAT(cs.end_time,'%H:%i') endTime,TIME_FORMAT(cs.late_after,'%H:%i') lateAfter,cs.status,(SELECT COUNT(*) FROM attendance_records a WHERE a.check_in_session_id=cs.id) checkedInCount FROM check_in_sessions cs JOIN subjects s ON s.id=cs.subject_id JOIN classrooms c ON c.id=cs.classroom_id WHERE cs.session_date=? ORDER BY cs.start_time DESC`,
       [date],
     ),
+    rows<RowDataPacket & { id: number; subjectId: number; dayOfWeek: number; periodName: string; startTime: string; endTime: string }>("SELECT id,subject_id subjectId,day_of_week dayOfWeek,COALESCE(period_name,'คาบเรียน') periodName,TIME_FORMAT(start_time,'%H:%i') startTime,TIME_FORMAT(end_time,'%H:%i') endTime FROM schedules WHERE is_active=1 ORDER BY day_of_week,start_time"),
   ]);
-  return { classrooms, subjects, sessions: sessionResult[0] };
+  return { classrooms, subjects: subjects.map(subject => ({ ...subject, schedules: schedules.filter(schedule => schedule.subjectId === subject.id) })), sessions: sessionResult[0] };
 }

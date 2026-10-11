@@ -1,7 +1,7 @@
 "use client";
 import DateTimeInput from "@/components/forms/DateTimeInput";
 import { useRef, useState } from "react";
-import { Download, UserCheck, UserMinus, UserX, Users } from "lucide-react";
+import { Download, FileText, CalendarDays, School, BookOpen, CheckCircle2, ChartColumn, Clock, X, UserCheck, UserMinus, UserX, Users } from "lucide-react";
 import {
   Bar,
   CartesianGrid,
@@ -28,12 +28,29 @@ export default function ReportsManager({
     }),
     [busy, setBusy] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDialogElement>(null);
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState("");
+  const [includeDetails, setIncludeDetails] = useState(false);
+  const [previewPage, setPreviewPage] = useState(1);
+  const pageSize = 15;
+  const pageCount = Math.max(1, Math.ceil(data.records.length / pageSize));
+  const currentPage = Math.min(previewPage, pageCount);
+  const previewRecords = data.records.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">("landscape");
   async function load() {
     setBusy(true);
+    setError("");
+    try {
     const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v));
     const r = await fetch(`/api/admin/reports?${q}`);
+    if (!r.ok) throw new Error("โหลดรายงานไม่สำเร็จ กรุณาลองใหม่");
     setData(await r.json());
-    setBusy(false);
+    setAppliedFilters({ ...filters });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "โหลดรายงานไม่สำเร็จ");
+    } finally { setBusy(false); }
   }
   async function excel() {
     const XLSX = await import("xlsx");
@@ -55,26 +72,75 @@ export default function ReportsManager({
   }
   async function pdf() {
     if (!reportRef.current) return;
+    setExporting(true);
+    setError("");
+    try {
+    await document.fonts.ready;
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
       import("html2canvas"),
       import("jspdf"),
     ]);
-    const canvas = await html2canvas(reportRef.current, {
-      scale: 1.5,
-      backgroundColor: "#f6f8fc",
-    });
-    const doc = new jsPDF("landscape", "mm", "a4"),
-      w = 277,
-      h = (canvas.height * w) / canvas.width;
-    doc.addImage(
-      canvas.toDataURL("image/jpeg", 0.92),
-      "JPEG",
-      10,
-      10,
-      w,
-      Math.min(h, 190),
-    );
+    const doc = new jsPDF(orientation, "mm", "a4");
+    const w = doc.internal.pageSize.getWidth() - 20;
+    const pageHeight = doc.internal.pageSize.getHeight() - 28;
+    // Render each physical page independently, preserving complete table rows.
+    const page = reportRef.current.cloneNode(true) as HTMLDivElement;
+    page.classList.add("report-export-page");
+    Object.assign(page.style, { position: "absolute", left: "-10000px", top: "0", width: `${w * 96 / 25.4}px`, minWidth: "0" });
+    document.body.appendChild(page);
+    try {
+      const table = page.querySelector("table");
+      const tbody = table?.querySelector("tbody");
+      // Build the complete export from real records, independent of preview pagination.
+      const rows = (table ? data.records : []).map((record) => {
+        const row = document.createElement("tr");
+        for (const value of [record.date, record.studentCode, record.studentName, record.className, `${record.subjectCode} ${record.subjectName}`, record.time, labels[record.status]]) {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        return row;
+      });
+      tbody?.replaceChildren();
+      const overview = Array.from(page.children).filter((child) => child !== table);
+      const maxHeight = pageHeight * 96 / 25.4;
+      let pageNumber = 0;
+      async function renderPage() {
+        if (pageNumber > 0) doc.addPage();
+        const canvas = await html2canvas(page, { scale: 2, backgroundColor: "#ffffff", windowWidth: 1400 });
+        doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, w, canvas.height * w / canvas.width);
+        pageNumber++;
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(String(pageNumber), doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
+      }
+      if (table && tbody && page.offsetHeight > maxHeight) {
+        table.remove();
+        await renderPage();
+        overview.forEach((child) => child.remove());
+        page.appendChild(table);
+      }
+      for (const row of table && tbody ? rows : []) {
+        if (!tbody) break;
+        tbody.appendChild(row);
+        if (page.offsetHeight > maxHeight && tbody.rows.length > 1) {
+          row.remove();
+          await renderPage();
+          overview.forEach((child) => child.remove());
+          tbody.replaceChildren(row);
+        } else if (page.offsetHeight > maxHeight && tbody.rows.length === 1 && overview.some((child) => child.parentElement === page)) {
+          row.remove();
+          await renderPage();
+          overview.forEach((child) => child.remove());
+          tbody.appendChild(row);
+        }
+      }
+      await renderPage();
+    } finally { page.remove(); }
     doc.save("attendance-report.pdf");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "ส่งออก PDF ไม่สำเร็จ กรุณาลองใหม่");
+    } finally { setExporting(false); }
   }
   return (
     <main className="admin-content">
@@ -88,7 +154,7 @@ export default function ReportsManager({
             <Download size={17} />
             Export Excel
           </button>
-          <button className="admin-button primary" onClick={pdf}>
+          <button className="admin-button primary" disabled={busy} onClick={() => previewRef.current?.showModal()}>
             <Download size={17} />
             Export PDF
           </button>
@@ -141,7 +207,8 @@ export default function ReportsManager({
           {busy ? "กำลังโหลด..." : "แสดงรายงาน"}
         </button>
       </div>
-      <div ref={reportRef}>
+      {error && <p role="alert" className="report-export-error">{error}</p>}
+      <div>
         <section className="stats-row">
           <StatCard
             icon={Users}
@@ -257,6 +324,37 @@ export default function ReportsManager({
           </div>
         </section>
       </div>
+      <dialog ref={previewRef} className="report-preview-dialog" onCancel={(event) => { if (exporting) event.preventDefault(); }}>
+        <header className="report-preview-header">
+          <span className="report-preview-icon"><FileText size={28} /></span>
+          <div><h2>ตัวอย่างรายงานก่อนส่งออก</h2><p>ตรวจสอบข้อมูลรายงานปัจจุบันก่อนบันทึกเป็นไฟล์ PDF</p></div>
+          <button type="button" aria-label="ปิดตัวอย่างรายงาน" disabled={exporting} onClick={() => previewRef.current?.close()}><X size={22} /></button>
+        </header>
+        <div className="report-preview-body">
+          <aside className="report-preview-info">
+            <h3><FileText size={18} />ข้อมูลของรายงาน</h3>
+            <dl><div><dt><CalendarDays size={16} />ช่วงวันที่</dt><dd>{appliedFilters.from || "ไม่จำกัดวันเริ่มต้น"} – {appliedFilters.to || "ไม่จำกัดวันสิ้นสุด"}</dd></div><div><dt><School size={16} />ชั้นเรียน / ห้อง</dt><dd>{data.classrooms.find((item) => String(item.id) === appliedFilters.classroomId)?.name || "ทุกชั้นเรียน"}</dd></div><div><dt><BookOpen size={16} />รายวิชา</dt><dd>{data.subjects.find((item) => String(item.id) === appliedFilters.subjectId)?.name || "ทุกรายวิชา"}</dd></div></dl>
+            <h3><CheckCircle2 size={18} />เนื้อหาในไฟล์ PDF</h3><ul className="report-content-checklist">{["ช่วงวันที่และตัวกรองของรายงาน", "จำนวนนักเรียนและรายการทั้งหมด", "มาเรียน / มาสาย / ขาดเรียน / ลา", "อัตราเข้าเรียนและสัดส่วนแต่ละสถานะ", "กราฟสถิติการเข้าเรียนรายวัน"].map((item) => <li key={item}><CheckCircle2 size={16} /><span>{item}</span></li>)}</ul>
+            <label className="report-detail-option"><input type="checkbox" checked={includeDetails} disabled={exporting} onChange={(event) => { setIncludeDetails(event.target.checked); setPreviewPage(1); }} /><span>แนบตารางรายละเอียดทั้งหมด ({data.records.length.toLocaleString("th-TH")} รายการ)</span></label>
+            <p className="report-detail-hint">เริ่มต้นเป็นรายงานสรุปเพื่ออ่านและส่งออกได้เร็วขึ้น เลือกแนบรายละเอียดเมื่อต้องการข้อมูลรายบุคคล</p>
+            <label className="report-orientation">แนวกระดาษ A4<select value={orientation} disabled={exporting} onChange={(event) => setOrientation(event.target.value as "portrait" | "landscape")}><option value="landscape">แนวนอน</option><option value="portrait">แนวตั้ง</option></select></label>
+          </aside>
+          <section className="report-preview-document"><div ref={reportRef} className="report-pdf-content">
+            <h2>รายงานการเข้าเรียน</h2>
+            <p>ช่วงวันที่: {appliedFilters.from || "ทั้งหมด"} – {appliedFilters.to || "ทั้งหมด"} · ห้อง: {data.classrooms.find((item) => String(item.id) === appliedFilters.classroomId)?.name || "ทุกชั้นเรียน"} · วิชา: {data.subjects.find((item) => String(item.id) === appliedFilters.subjectId)?.name || "ทุกรายวิชา"}</p>
+            <div className="report-preview-summary">{([ ["นักเรียนในระบบ", data.summary.students, Users], ["รายการทั้งหมด", data.summary.total, FileText], ["มาเรียน", data.summary.present, UserCheck], ["มาสาย", data.summary.late, Clock], ["ขาดเรียน", data.summary.absent, UserX], ["ลา", data.summary.leave, UserMinus] ] as const).map(([label, value, Icon]) => <div key={label}><Icon size={18} /><span>{label}</span><strong>{value.toLocaleString("th-TH")}</strong></div>)}</div>
+            <div className="report-preview-rate"><CheckCircle2 size={18} />อัตราเข้าเรียน (มาเรียนและมาสาย) <strong>{data.summary.rate.toFixed(2)}%</strong></div>
+            <h3><ChartColumn size={18} />สถิติการเข้าเรียนรายวัน</h3>
+            <div className="report-preview-daily">{data.daily.map((day, index) => <div key={`${day.day}-${index}`}><span>{day.day}</span><div className="report-preview-bar"><i style={{ width: `${data.daily.length ? day.students / Math.max(1, ...data.daily.map((item) => item.students)) * 100 : 0}%` }} /></div><b>{day.students} คน</b><small>{day.rate.toFixed(2)}%</small></div>)}{!data.daily.length && <p>ไม่มีข้อมูลรายวันในช่วงที่เลือก</p>}</div>
+            <h3><Users size={18} />สัดส่วนการเข้าเรียน</h3>
+            <div className="report-preview-distribution">{([ ["PRESENT", data.summary.present], ["LATE", data.summary.late], ["ABSENT", data.summary.absent], ["LEAVE", data.summary.leave] ] as const).map(([status, count]) => <div key={status}><span>{labels[status]}</span><strong>{count.toLocaleString("th-TH")} รายการ</strong><span>{pct(count, data.summary.total).toFixed(2)}%</span></div>)}</div>
+            {includeDetails && <><h3>รายละเอียดการเข้าเรียน ({data.records.length.toLocaleString("th-TH")} รายการ)</h3>
+            <table className="report-preview-table"><thead><tr>{["วันที่", "รหัสนักเรียน", "ชื่อ–สกุล", "ชั้นเรียน", "รายวิชา", "เวลา", "สถานะ"].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{previewRecords.map((record, index) => <tr key={index}><td>{record.date}</td><td>{record.studentCode}</td><td>{record.studentName}</td><td>{record.className}</td><td>{record.subjectCode} {record.subjectName}</td><td>{record.time}</td><td>{labels[record.status]}</td></tr>)}{!data.records.length && <tr><td colSpan={7}>ไม่พบข้อมูลการเข้าเรียนในช่วงที่เลือก</td></tr>}</tbody></table></>}
+          </div>{includeDetails && <nav className="report-preview-pagination" aria-label="หน้าตารางตัวอย่าง"><span>หน้า {currentPage} / {pageCount} · แสดงไม่เกิน {pageSize} รายการต่อหน้า · PDF แนบครบทุกรายการ</span><button className="admin-button secondary" disabled={currentPage === 1 || exporting} onClick={() => setPreviewPage(currentPage - 1)}>ก่อนหน้า</button><button className="admin-button secondary" disabled={currentPage === pageCount || exporting} onClick={() => setPreviewPage(currentPage + 1)}>ถัดไป</button></nav>}</section>
+        </div>
+        {error && <p role="alert" className="report-export-error">{error}</p>}
+        <footer className="report-preview-footer"><span>{includeDetails ? "รายงานสรุปพร้อมรายละเอียดทั้งหมด" : "รายงานสรุป ไม่แนบตารางรายบุคคล"} · {data.records.length.toLocaleString("th-TH")} รายการ</span><button className="admin-button secondary" disabled={exporting} onClick={() => previewRef.current?.close()}>ยกเลิก</button><button className="admin-button primary" disabled={exporting} onClick={() => void pdf()}><Download size={17} />{exporting ? "กำลังสร้าง PDF…" : "ยืนยัน Export PDF"}</button></footer>
+      </dialog>
     </main>
   );
 }

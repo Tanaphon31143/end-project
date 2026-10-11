@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { SubjectRecord } from "./types";
 import { ScheduleDetailModal } from "./ScheduleDetailModal";
+import { SubjectPreview } from "./SubjectPreview";
 
 const PAGE_SIZE = 10;
 
@@ -56,6 +57,7 @@ export default function SubjectTable({
                 <tr key={subject.databaseId}>
                   <td className="td-num">{(effectivePage - 1) * PAGE_SIZE + index + 1}</td>
                   <td className="td-code">
+                    <SubjectPreview subject={subject}>
                     <button
                       type="button"
                       className="subject-code-button"
@@ -63,10 +65,13 @@ export default function SubjectTable({
                     >
                       {subject.subjectCode}
                     </button>
+                    </SubjectPreview>
                   </td>
                   <td className="td-name">
                     <div className="subject-title-cell">
-                      <strong className="subject-title-text">{subject.subjectName}</strong>
+                      <SubjectPreview subject={subject}>
+                        <button type="button" className="subject-name-preview-button" onClick={() => setSelectedSubject(subject)}>{subject.subjectName}</button>
+                      </SubjectPreview>
                       <span className="subject-students-count">
                         {subject.studentCount.toLocaleString("th-TH")} นักเรียน
                       </span>

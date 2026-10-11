@@ -52,8 +52,8 @@ export function CheckInPanel({
     [date, setDate] = useState(initialDate),
     [classroomId, setClassroomId] = useState<number | null>(null),
     [subjectId, setSubjectId] = useState<number | null>(null),
-    [startTime, setStartTime] = useState("08:00"),
-    [endTime, setEndTime] = useState("09:00"),
+    [startTime, setStartTime] = useState(""),
+    [endTime, setEndTime] = useState(""),
     [lateMinutes, setLateMinutes] = useState("15"),
     [sessionId, setSessionId] = useState<number | null>(null),
     [records, setRecords] = useState<CheckInRecord[]>([]),
@@ -117,6 +117,9 @@ export function CheckInPanel({
   async function changeDate(nextDate: string) {
     stopCamera();
     setDate(nextDate);
+    setSubjectId(null);
+    setStartTime("");
+    setEndTime("");
     setSessionId(null);
     setRecords([]);
     setResult(null);
@@ -151,8 +154,10 @@ export function CheckInPanel({
     const subject = data.subjects.find((item) => item.id === id);
     if (subject) {
       setClassroomId(subject.classroomId);
-      setStartTime(subject.startTime);
-      setEndTime(subject.endTime);
+      const day = new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
+      const schedule = subject.schedules?.find(item => item.dayOfWeek === day);
+      setStartTime(schedule?.startTime || (subject.schedules?.length ? "" : subject.startTime));
+      setEndTime(schedule?.endTime || (subject.schedules?.length ? "" : subject.endTime));
     }
   }
   async function createSession() {
@@ -313,6 +318,8 @@ export function CheckInPanel({
               onChange={(event) => {
                 setClassroomId(Number(event.target.value) || null);
                 setSubjectId(null);
+                setStartTime("");
+                setEndTime("");
               }}
             >
               <option value="">เลือกห้องเรียน</option>
@@ -336,6 +343,13 @@ export function CheckInPanel({
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            คาบตามตารางเรียน
+            <select value={data.subjects.find(item => item.id === subjectId)?.schedules?.find(item => item.startTime === startTime && item.endTime === endTime && item.dayOfWeek === (new Date(`${date}T00:00:00Z`).getUTCDay() || 7))?.id || ""} onChange={event => {
+              const schedule = data.subjects.find(item => item.id === subjectId)?.schedules?.find(item => item.id === Number(event.target.value));
+              if (schedule) { setStartTime(schedule.startTime); setEndTime(schedule.endTime); }
+            }}><option value="">เลือกคาบ หรือกำหนดเวลาเอง</option>{data.subjects.find(item => item.id === subjectId)?.schedules?.filter(item => item.dayOfWeek === (new Date(`${date}T00:00:00Z`).getUTCDay() || 7)).map(item => <option key={item.id} value={item.id}>{item.periodName} · {item.startTime}–{item.endTime}</option>)}</select>
           </label>
           <label>
             เริ่ม
