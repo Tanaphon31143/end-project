@@ -32,7 +32,9 @@
     "test:student:integration": "node --env-file=.env.test --test tests/student-check-in.integration.test.mjs",
     "test": "node --test tests/*.test.mjs",
     "db:school-announcements": "node --env-file=.env.local scripts/migrate-school-announcements.mjs",
-    "db:school-announcements:check": "node --env-file=.env.local scripts/migrate-school-announcements.mjs --check"
+    "db:school-announcements:check": "node --env-file=.env.local scripts/migrate-school-announcements.mjs --check",
+    "db:student-password-change": "node --env-file=.env.local scripts/migrate-student-password-change.mjs",
+    "db:student-password-change:check": "node --env-file=.env.local scripts/migrate-student-password-change.mjs --check"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

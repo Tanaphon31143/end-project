@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole } from "lucide-react";
 import { ProfileSection } from "./ProfilePrimitives";
 import { profileErrorText } from "./profileFeedback";
@@ -45,7 +46,10 @@ function PasswordInput({
   );
 }
 
-export function PasswordChangeCard({ role }: { role: "teacher" | "student" }) {
+// forced: the account still uses a school-issued password. The current password
+// is not asked for, and the student is sent to sign in again once it is replaced.
+export function PasswordChangeCard({ role, forced = false }: { role: "teacher" | "student"; forced?: boolean }) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{
@@ -82,6 +86,13 @@ export function PasswordChangeCard({ role }: { role: "teacher" | "student" }) {
       if (!response.ok)
         throw new Error(result.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ");
       formRef.current?.reset();
+      if (forced) {
+        // Changing the password revokes every session, so the student signs in again.
+        router.replace("/");
+        router.refresh();
+        void showActionSuccess("ตั้งรหัสผ่านใหม่แล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่");
+        return;
+      }
       setNotice({ tone: "success", text: "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว" });
       void showActionSuccess(
         result.message || "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว",
@@ -97,18 +108,24 @@ export function PasswordChangeCard({ role }: { role: "teacher" | "student" }) {
   }
   return (
     <ProfileSection
-      title="เปลี่ยนรหัสผ่าน"
-      description="ดูแลความปลอดภัยของบัญชีด้วยรหัสผ่านที่คาดเดาได้ยาก"
+      title={forced ? "ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน" : "เปลี่ยนรหัสผ่าน"}
+      description={
+        forced
+          ? "บัญชีนี้ยังใช้รหัสผ่านเริ่มต้นจากโรงเรียน กรุณาตั้งรหัสผ่านของตัวเองก่อนใช้งานระบบ"
+          : "ดูแลความปลอดภัยของบัญชีด้วยรหัสผ่านที่คาดเดาได้ยาก"
+      }
       icon={<KeyRound size={20} />}
     >
       <form className="account-profile-form" ref={formRef} onSubmit={submit}>
         <div className="account-profile-fields">
-          <PasswordInput
-            id={`${prefix}-current-password`}
-            label="รหัสผ่านเดิม"
-            name="currentPassword"
-            autocomplete="current-password"
-          />
+          {!forced && (
+            <PasswordInput
+              id={`${prefix}-current-password`}
+              label="รหัสผ่านเดิม"
+              name="currentPassword"
+              autocomplete="current-password"
+            />
+          )}
           <PasswordInput
             id={`${prefix}-new-password`}
             label="รหัสผ่านใหม่"
@@ -145,7 +162,7 @@ export function PasswordChangeCard({ role }: { role: "teacher" | "student" }) {
             ) : (
               <KeyRound size={17} />
             )}
-            {busy ? "กำลังเปลี่ยนรหัสผ่าน…" : "เปลี่ยนรหัสผ่าน"}
+            {busy ? "กำลังเปลี่ยนรหัสผ่าน…" : forced ? "ตั้งรหัสผ่านใหม่" : "เปลี่ยนรหัสผ่าน"}
           </button>
         </div>
       </form>

@@ -2,6 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getStudentSession, revokeAccountSessions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { DEFAULT_IMPORTED_STUDENT_PASSWORD } from "@/lib/student-password-policy";
 export const runtime = "nodejs";
 export async function PATCH(request: Request) {
   const student = await getStudentSession();
@@ -25,22 +26,37 @@ export async function PATCH(request: Request) {
         { message: "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร" },
         { status: 400 },
       );
+    if (body.newPassword === DEFAULT_IMPORTED_STUDENT_PASSWORD)
+      return Response.json(
+        { message: "ห้ามใช้รหัสผ่านเริ่มต้นของระบบ กรุณาตั้งรหัสผ่านใหม่" },
+        { status: 400 },
+      );
     const [rows] = await db.execute<
-      (RowDataPacket & { passwordHash: string })[]
+      (RowDataPacket & { passwordHash: string; mustChange: number })[]
     >(
-      `SELECT password_hash passwordHash FROM students WHERE id=? AND status='ACTIVE'`,
+      `SELECT password_hash passwordHash,must_change_password mustChange FROM students WHERE id=? AND status='ACTIVE'`,
       [student.id],
     );
+    const account = rows[0];
+    // A flagged account still holds a password the school handed out, so the
+    // signed-in student may replace it without typing it (e.g. after Google sign-in).
+    const forcedChange = Boolean(account?.mustChange);
     if (
-      !rows[0] ||
-      !(await verifyPassword(String(body.currentPassword || ""), rows[0].passwordHash))
+      !account ||
+      (!forcedChange &&
+        !(await verifyPassword(String(body.currentPassword || ""), account.passwordHash)))
     )
       return Response.json(
         { message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" },
         { status: 400 },
       );
+    if (forcedChange && (await verifyPassword(body.newPassword, account.passwordHash)))
+      return Response.json(
+        { message: "รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านที่ได้รับจากโรงเรียน" },
+        { status: 400 },
+      );
     await db.execute<ResultSetHeader>(
-      `UPDATE students SET password_hash=? WHERE id=?`,
+      `UPDATE students SET password_hash=?,must_change_password=0 WHERE id=?`,
       [hashPassword(body.newPassword), student.id],
     );
     await revokeAccountSessions("student", student.id);

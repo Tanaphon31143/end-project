@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { getSchoolTerm, parseAcademicTerm } from "@/lib/academic-term";
+import { DEFAULT_IMPORTED_STUDENT_PASSWORD } from "@/lib/student-password-policy";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 type Row = {
   studentCode: string;
@@ -70,8 +71,8 @@ export async function POST(r: Request) {
           if (enrolled.length) throw new Error("บัญชีนี้มีรายชื่อในภาคเรียนนี้แล้ว");
         } else {
           const [inserted] = await conn.execute<ResultSetHeader>(
-            "INSERT INTO students(email,full_name,student_code,password_hash,parent_name,phone) VALUES(?,?,?,?,?,?)",
-            [email, String(x.fullName).trim(), studentCode, hashPassword("student@123"), String(x.guardianName || "").trim() || null, String(x.phone || "").trim() || null],
+            "INSERT INTO students(email,full_name,student_code,password_hash,must_change_password,parent_name,phone) VALUES(?,?,?,?,1,?,?)",
+            [email, String(x.fullName).trim(), studentCode, hashPassword(DEFAULT_IMPORTED_STUDENT_PASSWORD), String(x.guardianName || "").trim() || null, String(x.phone || "").trim() || null],
           );
           const studentId = inserted.insertId;
           await conn.execute(
