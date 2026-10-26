@@ -7,9 +7,9 @@ import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search
 import type { Classroom, ClassStudent } from "./types";
 import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 
-type Props = { classroom: Classroom; initialStudents: ClassStudent[] };
+type Props = { classroom: Classroom; initialStudents: ClassStudent[]; academicYear: string; semester: "1" | "2" };
 
-export default function ClassroomDetail({ classroom, initialStudents }: Props) {
+export default function ClassroomDetail({ classroom, initialStudents, academicYear, semester }: Props) {
   const router = useRouter();
   const [students, setStudents] = useState(initialStudents);
   const [query, setQuery] = useState("");
@@ -26,15 +26,15 @@ export default function ClassroomDetail({ classroom, initialStudents }: Props) {
   const registeredFaces = students.filter((student) => student.faceRegistered).length;
 
   async function removeStudent(student: ClassStudent) {
-    const confirmed = await confirmDanger({ title: "ลบนักเรียนออกจากระบบ?", text: `${student.name} และข้อมูลใบหน้าที่ลงทะเบียนไว้จะถูกลบด้วย`, confirmText: "ลบนักเรียน" });
+    const confirmed = await confirmDanger({ title: "นำรายชื่อออกจากเทอมนี้?", text: `${student.name} จะถูกนำออกจากรายชื่อภาคเรียนที่ ${semester}/${academicYear} บัญชี อีเมล และข้อมูลใบหน้าจะยังคงอยู่`, confirmText: "นำออกจากรายชื่อ" });
     if (!confirmed) return;
     setBusy(true); setError("");
     try {
-      const response = await fetch(`/api/students?id=${student.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/students?id=${student.id}&academicYear=${encodeURIComponent(academicYear)}&semester=${semester}`, { method: "DELETE" });
       const data = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(data.message || "ลบนักเรียนไม่สำเร็จ");
       setStudents((current) => current.filter((item) => item.id !== student.id));
-      void showActionSuccess(data.message || "ลบนักเรียนสำเร็จ");
+      void showActionSuccess(data.message || "นำรายชื่อออกจากภาคเรียนแล้ว");
       router.refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "เกิดข้อผิดพลาด"); }
     finally { setBusy(false); }
@@ -43,8 +43,8 @@ export default function ClassroomDetail({ classroom, initialStudents }: Props) {
   return <main className="admin-content class-detail-page">
     <Link className="class-back-link" href="/admin/classes"><ArrowLeft size={17} />กลับไปห้องเรียนทั้งหมด</Link>
     <header className="class-detail-hero">
-      <div className="class-detail-title"><div className="classroom-monogram large" aria-hidden="true">{classroom.name.replace("ม.", "").slice(0, 2)}</div><div><div className="class-title-line"><h1>ห้อง {classroom.name}</h1><span className={classroom.isActive ? "is-active" : "is-inactive"}>{classroom.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}</span></div><p>ปีการศึกษา {classroom.academicYear} · ภาคเรียนที่ {classroom.semester}</p></div></div>
-      <Link className="admin-button secondary" href={`/admin/students?class=${classroom.id}`}><UsersRound size={17} />จัดการนักเรียน</Link>
+      <div className="class-detail-title"><div className="classroom-monogram large" aria-hidden="true">{classroom.name.replace("ม.", "").slice(0, 2)}</div><div><div className="class-title-line"><h1>ห้อง {classroom.name}</h1><span className={classroom.isActive ? "is-active" : "is-inactive"}>{classroom.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}</span></div><p>รายชื่อภาคเรียนที่ {semester}/{academicYear}</p></div></div>
+      <Link className="admin-button secondary" href={`/admin/students?class=${classroom.id}&academicYear=${encodeURIComponent(academicYear)}&semester=${semester}`}><UsersRound size={17} />จัดการนักเรียน</Link>
     </header>
     <section className="class-detail-overview" aria-label="ข้อมูลห้องเรียน">
       <div className="class-advisor-panel"><UserRound size={20} /><div><span>ครูที่ปรึกษา</span><strong>{classroom.advisorName}</strong></div></div>
@@ -52,7 +52,7 @@ export default function ClassroomDetail({ classroom, initialStudents }: Props) {
       {classroom.note && <p className="class-note">{classroom.note}</p>}
     </section>
     <section className="class-roster" aria-labelledby="class-roster-title">
-      <div className="class-roster-head"><div><h2 id="class-roster-title">รายชื่อนักเรียน</h2><p>ข้อมูลสมาชิกและสถานะการลงทะเบียนใบหน้า</p></div><label className="classes-search"><Search size={17} aria-hidden="true" /><span className="sr-only">ค้นหานักเรียน</span><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="ค้นหาชื่อหรือรหัสนักเรียน" /></label></div>
+      <div className="class-roster-head"><div><h2 id="class-roster-title">รายชื่อนักเรียน</h2><p>ข้อมูลสมาชิกของภาคเรียนที่ {semester}/{academicYear} และสถานะการลงทะเบียนใบหน้า</p></div><label className="classes-search"><Search size={17} aria-hidden="true" /><span className="sr-only">ค้นหานักเรียน</span><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="ค้นหาชื่อหรือรหัสนักเรียน" /></label></div>
       {error && <p className="class-detail-error">{error}</p>}
       <div className="class-roster-table-wrap">
         <table className="class-roster-table"><thead><tr><th>เลขที่</th><th>นักเรียน</th><th>เพศ</th><th>สถานะ</th><th>ข้อมูลใบหน้า</th><th><span className="sr-only">การจัดการ</span></th></tr></thead><tbody>
@@ -62,7 +62,7 @@ export default function ClassroomDetail({ classroom, initialStudents }: Props) {
             <td data-label="เพศ">{student.gender}</td>
             <td data-label="สถานะ"><span className="roster-status"><CheckCircle2 size={14} />{student.status}</span></td>
             <td data-label="ข้อมูลใบหน้า"><span className={`face-status ${student.faceRegistered ? "registered" : "pending"}`}><ShieldCheck size={14} />{student.faceRegistered ? "ลงทะเบียนแล้ว" : "ยังไม่ลงทะเบียน"}</span></td>
-            <td data-label="การจัดการ"><div className="student-icon-actions"><button title="ดูรายละเอียด" aria-label={`ดูรายละเอียด ${student.name}`} onClick={() => router.push(`/admin/students?student=${student.id}&mode=view`)}><Eye size={16} /></button><button title="แก้ไข" aria-label={`แก้ไข ${student.name}`} onClick={() => router.push(`/admin/students?student=${student.id}&mode=edit`)}><Pencil size={16} /></button><button title="ลบ" aria-label={`ลบ ${student.name}`} className="danger" disabled={busy} onClick={() => void removeStudent(student)}><Trash2 size={16} /></button></div></td>
+            <td data-label="การจัดการ"><div className="student-icon-actions"><button title="ดูรายละเอียด" aria-label={`ดูรายละเอียด ${student.name}`} onClick={() => router.push(`/admin/students?student=${student.id}&mode=view&academicYear=${encodeURIComponent(academicYear)}&semester=${semester}`)}><Eye size={16} /></button><button title="แก้ไข" aria-label={`แก้ไข ${student.name}`} onClick={() => router.push(`/admin/students?student=${student.id}&mode=edit&academicYear=${encodeURIComponent(academicYear)}&semester=${semester}`)}><Pencil size={16} /></button><button title="นำออกจากรายชื่อเทอมนี้" aria-label={`นำ ${student.name} ออกจากรายชื่อเทอมนี้`} className="danger" disabled={busy} onClick={() => void removeStudent(student)}><Trash2 size={16} /></button></div></td>
           </tr>)}
         </tbody></table>
         {!shownStudents.length && <div className="classes-empty compact"><Search size={23} /><h3>{students.length ? "ไม่พบนักเรียนที่ค้นหา" : "ยังไม่มีนักเรียนในห้องนี้"}</h3><p>{students.length ? "ลองค้นหาด้วยชื่อหรือรหัสนักเรียนอีกครั้ง" : "เพิ่มนักเรียนเข้าห้องเพื่อเริ่มจัดการรายชื่อ"}</p></div>}

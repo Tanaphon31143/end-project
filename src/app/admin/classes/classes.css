@@ -7,8 +7,9 @@
 .classes-hero p,.class-detail-hero p,.classes-toolbar p,.class-roster-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
 .classes-page .admin-button,.class-detail-page .admin-button{min-height:42px;border-radius:11px;font-size:13px}
 .classes-summary{display:grid;grid-template-columns:minmax(210px,.75fr) 2fr;overflow:hidden;margin-bottom:24px;border:1px solid var(--line);border-radius:15px;background:#fff}
-.term-summary{display:flex;min-height:104px;flex-direction:column;justify-content:center;padding:20px 24px;background:var(--ink);color:#fff}
+.term-summary{display:flex;min-height:104px;flex-direction:column;align-items:flex-start;justify-content:center;gap:5px;padding:16px 24px;background:var(--ink);color:#fff}
 .term-summary span{color:#bcc5d6;font-size:11px}.term-summary strong{margin-top:5px;font-size:25px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.class-term-select{display:block;width:100%}.class-term-select select{width:100%;min-height:32px;padding:5px 28px 5px 9px;border:1px solid #48617c;border-radius:7px;background:#103d6b;color:#fff;font:inherit;font-size:12px}.class-term-select select:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .classes-summary dl{display:grid;grid-template-columns:repeat(3,1fr);margin:0}.classes-summary dl>div{display:flex;flex-direction:column-reverse;justify-content:center;padding:18px 24px}.classes-summary dl>div+div{border-left:1px solid var(--line)}
 .classes-summary dt{color:var(--muted);font-size:11px}.classes-summary dd{margin:0 0 4px;font-size:24px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
 .classes-directory,.class-roster{border:1px solid var(--line);border-radius:15px;background:#fff}

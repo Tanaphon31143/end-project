@@ -30,7 +30,13 @@ export async function POST(request: Request) {
 
   const subject = await prisma.subject.findFirst({
     where: { id: subjectId, teacherId: auth.teacher.id, isActive: true },
-    select: { id: true, subjectCode: true, classroomId: true },
+    select: {
+      id: true,
+      subjectCode: true,
+      classroomId: true,
+      academicYear: true,
+      semester: true,
+    },
   });
   const classroomId = subject?.classroomId;
   if (!subject || classroomId === null || classroomId === undefined)
@@ -43,6 +49,10 @@ export async function POST(request: Request) {
           classroomId,
           dayOfWeek,
           isActive: true,
+          subject: {
+            academicYear: subject.academicYear,
+            semester: subject.semester,
+          },
           startTime: { lt: timeValue(endTime) },
           endTime: { gt: timeValue(startTime) },
         },
@@ -52,7 +62,11 @@ export async function POST(request: Request) {
 
       const teacherConflict = await tx.schedule.findFirst({
         where: {
-          subject: { teacherId: auth.teacher.id },
+          subject: {
+            teacherId: auth.teacher.id,
+            academicYear: subject.academicYear,
+            semester: subject.semester,
+          },
           dayOfWeek,
           isActive: true,
           startTime: { lt: timeValue(endTime) },

@@ -1,6 +1,7 @@
 import type { AttendanceStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireTeacher, requestMeta } from "@/lib/api-auth";
+import { termEnrollmentWhere } from "@/lib/academic-term";
 import { prisma } from "@/lib/prisma";
 import { attendanceStatus } from "@/lib/teacher-rules.mjs";
 import { protectTeacherMutation } from "@/lib/api-security";
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
       sessionDate: today(),
       subject: { teacherId: auth.teacher.id },
     },
+    include: { subject: { select: { academicYear: true, semester: true } } },
   });
   if (!session)
     return NextResponse.json(
@@ -54,7 +56,19 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   const student = await prisma.student.findFirst({
-    where: { id: studentId, classId: session.classroomId, status: "ACTIVE" },
+    where: {
+      id: studentId,
+      status: "ACTIVE",
+      termEnrollments: {
+        some: termEnrollmentWhere(
+          {
+            academicYear: session.subject.academicYear,
+            semester: session.subject.semester,
+          },
+          session.classroomId,
+        ),
+      },
+    },
     select: { id: true },
   });
   if (!student)
@@ -119,9 +133,27 @@ export async function PATCH(request: Request) {
   try { sessionId = BigInt(body.sessionId); } catch { return NextResponse.json({ message: "รอบเช็คชื่อไม่ถูกต้อง" }, { status: 400 }); }
   if (!Number.isInteger(studentId) || !STATUSES.includes(status) || reason.length < 3 || reason.length > 500)
     return NextResponse.json({ message: "กรุณาเลือกสถานะและระบุเหตุผลอย่างน้อย 3 ตัวอักษร" }, { status: 400 });
-  const session = await prisma.checkInSession.findFirst({ where: { id: sessionId, subject: { teacherId: auth.teacher.id } } });
+  const session = await prisma.checkInSession.findFirst({
+    where: { id: sessionId, subject: { teacherId: auth.teacher.id } },
+    include: { subject: { select: { academicYear: true, semester: true } } },
+  });
   if (!session) return NextResponse.json({ message: "ไม่พบรอบเช็คชื่อหรือไม่มีสิทธิ์" }, { status: 404 });
-  const student = await prisma.student.findFirst({ where: { id: studentId, classId: session.classroomId, status: "ACTIVE" }, select: { id: true, fullName: true } });
+  const student = await prisma.student.findFirst({
+    where: {
+      id: studentId,
+      status: "ACTIVE",
+      termEnrollments: {
+        some: termEnrollmentWhere(
+          {
+            academicYear: session.subject.academicYear,
+            semester: session.subject.semester,
+          },
+          session.classroomId,
+        ),
+      },
+    },
+    select: { id: true, fullName: true },
+  });
   if (!student) return NextResponse.json({ message: "นักเรียนไม่อยู่ในรายวิชานี้" }, { status: 422 });
   const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const existing = await tx.attendanceRecord.findFirst({ where: { studentId, checkInSessionId: session.id } });
@@ -159,7 +191,18 @@ export async function GET(request: Request) {
   });
   if (!session)
     return NextResponse.json({ message: "ไม่พบข้อมูล" }, { status: 404 });
-  const totalStudents=await prisma.student.count({where:{classId:session.classroomId,status:"ACTIVE"}});
+  const totalStudents = await prisma.studentTermEnrollment.count({
+    where: {
+      ...termEnrollmentWhere(
+        {
+          academicYear: session.subject.academicYear,
+          semester: session.subject.semester,
+        },
+        session.classroomId,
+      ),
+      student: { status: "ACTIVE" },
+    },
+  });
   return NextResponse.json({
     ...session,
     id: String(session.id),

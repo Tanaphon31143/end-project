@@ -16,6 +16,7 @@ type Props = {
   teachers: SubjectOption[];
   classrooms: ClassroomOption[];
   academicYear: string;
+  semester: "1" | "2";
   onClose: () => void;
   onSaved: () => Promise<void>;
   onToast: (message: string, tone: "success" | "error") => void;
@@ -27,6 +28,7 @@ export default function SubjectModal({
   teachers,
   classrooms,
   academicYear,
+  semester,
   onClose,
   onSaved,
   onToast,
@@ -34,6 +36,7 @@ export default function SubjectModal({
   const [value, setValue] = useState<SubjectFormValue>({
     ...EMPTY_SUBJECT,
     academicYear,
+    semester,
   });
   const [errors, setErrors] = useState<SubjectErrors>({});
   const [busy, setBusy] = useState(false);
@@ -61,11 +64,11 @@ export default function SubjectModal({
                 description: subject.description,
                 schedules: subject.schedules.length ? subject.schedules.map(schedule => ({ ...schedule })) : subject.studyDays.map(day => ({ dayOfWeek: ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"].indexOf(day) + 1, periodName: "คาบเรียน", startTime: subject.startTime, endTime: subject.endTime })),
               }
-            : { ...EMPTY_SUBJECT, academicYear },
+            : { ...EMPTY_SUBJECT, academicYear, semester },
         );
       });
     }
-  }, [open, subject, academicYear]);
+  }, [open, subject, academicYear, semester]);
   useEffect(() => {
     if (!open) return;
     const escape = (e: KeyboardEvent) => {

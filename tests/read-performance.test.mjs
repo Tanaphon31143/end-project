@@ -3,6 +3,9 @@ import fs from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
+import { parseAcademicTerm, termEnrollmentWhere } from "../src/lib/academic-term-rules.mjs";
+
+const academicTerm = { getSchoolTerm: async () => ({ academicYear: "2569", semester: 1 }), parseAcademicTerm, termEnrollmentWhere };
 
 function compiled(path) {
   return ts.transpileModule(fs.readFileSync(new URL(path, import.meta.url), "utf8"), {
@@ -13,7 +16,7 @@ function compiled(path) {
 function adminReads(execute, date = Date) {
   const exports = {};
   vm.runInNewContext(compiled("../src/lib/admin-data.ts"), { exports, Date: date, Map, Set,
-    require: name => name === "@/lib/db" ? { db: { execute } } : {} });
+    require: name => name === "@/lib/db" ? { db: { execute } } : name === "@/lib/academic-term" ? academicTerm : {} });
   return exports;
 }
 
@@ -39,16 +42,22 @@ test("student today's timetable uses the Thai weekday and preserves student owne
   vm.runInNewContext(compiled("../src/lib/student-data.ts"), { exports, Date, Intl, Map, Set,
     require(name) {
       if (name === "react") return { cache: fn => fn };
+      if (name === "@/lib/academic-term") return academicTerm;
       if (name === "@/lib/db") return { db: { async execute(sql, args) {
         if (sql.includes("WEEKDAY(")) {
           timetableRead = true;
           assert.doesNotMatch(sql, /CURRENT_DATE/);
           assert.match(sql, /WEEKDAY\(UTC_TIMESTAMP\(\) \+ INTERVAL 7 HOUR\)/);
-          assert.deepEqual(Array.from(args), [7]);
+          assert.deepEqual(Array.from(args), [7, 1, "2569"]);
+          assert.match(sql, /student_term_enrollments/);
+          assert.match(sql, /ste.semester=sb.semester AND ste.academic_year=sb.academic_year/);
           return [[{ id: 3, startTime: "08:30", endTime: "09:30" }]];
         }
         if (sql.includes("FROM school_settings")) return [[{ semester: 1, academicYear: "2569" }]];
-        if (sql.includes("FROM students s LEFT JOIN")) return [[{ id: 7, name: "Test", code: "S7", classId: 4 }]];
+        if (sql.includes("s.full_name name") && sql.includes("WHERE s.id=?")) {
+          assert.deepEqual(Array.from(args), [1, "2569", 7]);
+          return [[{ id: 7, name: "Test", code: "S7", classId: 4 }]];
+        }
         return [[]];
       } } };
       return {};
@@ -128,7 +137,7 @@ test("attendance page reuses catalog reads without changing options or active fi
     return [[]];
   });
   const result = await api.getAttendancePageData();
-  assert.equal(count, 7, "Removed two duplicated catalog queries");
+  assert.equal(count, 8, "Catalog reads are reused; the extra lookup provides term enrollment options");
   assert.deepEqual(JSON.parse(JSON.stringify(result.subjects)), [{ id: 1, code: "S1", name: "One", classroomId: 3 }]);
   assert.deepEqual(JSON.parse(JSON.stringify(result.classrooms)), [{ id: 3, name: "4/1" }]);
   assert.equal(result.catalogSubjects.length, 2, "Inactive subjects remain in the full catalog");
@@ -179,15 +188,16 @@ test("teacher session details preserve ownership and attendance without fetching
       return owned ? {
         id: 12n, sessionDate: new Date("2026-10-05T00:00:00Z"),
         classroomId: 3, status: "CLOSED", startTime: null, endTime: null,
-        subject: { subjectCode: "M1", subjectName: "Math", classroom: { name: "1/1" } },
+        subject: { subjectCode: "M1", subjectName: "Math", academicYear: "2569", semester: 1, classroom: { name: "1/1" } },
         attendance: [{ studentId: 1, status: "PRESENT", checkInTime: null, confidence: 95 }],
       } : null;
     } },
     student: { async findMany(query) {
       studentQueries++;
       assert.deepEqual(JSON.parse(JSON.stringify(query.select)), { id: true, studentCode: true, fullName: true });
-      assert.equal(query.where.classId, 3);
-      assert.equal(query.where.status, "ACTIVE");
+      assert.deepEqual(JSON.parse(JSON.stringify(query.where.OR[0].termEnrollments.some)), { academicYear: "2569", semester: 1, classroomId: 3 });
+      assert.equal(query.where.OR[0].status, "ACTIVE");
+      assert.deepEqual(Array.from(query.where.OR[1].id.in), [1], "Existing attendance remains visible after a membership is removed");
       return [{ id: 1, studentCode: "S1", fullName: "One" }, { id: 2, studentCode: "S2", fullName: "Two" }];
     } },
   };
@@ -195,6 +205,7 @@ test("teacher session details preserve ownership and attendance without fetching
     exports, Date, Intl, console,
     require(name) {
       if (name === "@/lib/prisma") return { prisma };
+      if (name === "@/lib/academic-term") return academicTerm;
       if (name === "react") return { cache: (fn) => fn };
       return {};
     },

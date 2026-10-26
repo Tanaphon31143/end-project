@@ -1,0 +1,176 @@
+/* Route-only framing for the three user management reference screens. */
+.admin-shell.admin-user-management-shell {
+  min-height: 100dvh;
+  background: #f1f7ff;
+}
+
+.admin-user-management-shell .admin-main {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  background: #f1f7ff;
+}
+
+.admin-user-management-shell .admin-main::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: 340px;
+  background-image:
+    linear-gradient(90deg, rgb(4 28 60 / 86%) 0%, rgb(5 35 73 / 72%) 43%, rgb(5 35 73 / 30%) 100%),
+    var(--um-campus-image, url("/images/admin-campus.webp"));
+  background-position: center, center 45%;
+  background-size: cover;
+  content: "";
+  pointer-events: none;
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .admin-main::before {
+  background-image:
+    linear-gradient(90deg, rgb(244 249 255 / 92%) 0%, rgb(244 249 255 / 72%) 38%, rgb(244 249 255 / 16%) 100%),
+    var(--um-campus-image, url("/images/admin-campus.webp"));
+  background-position: center, center 45%;
+}
+
+.admin-user-management-shell .admin-main > * {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-user-management-shell .admin-header {
+  position: sticky;
+  z-index: 30;
+  height: 66px;
+  gap: 16px;
+  padding-inline: 18px 28px;
+  border-bottom-color: rgb(204 222 245 / 34%);
+  background: rgb(3 26 56 / 58%);
+  color: #fff;
+  backdrop-filter: blur(12px);
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .admin-header {
+  border-bottom-color: rgb(206 222 242 / 72%);
+  background: rgb(244 249 255 / 74%);
+  color: #122b4d;
+}
+
+.admin-user-management-shell .header-title-wrap {
+  flex: 0 1 auto;
+  gap: 12px;
+}
+
+.admin-user-management-shell .mobile-menu {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+  color: currentColor;
+}
+
+.admin-user-management-shell .mobile-menu:hover,
+.admin-user-management-shell .mobile-menu:focus-visible {
+  background: rgb(255 255 255 / 12%);
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .mobile-menu:hover,
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .mobile-menu:focus-visible {
+  background: #e5effc;
+}
+
+.admin-user-management-shell .admin-header .header-actions {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  margin-inline-start: 0;
+  gap: 12px;
+}
+
+.admin-user-management-shell .admin-header :is(.bell, .fullscreen-control) {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  border-color: rgb(255 255 255 / 12%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 7%);
+  color: #f5f9ff;
+}
+
+.admin-user-management-shell .admin-header :is(.portal-search-toggle, .fullscreen-control) > svg {
+  display: block;
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .admin-header :is(.bell, .fullscreen-control) {
+  border-color: #d6e3f5;
+  background: rgb(255 255 255 / 88%);
+  color: #173860;
+}
+
+.admin-user-management-shell .admin-header .bell span {
+  border-color: #062347;
+  background: #ed1475;
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .admin-header .bell span {
+  border-color: #f3f8ff;
+}
+
+.admin-user-management-shell .admin-header .profile {
+  min-height: 46px;
+  gap: 10px;
+  color: #fff;
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .admin-header .profile {
+  color: #142d50;
+}
+
+.admin-user-management-shell .admin-header .profile-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  background: #082b58;
+  color: #fff;
+}
+
+.admin-user-management-shell .admin-header .profile-copy b {
+  color: currentColor;
+  font-size: 14px;
+}
+
+.admin-user-management-shell .admin-header .profile-copy small {
+  color: rgb(232 241 252 / 78%);
+  font-size: 11px;
+}
+
+.admin-user-management-shell:is(.admin-user-management-users, .admin-user-management-teachers, .admin-user-management-students) .admin-header .profile-copy small {
+  color: #5c7393;
+}
+
+.admin-user-management-shell .admin-header .profile > svg {
+  color: currentColor;
+}
+
+@media (max-width: 639px) {
+  .admin-user-management-shell .admin-header {
+    height: 66px;
+    padding-inline: 10px;
+    gap: 4px;
+  }
+
+  .admin-user-management-shell .admin-header .header-actions {
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-user-management-shell .admin-main,
+  .admin-user-management-shell .admin-sidebar {
+    scroll-behavior: auto;
+  }
+}
+
+.admin-user-management-shell .um-heading{min-height:96px}
+.admin-user-management-shell .um-school-signature{position:absolute;right:4px;top:-5px;width:174px;height:58px;object-fit:contain;pointer-events:none;transform:rotate(-7deg)}
+@media(max-width:900px){.admin-user-management-shell .um-school-signature{display:none}}

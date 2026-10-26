@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
+import { termEnrollmentWhere } from "../src/lib/academic-term-rules.mjs";
 
 function load(file, dependencies) {
   const exports = {};
@@ -106,11 +107,19 @@ test("admin closing a session records only missing active students, once", async
   let active = true;
   const tx = {
     checkInSession: {
-      async findUnique() { return { id: 12n, classroomId: 3, subjectId: 4, sessionDate: new Date("2026-10-05") }; },
+      async findUnique() {
+        return { id: 12n, classroomId: 3, subjectId: 4, sessionDate: new Date("2026-10-05"),
+          subject: { academicYear: "2569", semester: 1 } };
+      },
       async updateMany() { const count = Number(active); active = false; return { count }; },
     },
     student: { async findMany(query) {
-      assert.equal(query.where.status, "ACTIVE"); assert.equal(query.where.classId, 3);
+      // The roster comes from the subject's term enrollment, not the student's current class_id.
+      assert.equal(query.where.status, "ACTIVE");
+      assert.equal(query.where.classId, undefined);
+      // Compare as JSON: the route builds the outer object inside the VM realm.
+      assert.equal(JSON.stringify(query.where.termEnrollments),
+        JSON.stringify({ some: { academicYear: "2569", semester: 1, classroomId: 3 } }));
       return [{ id: 1 }, { id: 2 }];
     } },
     attendanceRecord: {
@@ -121,6 +130,7 @@ test("admin closing a session records only missing active students, once", async
   };
   const api = load("../src/app/api/check-in-sessions/route.ts", {
     "@/lib/auth": { getAdminSession: async () => ({ id: 2 }) },
+    "@/lib/academic-term": { termEnrollmentWhere },
     "@/lib/prisma": { prisma: { $transaction: async fn => fn(tx) } },
   });
   const request = () => new Request("http://localhost/api/check-in-sessions", {

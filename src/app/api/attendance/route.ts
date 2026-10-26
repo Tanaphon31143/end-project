@@ -18,14 +18,16 @@ function isStatus(value: unknown): value is AttendanceStatus {
 }
 
 const recordSelect = `SELECT a.id,a.student_id studentId,st.student_code studentCode,st.full_name studentName,
-  st.class_id classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,
+  COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,
   COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subjectName,
   DATE_FORMAT(a.attendance_date,'%Y-%m-%d') attendanceDate,
   IFNULL(TIME_FORMAT(a.check_in_time,'%H:%i:%s'),NULL) checkInTime,a.status,
   IFNULL(CAST(a.confidence AS DECIMAL(5,2)),NULL) confidence,
   DATE_FORMAT(a.created_at,'%d/%m/%Y %H:%i') createdAt
   FROM attendance_records a JOIN students st ON st.id=a.student_id
-  LEFT JOIN classrooms c ON c.id=st.class_id LEFT JOIN subjects sb ON sb.id=a.subject_id`;
+  LEFT JOIN subjects sb ON sb.id=a.subject_id
+  LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id
+  LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id)`;
 
 export async function GET(request: Request) {
   if (!(await getAdminSession()))
@@ -70,7 +72,7 @@ export async function GET(request: Request) {
     values.push(subjectId);
   }
   if (classroomId > 0) {
-    where.push("st.class_id=?");
+    where.push("COALESCE(cs.classroom_id,sb.classroom_id,st.class_id)=?");
     values.push(classroomId);
   }
   if (isStatus(status)) {
@@ -131,7 +133,10 @@ export async function POST(request: Request) {
         subjectClassId: number | null;
       })[]
     >(
-      `SELECT st.id studentId,st.class_id studentClassId,sb.classroom_id subjectClassId FROM students st CROSS JOIN subjects sb WHERE st.id=? AND sb.id=? AND st.status='ACTIVE'`,
+      `SELECT st.id studentId,e.classroom_id studentClassId,sb.classroom_id subjectClassId
+       FROM students st CROSS JOIN subjects sb
+       LEFT JOIN student_term_enrollments e ON e.student_id=st.id AND e.classroom_id=sb.classroom_id AND e.academic_year=sb.academic_year AND e.semester=sb.semester
+       WHERE st.id=? AND sb.id=? AND st.status='ACTIVE'`,
       [studentId, subjectId],
     );
     const relation = relations[0];
@@ -143,12 +148,11 @@ export async function POST(request: Request) {
       );
     }
     if (
-      relation.subjectClassId &&
-      relation.studentClassId !== relation.subjectClassId
+      !relation.subjectClassId || relation.studentClassId !== relation.subjectClassId
     ) {
       await connection.rollback();
       return Response.json(
-        { message: "นักเรียนไม่ได้อยู่ในห้องของรายวิชานี้" },
+        { message: "นักเรียนยังไม่มีรายชื่อเข้าเรียนในภาคเรียนของรายวิชานี้" },
         { status: 400 },
       );
     }

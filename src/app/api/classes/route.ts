@@ -3,6 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { getClassroomPageData } from "@/lib/admin-data";
 import { db } from "@/lib/db";
 import { recordAdminAudit } from "@/lib/admin-audit";
+import { getSchoolTerm, parseAcademicTerm } from "@/lib/academic-term";
 
 type Payload = {
   id?: number;
@@ -61,10 +62,16 @@ function parse(b: Payload) {
     },
   };
 }
-export async function GET() {
+export async function GET(request: Request) {
   if (!(await admin()))
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
-  return Response.json(await getClassroomPageData());
+  try {
+    const params = new URL(request.url).searchParams;
+    const term = parseAcademicTerm({ academicYear: params.get("academicYear"), semester: params.get("semester") }, await getSchoolTerm());
+    return Response.json(await getClassroomPageData(term));
+  } catch (error) {
+    return Response.json({ message: error instanceof Error ? error.message : "โหลดข้อมูลห้องเรียนไม่สำเร็จ" }, { status: 400 });
+  }
 }
 export async function POST(r: Request) {
   if (!(await admin()))
@@ -140,7 +147,7 @@ export async function DELETE(r: Request) {
   if (!validId(id)) return Response.json({ message: "รหัสห้องเรียนไม่ถูกต้อง" }, { status: 400 });
   try {
   const [count] = await db.execute<(RowDataPacket & { total: number })[]>(
-    "SELECT COUNT(*) total FROM students WHERE class_id=?",
+    "SELECT COUNT(*) total FROM student_term_enrollments WHERE classroom_id=?",
     [id],
   );
   if (count[0]?.total)

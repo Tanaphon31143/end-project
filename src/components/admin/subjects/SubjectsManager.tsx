@@ -16,6 +16,8 @@ type Props = {
   teachers: SubjectOption[];
   classrooms: ClassroomOption[];
   academicYear: string;
+  semester: "1" | "2";
+  academicYears: string[];
 };
 export default function SubjectsManager({
   initialSubjects,
@@ -23,11 +25,14 @@ export default function SubjectsManager({
   teachers,
   classrooms,
   academicYear,
+  semester: initialSemester,
+  academicYears,
 }: Props) {
   const [subjects, setSubjects] = useState(initialSubjects);
   const [query, setQuery] = useState("");
   const [room, setRoom] = useState("");
-  const [semester, setSemester] = useState("");
+  const [year, setYear] = useState(academicYear);
+  const [semester, setSemester] = useState<"1" | "2">(initialSemester);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<SubjectRecord | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -39,21 +44,22 @@ export default function SubjectsManager({
     () =>
       subjects.filter(
         (s) =>
+          s.academicYear === year &&
+          s.semester === semester &&
           (!query ||
             `${s.subjectCode} ${s.subjectName} ${s.teacherName}`
               .toLowerCase()
               .includes(query.toLowerCase())) &&
-          (!room || String(s.classId) === room) &&
-          (!semester || s.semester === semester),
+          (!room || String(s.classId) === room),
       ),
-    [subjects, query, room, semester],
+    [subjects, query, room, year, semester],
   );
   function notify(message: string, tone: "success" | "error") {
     setToast({ message, tone });
     window.setTimeout(() => setToast(null), 3000);
   }
   async function reload() {
-    const response = await fetch("/api/subjects", { cache: "no-store" });
+    const response = await fetch(`/api/subjects?academicYear=${encodeURIComponent(year)}&semester=${semester}`, { cache: "no-store" });
     if (!response.ok) throw new Error("โหลดข้อมูลล่าสุดไม่สำเร็จ");
     const data = (await response.json()) as { subjects: SubjectRecord[] };
     setSubjects(data.subjects);
@@ -93,7 +99,7 @@ export default function SubjectsManager({
             <BookOpen size={28} aria-hidden="true" />
             <div>
               <h1>รายวิชา</h1>
-          <p>จัดการรายวิชา ครูผู้สอน และคำขอเปิดรายวิชาในภาคเรียนปัจจุบัน</p>
+          <p>จัดการรายวิชา ครูผู้สอน และคำขอเปิดรายวิชาตามภาคเรียน</p>
             </div>
         </div>
         <RippleButton
@@ -109,12 +115,13 @@ export default function SubjectsManager({
         </RippleButton>
       </div>
         <SubjectStats
-          subjectCount={subjects.length}
-          activeSubjectCount={subjects.filter((subject) => subject.isActive).length}
+          subjectCount={subjects.filter((subject) => subject.academicYear === year && subject.semester === semester).length}
+          activeSubjectCount={subjects.filter((subject) => subject.academicYear === year && subject.semester === semester && subject.isActive).length}
           classroomCount={classrooms.length}
         />
         <SubjectRequestsQueue
-          initialRequests={initialRequests}
+          key={`${year}-${semester}`}
+          initialRequests={initialRequests.filter((request) => request.academicYear === year && String(request.semester) === semester)}
           onApproved={() => {
             void reload().catch((error: unknown) =>
               notify(
@@ -128,26 +135,28 @@ export default function SubjectsManager({
           <div className="subjects-catalog-head">
             <div>
               <h2>รายวิชาที่เปิดสอน</h2>
-              <p>ข้อมูลรายวิชาและครูผู้รับผิดชอบในภาคเรียนปัจจุบัน</p>
+              <p>รายวิชาและครูผู้สอนของภาคเรียนที่เลือก</p>
             </div>
             <span role="status" aria-live="polite" aria-atomic="true">{filtered.length.toLocaleString("th-TH")} รายวิชา</span>
           </div>
           <SubjectFilters
             query={query}
             classroomId={room}
+            academicYear={year}
+            academicYears={[...new Set([year, ...academicYears])].sort((a, b) => Number(b) - Number(a))}
             semester={semester}
             classrooms={classrooms}
             onQueryChange={setQuery}
             onClassroomChange={setRoom}
+            onAcademicYearChange={setYear}
             onSemesterChange={setSemester}
             onReset={() => {
               setQuery("");
               setRoom("");
-              setSemester("");
             }}
           />
           <SubjectTable
-            key={`${query}:${room}:${semester}`}
+          key={`${query}:${room}:${year}:${semester}`}
             subjects={filtered}
             onEdit={(subject) => {
               setEditing(subject);
@@ -163,7 +172,8 @@ export default function SubjectsManager({
         subject={editing}
         teachers={teachers}
         classrooms={classrooms}
-        academicYear={academicYear}
+        academicYear={year}
+        semester={semester}
         onClose={() => setModal(false)}
         onSaved={reload}
         onToast={(message, tone) => {

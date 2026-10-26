@@ -12,6 +12,8 @@ export default async function SubjectsPage() {
       teachers={data.teachers}
       classrooms={data.classrooms}
       academicYear={data.academicYear}
+      semester={data.semester}
+      academicYears={data.academicYears}
     />
   );
 }

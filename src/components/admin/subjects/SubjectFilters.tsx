@@ -4,25 +4,31 @@ import type { ClassroomOption } from "./types";
 type Props = {
   query: string;
   classroomId: string;
-  semester: string;
+  academicYear: string;
+  academicYears: string[];
+  semester: "1" | "2";
   classrooms: ClassroomOption[];
   onQueryChange: (value: string) => void;
   onClassroomChange: (value: string) => void;
-  onSemesterChange: (value: string) => void;
+  onAcademicYearChange: (value: string) => void;
+  onSemesterChange: (value: "1" | "2") => void;
   onReset: () => void;
 };
 
 export function SubjectFilters({
   query,
   classroomId,
+  academicYear,
+  academicYears,
   semester,
   classrooms,
   onQueryChange,
   onClassroomChange,
+  onAcademicYearChange,
   onSemesterChange,
   onReset,
 }: Props) {
-  const hasFilters = Boolean(query || classroomId || semester);
+  const hasFilters = Boolean(query || classroomId);
 
   return (
     <div className="subjects-toolbar" aria-label="ตัวกรองรายวิชา">
@@ -48,11 +54,17 @@ export function SubjectFilters({
         ))}
       </select>
       <select
-        aria-label="กรองตามภาคเรียน"
-        value={semester}
-        onChange={(event) => onSemesterChange(event.target.value)}
+        aria-label="ปีการศึกษา"
+        value={academicYear}
+        onChange={(event) => onAcademicYearChange(event.target.value)}
       >
-        <option value="">ภาคเรียนทั้งหมด</option>
+        {academicYears.map((year) => <option key={year} value={year}>{year}</option>)}
+      </select>
+      <select
+        aria-label="ภาคเรียน"
+        value={semester}
+        onChange={(event) => onSemesterChange(event.target.value as "1" | "2")}
+      >
         <option value="1">ภาคเรียนที่ 1</option>
         <option value="2">ภาคเรียนที่ 2</option>
       </select>

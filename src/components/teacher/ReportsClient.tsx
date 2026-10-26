@@ -69,13 +69,16 @@ function ReportStatCard({
 
 export function ReportsClient({
   courses,
+  initialTerm,
 }: {
-  courses: Array<{ id: number; code: string; name: string }>;
+  courses: Array<{ id: number; code: string; name: string; semester: number }>;
+  initialTerm: { academicYear: string; semester: number };
 }) {
   const today = dateKey(new Date());
   const earlier = new Date();
   earlier.setDate(earlier.getDate() - 30);
   const [mode, setMode] = useState<Mode>("weekly");
+  const [semester, setSemester] = useState(initialTerm.semester);
   const [subjectId, setSubjectId] = useState("");
   const [from, setFrom] = useState(dateKey(earlier));
   const [to, setTo] = useState(today);
@@ -83,12 +86,19 @@ export function ReportsClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState<"xlsx" | "pdf" | "">("");
+  const semesterCourses = courses.filter((course) => course.semester === semester);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const query = new URLSearchParams({ mode, from, to });
+      const query = new URLSearchParams({
+        mode,
+        from,
+        to,
+        academicYear: initialTerm.academicYear,
+        semester: String(semester),
+      });
       if (subjectId) query.set("subjectId", subjectId);
       const response = await fetch(`/api/teacher/reports?${query}`, {
         cache: "no-store",
@@ -103,7 +113,7 @@ export function ReportsClient({
     } finally {
       setLoading(false);
     }
-  }, [from, mode, subjectId, to]);
+  }, [from, initialTerm.academicYear, mode, semester, subjectId, to]);
 
   const exportRows = () =>
     report?.trend.map((row) => ({
@@ -126,6 +136,7 @@ export function ReportsClient({
         XLSX.utils.json_to_sheet([
           {
             รายงาน: "การเข้าเรียน",
+            ภาคเรียน: `เทอม ${semester} / ${initialTerm.academicYear}`,
             ช่วงวันที่: `${from} ถึง ${to}`,
             "อัตราเข้าเรียนเฉลี่ย (%)": report.attendanceRate,
             เข้าเรียน: report.counts.PRESENT,
@@ -141,7 +152,10 @@ export function ReportsClient({
         XLSX.utils.json_to_sheet(exportRows()),
         "รายละเอียด",
       );
-      XLSX.writeFile(book, `teacher-attendance-${from}-${to}.xlsx`);
+      XLSX.writeFile(
+        book,
+        `teacher-attendance-${initialTerm.academicYear}-term${semester}-${from}-${to}.xlsx`,
+      );
     } catch {
       setError("ไม่สามารถส่งออก Excel ได้ กรุณาลองใหม่");
     } finally {
@@ -178,7 +192,9 @@ export function ReportsClient({
         width,
         Math.min(height, pdf.internal.pageSize.getHeight() - 16),
       );
-      pdf.save(`teacher-attendance-${from}-${to}.pdf`);
+      pdf.save(
+        `teacher-attendance-${initialTerm.academicYear}-term${semester}-${from}-${to}.pdf`,
+      );
     } catch {
       setError("ไม่สามารถส่งออก PDF ได้ กรุณาลองใหม่");
     } finally {
@@ -199,7 +215,9 @@ export function ReportsClient({
         <div>
           <p className="reports-eyebrow">ภาพรวมและสถิติ</p>
           <h2>รายงานการเข้าเรียน</h2>
-          <p>สรุปข้อมูลเฉพาะรายวิชาที่คุณรับผิดชอบ</p>
+          <p>
+            สรุปข้อมูลภาคเรียน {semester} / {initialTerm.academicYear} เฉพาะรายวิชาที่คุณรับผิดชอบ
+          </p>
         </div>
       </div>
       <div className="tabs reports-tabs" aria-label="รูปแบบรายงาน">
@@ -226,6 +244,19 @@ export function ReportsClient({
             void load();
           }}
         >
+          <label className="reports-field">
+            <span>ภาคเรียน</span>
+            <select
+              value={semester}
+              onChange={(event) => {
+                setSemester(Number(event.target.value));
+                setSubjectId("");
+              }}
+            >
+              <option value={1}>เทอม 1 / {initialTerm.academicYear}</option>
+              <option value={2}>เทอม 2 / {initialTerm.academicYear}</option>
+            </select>
+          </label>
           <label className="reports-field reports-course-field">
             <span>รายวิชา</span>
             <select
@@ -233,7 +264,7 @@ export function ReportsClient({
               onChange={(event) => setSubjectId(event.target.value)}
             >
               <option value="">ทุกรายวิชา</option>
-              {courses.map((course) => (
+              {semesterCourses.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.code} {course.name}
                 </option>

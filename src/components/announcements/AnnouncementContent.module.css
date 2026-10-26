@@ -1,0 +1,46 @@
+.content {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.content p {
+  margin: 0;
+}
+
+.content p + p {
+  margin-top: 0.65em;
+}
+
+.content ul,
+.content ol {
+  margin: 0.45em 0;
+  padding-left: 1.45em;
+}
+
+.content li + li {
+  margin-top: 0.2em;
+}
+
+.content a {
+  color: #1769d2;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
+.content a:hover {
+  color: #0f4ca3;
+}
+
+.compact {
+  line-height: 1.5;
+}
+
+.compact p + p {
+  margin-top: 0.4em;
+}
+
+.compact ul,
+.compact ol {
+  margin: 0.3em 0;
+}

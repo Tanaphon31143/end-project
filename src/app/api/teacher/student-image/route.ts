@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { requireTeacher } from "@/lib/api-auth";
+import { termEnrollmentWhere } from "@/lib/academic-term";
 import { db } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 
@@ -21,7 +22,10 @@ export async function GET(request: Request) {
     return Response.json({ message: "นักเรียนไม่ถูกต้อง" }, { status: 400 });
   const session = await prisma.checkInSession.findFirst({
     where: { id: sessionId, subject: { teacherId: auth.teacher.id } },
-    select: { classroomId: true },
+    select: {
+      classroomId: true,
+      subject: { select: { academicYear: true, semester: true } },
+    },
   });
   if (!session)
     return Response.json(
@@ -29,7 +33,19 @@ export async function GET(request: Request) {
       { status: 404 },
     );
   const student = await prisma.student.findFirst({
-    where: { id: studentId, classId: session.classroomId, status: "ACTIVE" },
+    where: {
+      id: studentId,
+      status: "ACTIVE",
+      termEnrollments: {
+        some: termEnrollmentWhere(
+          {
+            academicYear: session.subject.academicYear,
+            semester: session.subject.semester,
+          },
+          session.classroomId,
+        ),
+      },
+    },
     select: { id: true },
   });
   if (!student)

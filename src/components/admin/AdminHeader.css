@@ -1,0 +1,174 @@
+/* Shared identity, search and controls across every admin route. */
+.admin-shell .admin-header .header-title-wrap {
+  min-width: 0;
+}
+
+.admin-shell .admin-header .admin-header-brand {
+  display: grid;
+}
+
+.admin-shell .admin-header .header-actions {
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.admin-shell .admin-header .header-actions .portal-search {
+  position: relative;
+  width: 360px;
+  min-width: 120px;
+  flex: 0 1 360px;
+  margin-inline-start: auto;
+  margin-inline-end: 0;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-toggle {
+  display: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #d6e3f5;
+  border-radius: 50%;
+  background: #fff;
+  color: #173860;
+  cursor: pointer;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-input {
+  display: flex;
+  align-items: center;
+  height: 46px;
+  min-height: 46px;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #d8dfe8;
+  border-radius: 11px;
+  background: #fff;
+  color: #50657e;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-input > svg {
+  flex-shrink: 0;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-input input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: #172338;
+  font-size: 14px;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-input input:focus-visible {
+  outline: none;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-input kbd {
+  display: block;
+  flex: none;
+  color: #526078;
+  font-size: 11px;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-results {
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  width: min(420px, calc(100vw - 24px));
+}
+
+.admin-shell .admin-header .header-actions :is(.bell, .fullscreen-control) {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  border: 1px solid #d6e3f5;
+  border-radius: 50%;
+  background: #fff;
+  color: #173860;
+}
+
+.admin-shell .admin-header .header-actions :is(.portal-search-toggle, .fullscreen-control) > svg {
+  display: block;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-toggle:hover {
+  border-color: #a9c3fa;
+  background: #f4f8ff;
+}
+
+.admin-shell .admin-header .header-actions .portal-search-toggle:focus-visible {
+  outline: 3px solid #80b6ff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 639px) {
+  .admin-shell .admin-header .header-title-wrap {
+    flex: 0 1 auto;
+    gap: 4px;
+  }
+
+  .admin-shell .admin-header .admin-header-brand strong {
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: normal;
+  }
+
+  .admin-shell .admin-header .admin-header-brand > span {
+    font-size: 11px;
+  }
+
+  .admin-shell .admin-header .header-actions {
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .admin-shell .admin-header .header-actions .fullscreen-control {
+    display: none;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search {
+    width: 44px;
+    min-width: 44px;
+    flex: 0 0 44px;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search-toggle {
+    display: grid;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search-input {
+    display: none;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search.is-expanded .portal-search-input {
+    position: fixed;
+    top: 72px;
+    right: 12px;
+    left: 12px;
+    z-index: 91;
+    display: flex;
+    width: auto;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search-input input {
+    font-size: 16px;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search-input kbd {
+    display: none;
+  }
+
+  .admin-shell .admin-header .header-actions .portal-search-results {
+    position: fixed;
+    top: 126px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}

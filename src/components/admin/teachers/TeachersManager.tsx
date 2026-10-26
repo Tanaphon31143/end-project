@@ -3,16 +3,46 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   AlertCircle,
+  BookOpen,
+  BookText,
+  BriefcaseBusiness,
+  Calculator,
   CheckCircle2,
+  ChevronRight,
+  Download,
+  Dumbbell,
   Eye,
+  FlaskConical,
+  Globe,
+  GraduationCap,
   KeyRound,
+  MoreHorizontal,
+  MoreVertical,
+  Palette,
   Pencil,
   Plus,
   Search,
   Trash2,
+  UserRound,
+  Users,
+  UserX,
   X,
+  type LucideIcon,
 } from "lucide-react";
-import { Badge, PersonCell } from "@/components/admin/AdminPage";
+import { ProfileAvatar } from "@/components/admin/users/ProfileAvatar";
+import {
+  AccountPresenceBadge,
+  AccountPresenceNotice,
+  loginStatusLabel,
+  useAccountPresence,
+} from "../users/AccountPresence";
+import {
+  exportManagementCsv,
+  ManagementEmpty,
+  ManagementPageHeader,
+  ManagementPagination,
+  ManagementSummary,
+} from "@/components/admin/users/UserManagementUI";
 import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
 import {
   EMPTY_TEACHER,
@@ -23,6 +53,62 @@ import {
 
 type Mode = "create" | "view" | "edit" | "password";
 type Errors = Partial<Record<keyof TeacherFormValue, string>>;
+const UNASSIGNED_DEPARTMENT = "__unassigned_department__";
+
+const STANDARD_DEPARTMENTS: {
+  name: string;
+  matches: string[];
+  icon: LucideIcon;
+  tone: string;
+}[] = [
+  { name: "ภาษาไทย", matches: ["ภาษาไทย"], icon: BookText, tone: "violet" },
+  { name: "คณิตศาสตร์", matches: ["คณิตศาสตร์"], icon: Calculator, tone: "blue" },
+  {
+    name: "วิทยาศาสตร์และเทคโนโลยี",
+    matches: ["วิทยาศาสตร์และเทคโนโลยี", "วิทยาศาสตร์"],
+    icon: FlaskConical,
+    tone: "amber",
+  },
+  {
+    name: "สังคมศึกษา ศาสนา และวัฒนธรรม",
+    matches: ["สังคมศึกษา ศาสนา และวัฒนธรรม", "สังคมศึกษา"],
+    icon: GraduationCap,
+    tone: "rose",
+  },
+  {
+    name: "ภาษาต่างประเทศ",
+    matches: ["ภาษาต่างประเทศ", "ภาษาอังกฤษ"],
+    icon: Globe,
+    tone: "orange",
+  },
+  {
+    name: "การงานอาชีพและเทคโนโลยี",
+    matches: ["การงานอาชีพและเทคโนโลยี", "การงานอาชีพ"],
+    icon: BriefcaseBusiness,
+    tone: "green",
+  },
+  { name: "ศิลปะ", matches: ["ศิลปะ"], icon: Palette, tone: "red" },
+  {
+    name: "สุขศึกษาและพลศึกษา",
+    matches: ["สุขศึกษาและพลศึกษา", "สุขศึกษา", "พลศึกษา"],
+    icon: Dumbbell,
+    tone: "cyan",
+  },
+];
+
+function normalizeDepartmentName(name: string) {
+  return name.trim().replace(/\s+/g, "").toLocaleLowerCase("th");
+}
+
+function belongsToStandardDepartment(
+  name: string,
+  group: (typeof STANDARD_DEPARTMENTS)[number],
+) {
+  const normalized = normalizeDepartmentName(name);
+  return group.matches.some(
+    (candidate) => normalizeDepartmentName(candidate) === normalized,
+  );
+}
 
 export default function TeachersManager({
   initialTeachers,
@@ -31,11 +117,14 @@ export default function TeachersManager({
   initialTeachers: TeacherRecord[];
   initialSubjects: TeacherSubjectOption[];
 }) {
-  const [teachers, setTeachers] = useState(initialTeachers),
+  const [teacherRecords, setTeachers] = useState(initialTeachers),
     [subjects, setSubjects] = useState(initialSubjects),
     [query, setQuery] = useState(""),
     [department, setDepartment] = useState(""),
     [status, setStatus] = useState(""),
+    [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(10),
+    [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set()),
     [mode, setMode] = useState<Mode | null>(null),
     [selected, setSelected] = useState<TeacherRecord | null>(null),
     [value, setValue] = useState<TeacherFormValue>(EMPTY_TEACHER),
@@ -46,13 +135,38 @@ export default function TeachersManager({
       message: string;
       tone: "success" | "error";
     } | null>(null);
-  const departments = useMemo(
+  const { accounts: teachers, isStale, refresh: refreshPresence } =
+    useAccountPresence(teacherRecords, "teacher");
+  const departments = useMemo(() => {
+    const names = [
+      ...new Set(teachers.map((teacher) => teacher.department.trim()).filter(Boolean)),
+    ];
+    return names
+      .filter(
+        (name) =>
+          !STANDARD_DEPARTMENTS.some((group) =>
+            belongsToStandardDepartment(name, group),
+          ),
+      )
+      .sort((a, b) => a.localeCompare(b, "th"))
+      .map((name) => ({
+        name,
+        count: teachers.filter((teacher) => teacher.department.trim() === name)
+          .length,
+      }));
+  }, [teachers]);
+  const standardDepartmentCounts = useMemo(
     () =>
-      [
-        ...new Set(
-          teachers.map((teacher) => teacher.department).filter(Boolean),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "th")),
+      STANDARD_DEPARTMENTS.map((group) => ({
+        ...group,
+        count: teachers.filter((teacher) =>
+          belongsToStandardDepartment(teacher.department, group),
+        ).length,
+      })),
+    [teachers],
+  );
+  const unassignedDepartmentCount = useMemo(
+    () => teachers.filter((teacher) => !teacher.department.trim()).length,
     [teachers],
   );
   const filtered = useMemo(() => {
@@ -68,10 +182,55 @@ export default function TeachersManager({
             teacher.phone,
             ...teacher.subjectNames,
           ].some((item) => item.toLocaleLowerCase("th").includes(needle))) &&
-        (!department || teacher.department === department) &&
-        (!status || teacher.status === status),
+        (!department ||
+          (department === UNASSIGNED_DEPARTMENT
+            ? !teacher.department.trim()
+            : (() => {
+                const standard = STANDARD_DEPARTMENTS.find(
+                  (group) => group.name === department,
+                );
+                return standard
+                  ? belongsToStandardDepartment(teacher.department, standard)
+                  : teacher.department.trim() === department;
+              })())) &&
+        (!status ||
+          (status === "ONLINE"
+            ? Boolean(teacher.isLoggedIn)
+            : !Boolean(teacher.isLoggedIn))),
     );
   }, [teachers, query, department, status]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleTeachers = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const visibleIds = visibleTeachers.map((teacher) => teacher.databaseId);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+  const selectedTeachers = filtered.filter((teacher) =>
+    selectedIds.has(teacher.databaseId),
+  );
+  const exportTeachers = selectedTeachers.length
+    ? selectedTeachers
+    : selectedIds.size
+      ? []
+      : filtered;
+  const activeCount = teachers.filter((teacher) => Boolean(teacher.isLoggedIn)).length;
+  const inactiveCount = teachers.length - activeCount;
+  const departmentCount = STANDARD_DEPARTMENTS.length + departments.length;
+
+  function clearFilters() {
+    setQuery("");
+    setDepartment("");
+    setStatus("");
+    setPage(1);
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
 
   function notify(message: string, tone: "success" | "error") {
     setToast({ message, tone });
@@ -129,6 +288,7 @@ export default function TeachersManager({
       throw new Error(data.message || "โหลดข้อมูลล่าสุดไม่สำเร็จ");
     setTeachers(data.teachers);
     setSubjects(data.subjects);
+    await refreshPresence();
   }
   async function save() {
     if (!validate()) return;
@@ -184,6 +344,11 @@ export default function TeachersManager({
       setTeachers((current) =>
         current.filter((item) => item.databaseId !== teacher.databaseId),
       );
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(teacher.databaseId);
+        return next;
+      });
       void showActionSuccess(data.message || "ลบข้อมูลครูสำเร็จ");
     } catch (error) {
       notify(
@@ -203,162 +368,278 @@ export default function TeachersManager({
     }));
   }
 
+  function toggleTeacherSelection(id: number) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleVisibleSelection() {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  function exportTeachersCsv() {
+    exportManagementCsv(
+      "teachers.csv",
+      ["รหัสครู", "ชื่อ-นามสกุล", "อีเมล", "กลุ่มสาระ", "สถานะการเข้าสู่ระบบ", "เบอร์โทรศัพท์", "รายวิชา", "ห้องที่ปรึกษา"],
+      exportTeachers.map((teacher) => [
+        teacher.teacherCode,
+        teacher.fullName,
+        teacher.email,
+        teacher.department,
+        loginStatusLabel(Boolean(teacher.isLoggedIn)),
+        teacher.phone,
+        teacher.subjectNames.join(", "),
+        teacher.advisorRooms.join(", "),
+      ]),
+    );
+  }
+
   const readOnly = mode === "view",
     passwordOnly = mode === "password";
   return (
-    <main className="admin-content">
-      <div className="page-intro">
-        <div>
-          <h2>ข้อมูลครู</h2>
-          <p>จัดการข้อมูลบุคลากร บัญชี และภาระการสอน</p>
-        </div>
-        <button className="admin-button primary" onClick={() => open("create")}>
-          <Plus size={18} />
-          เพิ่มครู
-        </button>
-      </div>
-      <div className="admin-filters">
-        <label>
-          <Search size={18} />
-          <input
-            aria-label="ค้นหาครู"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="ค้นหารหัส ชื่อ อีเมล กลุ่มสาระ หรือรายวิชา"
-          />
-        </label>
-        <select
-          aria-label="กลุ่มสาระ"
-          value={department}
-          onChange={(event) => setDepartment(event.target.value)}
-        >
-          <option value="">ทุกกลุ่มสาระ</option>
-          {departments.map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
-        <select
-          aria-label="สถานะ"
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-        >
-          <option value="">ทุกสถานะ</option>
-          <option value="ACTIVE">ใช้งาน</option>
-          <option value="INACTIVE">ระงับ</option>
-        </select>
-        <button
-          className="admin-button secondary filter-reset-button"
-          onClick={() => {
-            setQuery("");
-            setDepartment("");
-            setStatus("");
-          }}
-        >
-          ล้างตัวกรอง
-        </button>
-      </div>
-      <section className="dashboard-card admin-table-card">
-        <div className="card-head">
-          <div>
-            <h2>รายชื่อครู</h2>
-            <p>
-              แสดง {filtered.length} จาก {teachers.length} คน
-            </p>
+    <main className="admin-content um-page teacher-management">
+      <ManagementPageHeader
+        title="จัดการครู"
+        description="จัดการข้อมูลครู แยกตามกลุ่มสาระและตรวจสอบสถานะการเข้าสู่ระบบ"
+        section="ครู"
+      />
+      <ManagementSummary
+        variant="teacher"
+        items={[
+          { label: "ครูทั้งหมด", value: teachers.length, unit: "คน", icon: Users, tone: "blue" },
+          { label: "กลุ่มสาระการเรียนรู้", value: departmentCount, unit: "กลุ่ม", icon: BookOpen, tone: "purple" },
+          { label: "กำลังใช้งาน", value: activeCount, unit: "คน", icon: UserRound, tone: "green", ratio: teachers.length ? activeCount / teachers.length : 0 },
+          { label: "ออกจากระบบแล้ว", value: inactiveCount, unit: "คน", icon: UserX, tone: "rose", ratio: teachers.length ? inactiveCount / teachers.length : 0 },
+        ]}
+      />
+      <div className="um-split teacher-management__grid">
+        <aside className="um-panel teacher-management__groups" aria-label="ตัวกรองกลุ่มสาระ">
+          <div className="um-panel-heading">
+            <div className="um-panel-icon-heading">
+              <span className="um-panel-heading-icon"><BookOpen size={21} aria-hidden="true" /></span>
+              <div>
+              <h2>กลุ่มสาระการเรียนรู้</h2>
+              <p>เลือกกลุ่มเพื่อกรองรายชื่อครู</p>
+              </div>
+            </div>
+            <button type="button" className="teacher-groups-all" onClick={() => { setDepartment(""); setPage(1); }} aria-label="แสดงครูทุกกลุ่มสาระ">
+              ทั้งหมด <ChevronRight size={17} aria-hidden="true" />
+            </button>
           </div>
-          <span className="row-count">ทั้งหมด {filtered.length} รายการ</span>
-        </div>
-        <div className="admin-data-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>รหัสครู</th>
-                <th>ชื่อ-สกุล</th>
-                <th>กลุ่มสาระ</th>
-                <th>รายวิชาที่รับผิดชอบ</th>
-                <th>ครูที่ปรึกษา</th>
-                <th>เบอร์โทร</th>
-                <th>สถานะ</th>
-                <th>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((teacher) => (
-                <tr key={teacher.databaseId}>
-                  <td>
-                    <b>{teacher.teacherCode}</b>
-                  </td>
-                  <td>
-                    <PersonCell
-                      initials={teacher.fullName.slice(0, 2)}
-                      name={teacher.fullName}
-                      detail={teacher.email}
-                    />
-                  </td>
-                  <td>{teacher.department || "-"}</td>
-                  <td>
-                    <span
-                      className="teacher-workload"
-                      title={teacher.subjectNames.join(", ")}
-                    >
-                      {teacher.subjectNames.length
-                        ? `${teacher.subjectNames.length} วิชา · ${teacher.subjectNames.slice(0, 2).join(", ")}`
-                        : "ยังไม่มีรายวิชา"}
-                    </span>
-                  </td>
-                  <td>{teacher.advisorRooms.join(", ") || "-"}</td>
-                  <td>{teacher.phone || "-"}</td>
-                  <td>
-                    <Badge tone={teacher.status === "ACTIVE" ? "green" : "red"}>
-                      {teacher.status === "ACTIVE" ? "ใช้งาน" : "ระงับ"}
-                    </Badge>
-                  </td>
-                  <td>
-                    <div className="table-actions">
-                      <button onClick={() => open("view", teacher)} title="ดู">
-                        <Eye size={16} />
-                        <span>ดู</span>
-                      </button>
-                      <button
-                        onClick={() => open("edit", teacher)}
-                        title="แก้ไข"
-                      >
-                        <Pencil size={16} />
-                        <span>แก้ไข</span>
-                      </button>
-                      <button
-                        onClick={() => open("password", teacher)}
-                        title="เปลี่ยนรหัสผ่าน"
-                      >
-                        <KeyRound size={16} />
-                        <span>เปลี่ยนรหัสผ่าน</span>
-                      </button>
-                      <button
-                        className="danger"
-                        disabled={busy}
-                        onClick={() => remove(teacher)}
-                        title="ลบ"
-                      >
-                        <Trash2 size={16} />
-                        <span>ลบ</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {!filtered.length && (
+          <div className="teacher-group-list">
+            <button
+              type="button"
+              className={`teacher-group-option ${department === "" ? "selected" : ""}`}
+              aria-pressed={department === ""}
+              onClick={() => { setDepartment(""); setPage(1); }}
+            >
+              <span className="teacher-group-icon" data-tone="all"><Users size={18} /></span>
+              <span className="teacher-group-name">ทั้งหมด</span>
+              <span className="teacher-group-count">{teachers.length}</span>
+            </button>
+            {standardDepartmentCounts.map(({ name, count, icon: GroupIcon, tone }) => (
+              <button
+                type="button"
+                key={name}
+                className={`teacher-group-option ${department === name ? "selected" : ""}`}
+                aria-pressed={department === name}
+                onClick={() => { setDepartment(name); setPage(1); }}
+              >
+                <span className="teacher-group-icon" data-tone={tone}><GroupIcon size={18} /></span>
+                <span className="teacher-group-name" title={name}>{name}</span>
+                <span className="teacher-group-count">{count}</span>
+              </button>
+            ))}
+            {departments.map(({ name, count }) => (
+              <button
+                type="button"
+                key={name}
+                className={`teacher-group-option ${department === name ? "selected" : ""}`}
+                aria-pressed={department === name}
+                onClick={() => { setDepartment(name); setPage(1); }}
+              >
+                <span className="teacher-group-icon" data-tone="slate"><GraduationCap size={18} /></span>
+                <span className="teacher-group-name" title={name}>{name}</span>
+                <span className="teacher-group-count">{count}</span>
+              </button>
+            ))}
+            {unassignedDepartmentCount > 0 && (
+              <button
+                type="button"
+                className={`teacher-group-option ${department === UNASSIGNED_DEPARTMENT ? "selected" : ""}`}
+                aria-pressed={department === UNASSIGNED_DEPARTMENT}
+                onClick={() => { setDepartment(UNASSIGNED_DEPARTMENT); setPage(1); }}
+              >
+                <span className="teacher-group-icon" data-tone="slate"><BookOpen size={18} /></span>
+                <span className="teacher-group-name">ไม่ระบุกลุ่มสาระ</span>
+                <span className="teacher-group-count">{unassignedDepartmentCount}</span>
+              </button>
+            )}
+          </div>
+        </aside>
+
+        <section className="um-panel teacher-management__table-panel">
+          <div className="um-panel-heading">
+            <div className="um-panel-icon-heading">
+              <span className="um-panel-heading-icon"><Users size={21} aria-hidden="true" /></span>
+              <div>
+                <h2>รายชื่อครูทั้งหมด</h2>
+                <p>แสดงรายชื่อครูในโรงเรียน {teachers.length} คน</p>
+              </div>
+            </div>
+            <div className="teacher-management__panel-actions">
+              <details className="teacher-toolbar-more">
+                <summary aria-label="ตัวเลือกเพิ่มเติม" title="ตัวเลือกเพิ่มเติม"><MoreHorizontal size={19} /></summary>
+                <div className="teacher-toolbar-more__items">
+                  <button type="button" onClick={(event) => { clearFilters(); event.currentTarget.closest("details")?.removeAttribute("open"); }}>ล้างตัวกรอง</button>
+                  <button type="button" disabled={!selectedIds.size} onClick={(event) => { clearSelection(); event.currentTarget.closest("details")?.removeAttribute("open"); }}>ล้างรายการที่เลือก</button>
+                </div>
+              </details>
+              <button type="button" className="um-secondary" onClick={exportTeachersCsv} disabled={!exportTeachers.length}>
+                <Download size={16} />
+                ส่งออกข้อมูล{selectedIds.size ? ` (${selectedTeachers.length})` : ""}
+              </button>
+              <button type="button" className="um-primary" onClick={() => open("create")}>
+                <Plus size={17} /> เพิ่มครู
+              </button>
+            </div>
+          </div>
+          <div className="um-tools teacher-management__tools">
+            <label className="um-search">
+              <Search size={18} aria-hidden="true" />
+              <input
+                aria-label="ค้นหาครู"
+                value={query}
+                onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+                placeholder="ค้นหาชื่อ รหัสครู อีเมล หรือกลุ่มสาระ..."
+              />
+            </label>
+            <select
+              className="um-secondary teacher-management__department-filter"
+              aria-label="กรองกลุ่มสาระ"
+              value={department}
+              onChange={(event) => { setDepartment(event.target.value); setPage(1); }}
+            >
+              <option value="">ทุกกลุ่มสาระ</option>
+              {standardDepartmentCounts.map(({ name }) => <option key={name} value={name}>{name}</option>)}
+              {departments.map(({ name }) => <option key={name} value={name}>{name}</option>)}
+              {unassignedDepartmentCount > 0 && <option value={UNASSIGNED_DEPARTMENT}>ไม่ระบุกลุ่มสาระ</option>}
+            </select>
+            <select
+              className="um-secondary teacher-management__status-filter"
+              aria-label="กรองสถานะการเข้าสู่ระบบ"
+              value={status}
+              onChange={(event) => { setStatus(event.target.value); setPage(1); }}
+            >
+              <option value="">ทุกสถานะ</option>
+              <option value="ONLINE">กำลังใช้งาน</option>
+              <option value="OFFLINE">ออกจากระบบแล้ว</option>
+            </select>
+          </div>
+          <AccountPresenceNotice isStale={isStale} onRetry={refreshPresence} />
+          <span className="teacher-selection-summary" aria-live="polite">
+            {selectedTeachers.length ? `เลือกแล้ว ${selectedTeachers.length} คน · ส่งออกเฉพาะที่เลือก` : "ส่งออกตามผลการค้นหาและตัวกรองปัจจุบัน"}
+          </span>
+          <div className="um-table-wrap">
+            <table className="um-table teacher-management__table">
+              <thead>
                 <tr>
-                  <td colSpan={8}>
-                    <div className="subject-empty">
-                      <span>ไม่พบข้อมูลครู</span>
-                      <p>ลองเปลี่ยนคำค้นหาหรือตัวกรอง</p>
-                    </div>
-                  </td>
+                  <th className="teacher-management__check-column">
+                    <input
+                      type="checkbox"
+                      aria-label="เลือกครูทั้งหมดในหน้านี้"
+                      aria-checked={someVisibleSelected && !allVisibleSelected ? "mixed" : undefined}
+                      checked={allVisibleSelected}
+                      onChange={toggleVisibleSelection}
+                    />
+                  </th>
+                  <th>#</th>
+                  <th>รหัสครู</th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>กลุ่มสาระ</th>
+                  <th>สถานะการเข้าสู่ระบบ</th>
+                  <th>ข้อมูล</th>
+                  <th>จัดการ</th>
+                  <th aria-label="ตัวเลือกเพิ่มเติม" />
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {visibleTeachers.map((teacher, index) => (
+                  <tr key={teacher.databaseId}>
+                    <td className="teacher-management__check-column">
+                      <input
+                        type="checkbox"
+                        aria-label={`เลือก ${teacher.fullName}`}
+                        checked={selectedIds.has(teacher.databaseId)}
+                        onChange={() => toggleTeacherSelection(teacher.databaseId)}
+                      />
+                    </td>
+                    <td>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td><b>{teacher.teacherCode}</b></td>
+                    <td>
+                      <div className="person-cell teacher-person-cell">
+                        <ProfileAvatar
+                          reference={`T${teacher.databaseId}`}
+                          name={teacher.fullName}
+                          hasImage={teacher.hasProfileImage}
+                          className="teacher-profile-avatar"
+                        />
+                        <span>
+                          <strong>{teacher.fullName}</strong>
+                          <small>{teacher.email}</small>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="teacher-group-pill" data-tone={STANDARD_DEPARTMENTS.find((group) => belongsToStandardDepartment(teacher.department, group))?.tone ?? "slate"}>
+                        {teacher.department || "ไม่ระบุกลุ่มสาระ"}
+                      </span>
+                    </td>
+                    <td>
+                      <AccountPresenceBadge isLoggedIn={Boolean(teacher.isLoggedIn)} />
+                    </td>
+                    <td><button type="button" className="teacher-labeled-action" onClick={() => open("view", teacher)} aria-label={`ดูข้อมูล ${teacher.fullName}`}><Eye size={15} /> ดูข้อมูล</button></td>
+                    <td><button type="button" className="teacher-labeled-action" onClick={() => open("edit", teacher)} aria-label={`แก้ไข ${teacher.fullName}`}><Pencil size={15} /> แก้ไข</button></td>
+                    <td>
+                      <details className="teacher-more-menu">
+                        <summary aria-label={`การดำเนินการเพิ่มเติมสำหรับ ${teacher.fullName}`} title="เพิ่มเติม"><MoreVertical size={17} /></summary>
+                        <div className="teacher-more-menu__items">
+                          <button type="button" onClick={() => open("password", teacher)}><KeyRound size={15} /> เปลี่ยนรหัสผ่าน</button>
+                          <button type="button" className="danger" disabled={busy} onClick={() => void remove(teacher)}><Trash2 size={15} /> ลบครู</button>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+                {!visibleTeachers.length && (
+                  <tr>
+                    <td colSpan={9}>
+                      <ManagementEmpty title="ไม่พบข้อมูลครู" description={teachers.length ? "ลองเปลี่ยนคำค้นหาหรือตัวกรอง" : "เมื่อมีข้อมูลครู รายชื่อจะแสดงที่นี่"} />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <ManagementPagination
+            page={currentPage}
+            pageSize={pageSize}
+            total={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+            label="คน"
+          />
+        </section>
+      </div>
 
       {mode && (
         <div
@@ -469,8 +750,11 @@ export default function TeachersManager({
                       }
                     />
                     <datalist id="teacher-departments">
-                      {departments.map((item) => (
-                        <option key={item} value={item} />
+                      {STANDARD_DEPARTMENTS.map(({ name }) => (
+                        <option key={name} value={name} />
+                      ))}
+                      {departments.map(({ name }) => (
+                        <option key={name} value={name} />
                       ))}
                     </datalist>
                   </Field>

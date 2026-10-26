@@ -22,6 +22,7 @@ import type { AppNotification } from "@/lib/notifications";
 import type { Announcement } from "@/lib/announcements";
 import type { StudentDashboardData, StudentStats } from "@/lib/student-data";
 import { Badge, StatCard } from "@/components/student/UI";
+import StudentAnnouncementCard from "./StudentAnnouncementCard";
 import DashboardDateTime from "./DashboardDateTime";
 
 type Props = {
@@ -135,7 +136,7 @@ export default function StudentDashboardView({ dashboard, notifications, statsDe
       <section className="dashboard-bottom-grid">
         <article className="dashboard-panel dashboard-compact-panel card">
           <header className="dashboard-panel-head"><div><span className="dashboard-head-icon news"><Megaphone size={20} /></span><div><h2>ข่าวสารจากโรงเรียน</h2><p>ประกาศและข่าวสารล่าสุด</p></div></div></header>
-          {announcements.length ? <div className="dashboard-announcements">{announcements.map((item) => <article key={item.id}><h3>{item.title}</h3><time>{item.createdAt}</time><p>{item.message}</p></article>)}</div> : <div className="dashboard-empty dashboard-news-empty"><Megaphone size={22} /><span>ยังไม่มีประกาศจากโรงเรียนในขณะนี้</span></div>}
+          {announcements.length ? <div className="dashboard-announcements">{announcements.map((item) => <StudentAnnouncementCard key={item.id} announcement={item} />)}</div> : <div className="dashboard-empty dashboard-news-empty"><Megaphone size={22} /><span>ยังไม่มีประกาศจากโรงเรียนในขณะนี้</span></div>}
         </article>
         <article className="dashboard-panel dashboard-compact-panel card">
           <header className="dashboard-panel-head"><div><span className="dashboard-head-icon alert"><BellRing size={20} /></span><div><h2>การแจ้งเตือน</h2><p>รายการแจ้งเตือนของคุณ</p></div></div><Link href="/student/notifications">ดูทั้งหมด <ChevronRight size={16} /></Link></header>

@@ -224,6 +224,10 @@
   background: var(--soft-canvas);
 }
 
+.mobileLoginBrand {
+  display: none;
+}
+
 .loginCard {
   width: min(100%, 420px);
   padding: 28px 32px;
@@ -652,6 +656,21 @@
     order: 1;
     min-height: auto;
     padding: 56px 16px 80px;
+    row-gap: 14px;
+  }
+
+  .newsInner > .brandBlock {
+    display: none;
+  }
+
+  .mobileLoginBrand {
+    display: block;
+    width: min(100%, 420px);
+    padding-inline: 24px;
+  }
+
+  .mobileLoginBrand > .recoveryBrand {
+    margin-bottom: 0;
   }
 
   .loginCard {
@@ -688,3 +707,7 @@
 .recoveryPage > section { width: min(100%, 460px); padding: 32px; background: white; border-radius: 16px; }
 .recoveryPage h1 { font-size: 28px; line-height: 1.4; }
 .recoveryPage a { text-decoration: underline; text-underline-offset: 3px; }
+.recoveryBrand { gap: 11px; margin-bottom: 22px; animation: none; }
+.recoveryBrand .brandMark { width: 44px; height: 44px; flex: 0 0 44px; }
+.recoveryBrand .brandName { color: var(--ink); }
+.recoveryBrand .brandCaption { color: var(--muted-ink); }

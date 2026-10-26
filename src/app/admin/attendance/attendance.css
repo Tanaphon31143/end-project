@@ -399,7 +399,7 @@
 .attendance-subject-card header button { display:flex; align-items:center; gap:6px; flex:none; padding:8px 10px; border:1px solid #cfe0fb; border-radius:8px; background:#f5f9ff; color:#075dcc; font:inherit; font-size:12px; cursor:pointer; }
 .attendance-course-info { display:grid; grid-template-columns:120px minmax(0,1fr); gap:10px; margin-top:14px; font-size:13px; color:#52677f; }
 .attendance-course-info > div { display:flex; flex-wrap:wrap; gap:6px; }
-.attendance-course-info strong { justify-self:end; color:#173d69; font-weight:600; }
+.attendance-course-info strong { justify-self:start; color:#173d69; font-weight:600; }
 .attendance-room-tag { display:inline-block; padding:3px 8px; border:1px solid #dbe7fc; border-radius:6px; background:#f5f9ff; color:#075dcc; }
 .attendance-course-empty { grid-column:1/-1; padding:32px; text-align:center; color:#52677f; }
 @media(hover:hover) { .attendance-subject-card:hover { border-color:#b9d1f5; background:#fbfdff; } .attendance-subject-card header button:hover { background:#e5efff; } }
@@ -438,4 +438,4 @@
 .attendance-course-info > span:nth-child(3) { grid-column:1; grid-row:2; }
 .attendance-course-info > div:nth-child(4) { grid-column:2; grid-row:2; }
 .attendance-grade-tag { display:inline-block; margin-left:8px; padding:3px 7px; border:1px solid #dbe7fc; border-radius:6px; background:#f5f9ff; color:#075dcc; font-size:11px; }
-@media(max-width:1500px) { .attendance-course-info { grid-template-columns:120px minmax(0,1fr); } .attendance-course-info > :nth-child(n) { grid-column:auto; grid-row:auto; } }
+@media(max-width:1500px) { .attendance-course-info { grid-template-columns:120px minmax(0,1fr); } .attendance-course-info > :is(span,strong,div):nth-child(n) { grid-column:auto; grid-row:auto; } }

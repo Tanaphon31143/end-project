@@ -7,19 +7,37 @@ import { AttendanceDetailClient } from "@/components/teacher/AttendanceDetailCli
 
 export default async function HistoryDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ sessionId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const auth = await getTeacherSession();
   if (!auth) redirect("/");
-  const { sessionId } = await params;
+  const [{ sessionId }, query] = await Promise.all([params, searchParams]);
+  const backQuery = new URLSearchParams();
+  for (const key of [
+    "academicYear",
+    "semester",
+    "subjectId",
+    "from",
+    "to",
+    "search",
+    "page",
+  ]) {
+    const value = query[key];
+    if (typeof value === "string" && value) backQuery.set(key, value);
+  }
   const session = await getTeacherSessionDetail(auth.id, sessionId);
   if (!session) notFound();
   return (
     <>
       <div className="page-head">
         <div>
-          <Link className="back-link" href="/teacher/history">
+          <Link
+            className="back-link"
+            href={`/teacher/history${backQuery.size ? `?${backQuery.toString()}` : ""}`}
+          >
             <ArrowLeft size={16} />
             กลับไปหน้าประวัติ
           </Link>

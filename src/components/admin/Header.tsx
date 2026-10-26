@@ -56,11 +56,15 @@ const fieldLabels: Record<string, string> = {
 export function Header({
   onMenu,
   adminName,
+  managementMode,
+  onLogout,
   menuTriggerRef,
   menuOpen,
 }: {
   onMenu: () => void;
   adminName: string;
+  managementMode: boolean;
+  onLogout: () => void;
   menuTriggerRef: RefObject<HTMLButtonElement | null>;
   menuOpen: boolean;
 }) {
@@ -146,11 +150,6 @@ export function Header({
     triggerRef: notificationTriggerRef,
     mediaQuery: "(max-width: 639px)",
   });
-  async function logout() {
-    await fetch("/api/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
-  }
 
   async function toggleFullscreen() {
     if (document.fullscreenElement) {
@@ -203,7 +202,7 @@ export function Header({
     }
   }
   return (
-    <header className="admin-header">
+    <header className={`admin-header${managementMode ? " admin-management-header" : ""}`}>
       <div className="header-title-wrap">
         <button
           ref={menuTriggerRef}
@@ -408,7 +407,7 @@ export function Header({
               >
                 <CircleUserRound size={18} /> ข้อมูลส่วนตัว
               </Link>
-              <button onClick={logout}>
+              <button onClick={onLogout}>
                 <LogOut size={18} /> ออกจากระบบ
               </button>
             </div>

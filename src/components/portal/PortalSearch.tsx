@@ -36,7 +36,7 @@ export default function PortalSearch({ role, menus = [] }: { role: "admin" | "te
     return () => { clearTimeout(timer); controller.abort(); };
   }, [q, retry]);
   useEffect(() => {
-    function outside(event: PointerEvent) { if (!root.current?.contains(event.target as Node)) setOpen(false); }
+    function outside(event: PointerEvent) { if (!root.current?.contains(event.target as Node)) { setOpen(false); setExpanded(false); } }
     function keys(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setExpanded(true); setOpen(true); requestAnimationFrame(() => input.current?.focus()); }
       if (event.key === "Escape") { setOpen(false); setExpanded(false); }
@@ -44,7 +44,7 @@ export default function PortalSearch({ role, menus = [] }: { role: "admin" | "te
     document.addEventListener("pointerdown", outside); document.addEventListener("keydown", keys);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", keys); };
   }, []);
-  function choose(result: Result) { setOpen(false); setQuery(""); setActive(-1); router.push(result.href); }
+  function choose(result: Result) { setOpen(false); setExpanded(false); setQuery(""); setActive(-1); router.push(result.href); }
   return <form ref={root} className={`portal-search ${expanded ? "is-expanded" : ""}`} role="search" onSubmit={(event) => { event.preventDefault(); if (results[active < 0 ? 0 : active]) choose(results[active < 0 ? 0 : active]); }}>
     <button className="portal-search-toggle" type="button" aria-label={expanded ? "ปิดช่องค้นหา" : "เปิดช่องค้นหา"} aria-expanded={expanded} onClick={() => { setExpanded(!expanded); setOpen(!expanded); requestAnimationFrame(() => input.current?.focus()); }}><Search size={19} /></button>
     <div className="portal-search-input"><Search size={19} aria-hidden="true" /><input ref={input} aria-label={role === "admin" ? "ค้นหานักเรียน ครู รายวิชา ชั้นเรียน" : "ค้นหาเมนู นักเรียน รายวิชา"} placeholder={role === "admin" ? "ค้นหานักเรียน, ครู, รายวิชา..." : "ค้นหาเมนู, นักเรียน, รายวิชา..."} value={query} maxLength={100} role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list" aria-activedescendant={active >= 0 && results[active] ? `${id}-${active}` : undefined} autoComplete="off" onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true); setActive(-1); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); setOpen(true); setActive((previous) => results.length ? (previous + (event.key === "ArrowDown" ? 1 : -1) + results.length) % results.length : -1); } }} /><kbd>Ctrl K</kbd></div>
