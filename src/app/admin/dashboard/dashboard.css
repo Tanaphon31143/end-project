@@ -671,6 +671,28 @@
   font-size: 12px;
 }
 
+/* Takes the place of the legend and chart, so the card keeps its height. */
+.admin-dashboard .chart-empty-state {
+  min-height: 236px;
+  margin-top: 3px;
+  border: 1px dashed #dbe4ef;
+  border-radius: 12px;
+  background: #f8fafd;
+  text-align: center;
+}
+
+.admin-dashboard .chart-empty-state span {
+  display: grid;
+  gap: 4px;
+  padding: 0 16px;
+}
+
+.admin-dashboard .chart-empty-state strong {
+  color: #536e8d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .calendar-toolbar {
   display: grid;
   grid-template-columns: 31px 1fr 31px auto;

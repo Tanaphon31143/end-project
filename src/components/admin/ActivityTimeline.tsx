@@ -1,11 +1,15 @@
 import Link from "next/link";
 import {
   CalendarPlus,
-  Check,
   ClipboardCheck,
-  Settings,
-  UserRound,
+  KeyRound,
+  Pencil,
+  Plus,
+  ScanFace,
+  Trash2,
+  TriangleAlert,
 } from "lucide-react";
+import { formatActivity, type ActivityKind } from "./activity-format";
 
 type Activity = {
   id: string;
@@ -15,13 +19,16 @@ type Activity = {
   createdAt: string;
 };
 
-const activityVisuals = [
-  { Icon: Check, tone: "success" },
-  { Icon: UserRound, tone: "primary" },
-  { Icon: ClipboardCheck, tone: "violet" },
-  { Icon: CalendarPlus, tone: "neutral" },
-  { Icon: Settings, tone: "danger" },
-] as const;
+const activityVisuals = {
+  create: { Icon: Plus, tone: "success" },
+  update: { Icon: Pencil, tone: "primary" },
+  delete: { Icon: Trash2, tone: "danger" },
+  attendance: { Icon: ClipboardCheck, tone: "violet" },
+  account: { Icon: KeyRound, tone: "primary" },
+  face: { Icon: ScanFace, tone: "violet" },
+  warning: { Icon: TriangleAlert, tone: "danger" },
+  other: { Icon: CalendarPlus, tone: "neutral" },
+} satisfies Record<ActivityKind, { Icon: typeof Plus; tone: string }>;
 
 export function ActivityTimeline({ rows }: { rows: Activity[] }) {
   return (
@@ -37,15 +44,16 @@ export function ActivityTimeline({ rows }: { rows: Activity[] }) {
       </div>
       {rows.length ? (
         <div className="activity-timeline">
-          {rows.map((row, index) => {
-            const { Icon, tone } = activityVisuals[index % activityVisuals.length];
+          {rows.map((row) => {
+            const activity = formatActivity(row);
+            const { Icon, tone } = activityVisuals[activity.kind];
             const [date, time] = row.createdAt.split(" ");
             return (
               <div className="activity-item" key={row.id}>
                 <span className={`activity-icon tone-${tone}`} aria-hidden="true">
                   <Icon size={11} strokeWidth={2.5} />
                 </span>
-                <div><strong>{row.description}</strong><span>{row.action} · {date}</span></div>
+                <div><strong>{activity.description}</strong><span>{activity.label} · {date}</span></div>
                 <time>{time || date}</time>
               </div>
             );

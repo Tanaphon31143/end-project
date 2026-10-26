@@ -10,7 +10,7 @@ function fixture({ closed = false, foreign = false, fail = false } = {}) {
   const session = { id: 90001n, subjectId: 1, classroomId: 1, sessionDate: new Date('2026-09-11'), subject: { subjectCode: 'TEST', academicYear: '2569', semester: 2 } };
   const prisma = {
     checkInSession: { findFirst: async ({ where }) => { assert.equal(where.subject.teacherId, 7); return foreign ? null : { ...session, status: state.status }; } },
-    student: { findMany: async ({ where }) => { state.studentWhere = where; return Array.from({ length: 40 }, (_, index) => ({ id: index + 1 })); } },
+    student: { findMany: async ({ where }) => { state.studentWhere = where; return Array.from({ length: 40 }, (_, index) => ({ id: index + 1, studentCode: `S${index + 1}` })); } },
     $transaction: async (callback, options) => {
       assert.equal(options.timeout, 30000);
       const original = structuredClone(state);
@@ -55,7 +55,11 @@ test('close a 40-student session in bulk, preserve leave, audit each absence, an
   assert.equal(state.bulkCalls, 1);
   assert.equal(state.records.length, 40);
   assert.equal(state.records[0].status, 'LEAVE');
-  assert.equal(state.logs.filter((log) => log.action === 'CREATE').length, 39);
+  const absenceLogs = state.logs.filter((log) => log.action === 'CREATE');
+  assert.equal(absenceLogs.length, 39);
+  // Each absence names the student by code, not by internal database id.
+  assert.equal(absenceLogs[0].description, 'ปิดรอบ TEST: บันทึกขาดเรียน นักเรียนรหัส S2');
+  assert.ok(absenceLogs.every((log) => log.entity === 'attendance_record' && log.description.startsWith('ปิดรอบ')));
   assert.equal(state.notifications, 1);
   assert.equal(state.studentWhere.status, 'ACTIVE');
   assert.equal(state.studentWhere.termEnrollments.some.academicYear, '2569');

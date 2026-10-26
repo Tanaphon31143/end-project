@@ -15,10 +15,12 @@ import { useState } from "react";
 export function AttendanceChart({
   data,
 }: {
-  data: { date: string; day: string; students: number; rate: number }[];
+  data: { date: string; day: string; students: number; rate: number; recorded: number }[];
 }) {
   const [range, setRange] = useState<"7" | "30">("7");
   const visibleData = data.slice(range === "7" ? -7 : -30);
+  // A day where everyone was absent is real data (0%); only a range with no records at all is empty.
+  const hasRecords = visibleData.some((day) => day.recorded > 0);
   return (
     <section className="dashboard-card chart-card">
       <div className="card-head">
@@ -31,6 +33,14 @@ export function AttendanceChart({
           <option value="30">30 วันที่ผ่านมา</option>
         </select>
       </div>
+      {!hasRecords ? (
+        <div className="dashboard-empty-state chart-empty-state" role="status">
+          <span>
+            <strong>ยังไม่มีข้อมูลการเข้าเรียนใน {range} วันที่ผ่านมา</strong>
+            กราฟจะแสดงเมื่อมีการเช็คชื่อหรือปิดรอบเช็คชื่อ
+          </span>
+        </div>
+      ) : <>
       <div className="legend">
         <span>
           <i className="bar-dot" />
@@ -95,7 +105,7 @@ export function AttendanceChart({
               yAxisId="left"
               type="monotone"
               dataKey="students"
-              name="จำนวนนักเรียน"
+              name="จำนวนคนมาเรียน"
               stroke="#2563eb"
               strokeWidth={2.5}
               fill="url(#attendanceArea)"
@@ -114,6 +124,7 @@ export function AttendanceChart({
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </>}
     </section>
   );
 }

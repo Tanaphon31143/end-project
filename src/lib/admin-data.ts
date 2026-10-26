@@ -80,10 +80,12 @@ export async function getDashboardData() {
         status: string;
       }
     >(
-      `SELECT st.student_code id,st.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN classrooms c ON c.id=st.class_id ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 5`,
+      // Room for the term the record belongs to (same rule as /api/attendance), not the
+      // student's legacy class_id, so promoted students keep the room they were in.
+      `SELECT st.student_code id,st.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 5`,
     ),
-    rows<RowDataPacket & { date: string; students: number; rate: number }>(
-      `SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date,COUNT(DISTINCT CASE WHEN status IN ('PRESENT','LATE') THEN student_id END) students,ROUND(100*SUM(status IN ('PRESENT','LATE'))/COUNT(*),2) rate FROM attendance_records WHERE attendance_date BETWEEN ${schoolTodaySql}-INTERVAL 29 DAY AND ${schoolTodaySql} GROUP BY attendance_date ORDER BY attendance_date`,
+    rows<RowDataPacket & { date: string; students: number; rate: number; recorded: number }>(
+      `SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date,COUNT(DISTINCT CASE WHEN status IN ('PRESENT','LATE') THEN student_id END) students,ROUND(100*SUM(status IN ('PRESENT','LATE'))/COUNT(*),2) rate,COUNT(*) recorded FROM attendance_records WHERE attendance_date BETWEEN ${schoolTodaySql}-INTERVAL 29 DAY AND ${schoolTodaySql} GROUP BY attendance_date ORDER BY attendance_date`,
     ),
     rows<
       RowDataPacket & {
@@ -105,7 +107,10 @@ export async function getDashboardData() {
         createdAt: string;
       }
     >(
-      `SELECT CAST(log_id AS CHAR) id,action,entity,COALESCE(description,'กิจกรรมในระบบ') description,DATE_FORMAT(created_at,'%d/%m/%Y %H:%i') createdAt FROM audit_logs ORDER BY created_at DESC LIMIT 5`,
+      // audit_logs.created_at is UTC; show school time with a Buddhist-era year. Closing a
+      // check-in round also logs every absent student ("ปิดรอบ…" on attendance_record); the
+      // round's own CLOSE row summarises them, so they are left out of this short feed.
+      `SELECT CAST(log_id AS CHAR) id,action,entity,COALESCE(description,'กิจกรรมในระบบ') description,CONCAT(DATE_FORMAT(created_at + INTERVAL 7 HOUR,'%d/%m/'),YEAR(created_at + INTERVAL 7 HOUR)+543,' ',DATE_FORMAT(created_at + INTERVAL 7 HOUR,'%H:%i')) createdAt FROM audit_logs WHERE NOT (entity='attendance_record' AND COALESCE(description,'') LIKE 'ปิดรอบ%') ORDER BY created_at DESC,log_id DESC LIMIT 5`,
     ),
     rows<
       RowDataPacket & {
@@ -137,6 +142,7 @@ export async function getDashboardData() {
       day: `${String(date.getUTCDate()).padStart(2, "0")}/${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
       students: Number(row?.students ?? 0),
       rate: Number(row?.rate ?? 0),
+      recorded: Number(row?.recorded ?? 0),
     };
   });
   if (!settings[0]) {

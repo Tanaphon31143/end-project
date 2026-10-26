@@ -192,8 +192,9 @@ export async function PATCH(request: Request) {
           ),
         },
       },
-      select: { id: true },
+      select: { id: true, studentCode: true },
     });
+    const studentCodes = new Map(students.map((student) => [student.id, student.studentCode]));
     let alreadyClosed = false;
     let absentCreated = 0;
     await prisma.$transaction(
@@ -239,7 +240,9 @@ export async function PATCH(request: Request) {
               action: "CREATE",
               entity: "attendance_record",
               entityId: String(record.id),
-              description: `ปิดรอบและบันทึกขาดเรียน นักเรียน ${record.studentId}`,
+              // The dashboard feed hides these per-student rows ("ปิดรอบ…" on attendance_record);
+              // the CLOSE row below summarises them.
+              description: `ปิดรอบ ${session.subject.subjectCode}: บันทึกขาดเรียน นักเรียนรหัส ${studentCodes.get(record.studentId) ?? record.studentId}`,
               ...requestMeta(request),
             })),
           });

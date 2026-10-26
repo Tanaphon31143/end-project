@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UsersRound } from "lucide-react";
+import { nameInitials } from "@/lib/name-initials";
 type Row = {
   id: string;
   name: string;
@@ -37,8 +38,8 @@ export function RecentAttendanceTable({ rows }: { rows: Row[] }) {
                 <td>{row.id}</td>
                 <td>
                   <div className="student-name">
-                    <span className="student-avatar blue">
-                      {row.name.slice(0, 2)}
+                    <span className="student-avatar blue" aria-hidden="true">
+                      {nameInitials(row.name)}
                     </span>
                     <b>{row.name}</b>
                   </div>
