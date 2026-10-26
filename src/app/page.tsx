@@ -165,14 +165,13 @@ export default function Home() {
     return "";
   });
 
-  const effectiveStatus =
-    authErrorMessage && status === "idle" ? "error" : status;
-
   function handleGoogleLogin() {
     setAuthErrorMessage("");
     setErrors({ email: "", password: "" });
     setGoogleLoading(true);
     setStatus("loading");
+    // A full navigation is required: the route answers with a redirect to Google's OAuth page.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/api/auth/google");
   }
 
