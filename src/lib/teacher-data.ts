@@ -2,6 +2,7 @@ import "server-only";
 import type { AttendanceStatus } from "@prisma/client";
 import type { RowDataPacket } from "mysql2/promise";
 import { cache } from "react";
+import { nameInitials } from "@/lib/name-initials";
 import {
   getSchoolTerm,
   termEnrollmentWhere,
@@ -404,7 +405,6 @@ async function loadTeacherIdentity(
   } catch {
     /* profile image columns are added by the teacher schema migration */
   }
-  const cleanName = teacher.fullName.replace(/^(นาย|นาง|นางสาว)/, "").trim();
   return {
     id: teacher.id,
     name: teacher.fullName,
@@ -412,7 +412,7 @@ async function loadTeacherIdentity(
     phone: teacher.phone ?? "",
     code: teacher.teacherCode ?? "ยังไม่ระบุ",
     position: teacher.department ?? "ครูผู้สอน",
-    initials: cleanName.slice(0, 2) || "ครู",
+    initials: nameInitials(teacher.fullName),
     hasProfileImage,
   };
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2/promise";
 import { cache } from "react";
+import { nameInitials } from "@/lib/name-initials";
 import type { AttendanceDayRecord } from "@/lib/attendance-stats";
 import { db } from "@/lib/db";
 import { normalizeCoursePage } from "@/lib/face-registration-rules.mjs";
@@ -231,10 +232,7 @@ async function loadStudentIdentity(
         ...item,
         hasProfileImage: Boolean(item.hasProfileImage),
         faceReady: Boolean(item.faceReady),
-        initials: item.name
-          .replace(/^(นาย|นางสาว|เด็กชาย|เด็กหญิง)/, "")
-          .trim()
-          .slice(0, 2),
+        initials: nameInitials(item.name),
       }
     : null;
 }

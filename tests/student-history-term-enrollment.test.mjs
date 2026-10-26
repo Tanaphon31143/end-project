@@ -52,6 +52,14 @@ function loadStudentData({
       if (name === "@/lib/face-registration-rules.mjs") {
         return { normalizeCoursePage: () => ({ page: 1, pageSize: 20, offset: 0 }) };
       }
+      if (name === "@/lib/name-initials") {
+        const helper = {};
+        vm.runInNewContext(ts.transpileModule(
+          fs.readFileSync(new URL("../src/lib/name-initials.ts", import.meta.url), "utf8"),
+          { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+        ).outputText, { exports: helper });
+        return helper;
+      }
       assert.equal(name, "@/lib/db");
       return {
         db: {

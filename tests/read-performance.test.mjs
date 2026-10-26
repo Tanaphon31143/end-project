@@ -13,6 +13,13 @@ function compiled(path) {
   }).outputText;
 }
 
+// student-data and teacher-data build avatar initials with this pure helper.
+const nameInitials = (() => {
+  const exports = {};
+  vm.runInNewContext(compiled("../src/lib/name-initials.ts"), { exports });
+  return exports;
+})();
+
 function adminReads(execute, date = Date) {
   const exports = {};
   vm.runInNewContext(compiled("../src/lib/admin-data.ts"), { exports, Date: date, Map, Set,
@@ -42,6 +49,7 @@ test("student today's timetable uses the Thai weekday and preserves student owne
   vm.runInNewContext(compiled("../src/lib/student-data.ts"), { exports, Date, Intl, Map, Set,
     require(name) {
       if (name === "react") return { cache: fn => fn };
+      if (name === "@/lib/name-initials") return nameInitials;
       if (name === "@/lib/academic-term") return academicTerm;
       if (name === "@/lib/db") return { db: { async execute(sql, args) {
         if (sql.includes("WEEKDAY(")) {
@@ -207,6 +215,7 @@ test("teacher session details preserve ownership and attendance without fetching
       if (name === "@/lib/prisma") return { prisma };
       if (name === "@/lib/academic-term") return academicTerm;
       if (name === "react") return { cache: (fn) => fn };
+      if (name === "@/lib/name-initials") return nameInitials;
       return {};
     },
   });

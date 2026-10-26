@@ -33,6 +33,17 @@ test("avatar initials never start with a Thai leading vowel or mark", () => {
   assert.equal(nameInitials("   "), "?");
 });
 
+test("every avatar that shows initials uses the shared helper", () => {
+  const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
+  assert.match(read("../src/components/admin/users/ProfileAvatar.tsx"), /\{nameInitials\(name\)\}/);
+  assert.match(read("../src/components/admin/users/UsersManager.tsx"), /initials=\{nameInitials\(user\.name\)\}/);
+  assert.match(read("../src/lib/teacher-data.ts"), /initials: nameInitials\(teacher\.fullName\)/);
+  assert.match(read("../src/lib/student-data.ts"), /initials: nameInitials\(item\.name\)/);
+  for (const path of ["../src/components/admin/users/ProfileAvatar.tsx", "../src/components/admin/users/UsersManager.tsx", "../src/components/admin/RecentAttendanceTable.tsx"]) {
+    assert.doesNotMatch(read(path), /name\.(?:trim\(\)\.)?slice\(0, ?2\)/, `${path} still slices the raw name`);
+  }
+});
+
 test("activity rows get Thai labels and an icon that matches what happened", () => {
   const close = formatActivity({ action: "CLOSE", entity: "check_in_session", description: "ปิดรอบเช็คชื่อ ว30201 และบันทึกขาดเรียน 40 คน" });
   assert.equal(close.label, "ปิดรอบเช็คชื่อ");
