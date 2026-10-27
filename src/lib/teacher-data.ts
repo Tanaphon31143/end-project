@@ -614,7 +614,7 @@ export async function getTeacherNotifications(teacherId: number) {
     createdAt: string;
   };
   const [rows] = await db.execute<NotificationRow[]>(
-    `SELECT CAST(id AS CHAR) id,title,message detail,href,is_read isRead,DATE_FORMAT(created_at,'%d/%m/%Y %H:%i') createdAt FROM teacher_notifications WHERE teacher_id=? ORDER BY created_at DESC,id DESC LIMIT 20`,
+    `SELECT CAST(id AS CHAR) id,title,message detail,href,is_read isRead,DATE_FORMAT(created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt FROM teacher_notifications WHERE teacher_id=? ORDER BY created_at DESC,id DESC LIMIT 20`,
     [teacherId],
   );
   return rows.map((row) => ({

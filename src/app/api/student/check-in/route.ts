@@ -201,7 +201,7 @@ export async function POST(request: Request) {
       confidence: number;
     })[]
   >(
-    `SELECT id, TIME_FORMAT(check_in_time, '%H:%i:%s') checkInTime, status, confidence
+    `SELECT id, TIME_FORMAT(check_in_time + INTERVAL 7 HOUR, '%H:%i:%s') checkInTime, status, confidence
      FROM attendance_records
      WHERE student_id = ? AND check_in_session_id = ?
      LIMIT 1`,
@@ -346,7 +346,8 @@ export async function POST(request: Request) {
 
   // 7. Attendance Success: Determine Status (PRESENT vs LATE) and insert into attendance_records
   const [nowRows] = await db.execute<(RowDataPacket & { time: string })[]>(
-    `SELECT TIME_FORMAT(CURRENT_TIME, '%H:%i:%s') time`,
+    // The database clock is UTC; late_after is school (Bangkok) time.
+    `SELECT TIME_FORMAT(UTC_TIMESTAMP() + INTERVAL 7 HOUR, '%H:%i:%s') time`,
   );
   const currentTime = nowRows[0].time;
   const isLate = currentTime > session.lateAfter;

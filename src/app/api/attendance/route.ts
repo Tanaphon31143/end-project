@@ -21,9 +21,9 @@ const recordSelect = `SELECT a.id,a.student_id studentId,st.student_code student
   COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,
   COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subjectName,
   DATE_FORMAT(a.attendance_date,'%Y-%m-%d') attendanceDate,
-  IFNULL(TIME_FORMAT(a.check_in_time,'%H:%i:%s'),NULL) checkInTime,a.status,
+  IFNULL(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i:%s'),NULL) checkInTime,a.status,
   IFNULL(CAST(a.confidence AS DECIMAL(5,2)),NULL) confidence,
-  DATE_FORMAT(a.created_at,'%d/%m/%Y %H:%i') createdAt
+  DATE_FORMAT(a.created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt
   FROM attendance_records a JOIN students st ON st.id=a.student_id
   LEFT JOIN subjects sb ON sb.id=a.subject_id
   LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         { status: 404 },
       );
     const [audits] = await db.execute<(RowDataPacket & AttendanceAudit)[]>(
-      `SELECT aa.id,aa.action,COALESCE(ad.full_name,'ผู้ดูแลระบบ') adminName,aa.old_status oldStatus,aa.new_status newStatus,COALESCE(aa.note,'') note,DATE_FORMAT(aa.created_at,'%d/%m/%Y %H:%i:%s') createdAt FROM attendance_record_audits aa LEFT JOIN admins ad ON ad.id=aa.admin_id WHERE aa.attendance_record_id=? ORDER BY aa.created_at DESC,aa.id DESC`,
+      `SELECT aa.id,aa.action,COALESCE(ad.full_name,'ผู้ดูแลระบบ') adminName,aa.old_status oldStatus,aa.new_status newStatus,COALESCE(aa.note,'') note,DATE_FORMAT(aa.created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i:%s') createdAt FROM attendance_record_audits aa LEFT JOIN admins ad ON ad.id=aa.admin_id WHERE aa.attendance_record_id=? ORDER BY aa.created_at DESC,aa.id DESC`,
       [recordId],
     );
     return Response.json({ record: records[0], audits });
@@ -161,7 +161,8 @@ export async function POST(request: Request) {
         ? `${attendanceDate} ${checkInTime}:00`
         : null;
     const [result] = await connection.execute<ResultSetHeader>(
-      "INSERT INTO attendance_records(student_id,subject_id,attendance_date,check_in_time,status,confidence) VALUES(?,?,?,?,?,NULL)",
+      // The admin types school (Bangkok) time; check_in_time is stored in UTC like every scan.
+      "INSERT INTO attendance_records(student_id,subject_id,attendance_date,check_in_time,status,confidence) VALUES(?,?,?,CAST(? AS DATETIME) - INTERVAL 7 HOUR,?,NULL)",
       [studentId, subjectId, attendanceDate, dateTime, status],
     );
     await connection.execute(

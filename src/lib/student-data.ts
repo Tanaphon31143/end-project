@@ -140,7 +140,7 @@ export async function getStudentDashboardData(
           status: "มาเรียน" | "สาย" | "ขาด" | "ลา";
         })[]
       >(
-        `SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status
+        `SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status
          FROM attendance_records a JOIN subjects sb ON sb.id=a.subject_id
          JOIN student_term_enrollments ste ON ste.student_id=a.student_id AND ste.classroom_id=sb.classroom_id
            AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
@@ -264,7 +264,7 @@ export async function getStudentCourses(studentId:number):Promise<StudentCourse[
 }
 
 export type StudentAttendance={id:number;date:string;subjectId:number|null;subjectCode:string;subject:string;classTime:string;checkIn:string;status:"มาเรียน"|"สาย"|"ขาด"|"ลา";note:string};
-export async function getStudentAttendance(studentId:number,filters:{from?:string;to?:string;subjectId?:number;status?:string}={}){const where=["a.student_id=?"],params:(string|number)[]=[studentId];if(filters.from){where.push("a.attendance_date>=?");params.push(filters.from)}if(filters.to){where.push("a.attendance_date<=?");params.push(filters.to)}if(filters.subjectId){where.push("a.subject_id=?");params.push(filters.subjectId)}const allowed:Record<string,string>={present:"PRESENT",late:"LATE",absent:"ABSENT",leave:"LEAVE"};if(filters.status&&allowed[filters.status]){where.push("a.status=?");params.push(allowed[filters.status])}const[rows]=await db.execute<(RowDataPacket&StudentAttendance)[]>(`SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,CONCAT(COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--'),'–',COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--')) classTime,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status,CASE WHEN a.status='LATE' THEN 'มาสาย' WHEN a.status='ABSENT' THEN 'ไม่พบการเช็คชื่อ' WHEN a.status='LEAVE' THEN 'ลา' ELSE '-' END note FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id WHERE ${where.join(" AND ")} ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 500`,params);return rows}
+export async function getStudentAttendance(studentId:number,filters:{from?:string;to?:string;subjectId?:number;status?:string}={}){const where=["a.student_id=?"],params:(string|number)[]=[studentId];if(filters.from){where.push("a.attendance_date>=?");params.push(filters.from)}if(filters.to){where.push("a.attendance_date<=?");params.push(filters.to)}if(filters.subjectId){where.push("a.subject_id=?");params.push(filters.subjectId)}const allowed:Record<string,string>={present:"PRESENT",late:"LATE",absent:"ABSENT",leave:"LEAVE"};if(filters.status&&allowed[filters.status]){where.push("a.status=?");params.push(allowed[filters.status])}const[rows]=await db.execute<(RowDataPacket&StudentAttendance)[]>(`SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,CONCAT(COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--'),'–',COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--')) classTime,COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status,CASE WHEN a.status='LATE' THEN 'มาสาย' WHEN a.status='ABSENT' THEN 'ไม่พบการเช็คชื่อ' WHEN a.status='LEAVE' THEN 'ลา' ELSE '-' END note FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id WHERE ${where.join(" AND ")} ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 500`,params);return rows}
 
 export type StudentStatisticsFilters = {
   semester?: number;
@@ -664,8 +664,8 @@ export async function getStudentFaceData(studentId: number): Promise<StudentFace
     >(
       `SELECT fd.status, fd.image_count imageCount,
               s.full_name studentName, s.student_code studentCode,
-              DATE_FORMAT(fd.registered_at, '%d/%m/%Y %H:%i') registeredAt,
-              DATE_FORMAT(fd.updated_at, '%d/%m/%Y %H:%i') updatedAt,
+              DATE_FORMAT(fd.registered_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') registeredAt,
+              DATE_FORMAT(fd.updated_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') updatedAt,
               registered_by_name registeredByName,
               registered_by_role registeredByRole,
               device_type deviceType,
@@ -865,7 +865,7 @@ export async function getStudentCourseDetail(
                 COALESCE(TIME_FORMAT(cs.end_time, '%H:%i'), TIME_FORMAT(sb.end_time, '%H:%i'), '--:--')
               ) classTime,
               COALESCE(sb.location, c.name, 'ไม่ระบุ') room,
-              COALESCE(TIME_FORMAT(a.check_in_time, '%H:%i'), '-') checkIn,
+              COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR, '%H:%i'), '-') checkIn,
               CASE a.status
                 WHEN 'PRESENT' THEN 'มาเรียน'
                 WHEN 'LATE' THEN 'สาย'
@@ -1011,7 +1011,7 @@ export type StudentIssue = {
 };
 export async function getStudentIssues(studentId: number): Promise<StudentIssue[]> {
   const [rows] = await db.execute<(RowDataPacket & StudentIssue)[]>(
-    `SELECT r.id,DATE_FORMAT(r.created_at,'%d/%m/%Y %H:%i') createdAt,COALESCE(s.subject_name,'ไม่ระบุรายวิชา') subject,r.issue_type issueType,CASE r.status WHEN 'PENDING' THEN 'รอตรวจสอบ' WHEN 'REVIEWING' THEN 'กำลังตรวจสอบ' WHEN 'COMPLETED' THEN 'เสร็จสิ้น' ELSE 'ปฏิเสธ' END status,COALESCE(r.resolution,'ยังไม่มีผลการดำเนินการ') resolution,(r.attachment_data IS NOT NULL OR EXISTS(SELECT 1 FROM attendance_issue_attachments att WHERE att.report_id=r.id)) hasAttachment FROM attendance_issue_reports r LEFT JOIN subjects s ON s.id=r.subject_id WHERE r.student_id=? ORDER BY r.created_at DESC LIMIT 100`,
+    `SELECT r.id,DATE_FORMAT(r.created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt,COALESCE(s.subject_name,'ไม่ระบุรายวิชา') subject,r.issue_type issueType,CASE r.status WHEN 'PENDING' THEN 'รอตรวจสอบ' WHEN 'REVIEWING' THEN 'กำลังตรวจสอบ' WHEN 'COMPLETED' THEN 'เสร็จสิ้น' ELSE 'ปฏิเสธ' END status,COALESCE(r.resolution,'ยังไม่มีผลการดำเนินการ') resolution,(r.attachment_data IS NOT NULL OR EXISTS(SELECT 1 FROM attendance_issue_attachments att WHERE att.report_id=r.id)) hasAttachment FROM attendance_issue_reports r LEFT JOIN subjects s ON s.id=r.subject_id WHERE r.student_id=? ORDER BY r.created_at DESC LIMIT 100`,
     [studentId],
   );
   return rows.map((x) => ({ ...x, hasAttachment: Boolean(x.hasAttachment) }));

@@ -43,12 +43,12 @@ export async function GET(r: Request) {
       updatedAt: string;
     })[]
   >(
-    `SELECT school_name schoolName,academic_year academicYear,semester,TIME_FORMAT(school_start_time,'%H:%i') schoolStartTime,TIME_FORMAT(late_after,'%H:%i') lateAfter,face_recognition_enabled faceRecognitionEnabled,notifications_enabled notificationsEnabled,DATE_FORMAT(updated_at,'%d/%m/%Y %H:%i') updatedAt FROM school_settings ORDER BY id LIMIT 1`,
+    `SELECT school_name schoolName,academic_year academicYear,semester,TIME_FORMAT(school_start_time,'%H:%i') schoolStartTime,TIME_FORMAT(late_after,'%H:%i') lateAfter,face_recognition_enabled faceRecognitionEnabled,notifications_enabled notificationsEnabled,DATE_FORMAT(updated_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') updatedAt FROM school_settings ORDER BY id LIMIT 1`,
   );
   const [activity] = await db.execute<
     (RowDataPacket & { label: string; detail: string; createdAt: string })[]
   >(
-    `SELECT 'บันทึกการเข้าเรียน' label,CONCAT(st.full_name,' · ',a.status) detail,DATE_FORMAT(a.created_at,'%d/%m/%Y %H:%i') createdAt FROM attendance_records a JOIN students st ON st.id=a.student_id UNION ALL SELECT 'ลงทะเบียนข้อมูลใบหน้า',st.full_name,DATE_FORMAT(f.updated_at,'%d/%m/%Y %H:%i') FROM face_data f JOIN students st ON st.id=f.student_id ORDER BY createdAt DESC LIMIT 20`,
+    `SELECT 'บันทึกการเข้าเรียน' label,CONCAT(st.full_name,' · ',a.status) detail,DATE_FORMAT(a.created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt FROM attendance_records a JOIN students st ON st.id=a.student_id UNION ALL SELECT 'ลงทะเบียนข้อมูลใบหน้า',st.full_name,DATE_FORMAT(f.updated_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') FROM face_data f JOIN students st ON st.id=f.student_id ORDER BY createdAt DESC LIMIT 20`,
   );
   return Response.json({ settings: settings[0], activity });
 }

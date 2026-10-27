@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   if (!Number.isInteger(sessionId) || sessionId < 1)
     return Response.json({ message: "ไม่พบรอบเช็คชื่อ" }, { status: 400 });
   const [rows] = await db.execute<(RowDataPacket & CheckInRecord)[]>(
-    `SELECT a.id,a.student_id studentId,s.student_code studentCode,s.full_name studentName,c.name className,TIME_FORMAT(a.check_in_time,'%H:%i:%s') checkInTime,CASE a.status WHEN 'LATE' THEN 'สาย' ELSE 'มาเรียน' END status,CAST(a.confidence AS DECIMAL(5,2)) confidence
+    `SELECT a.id,a.student_id studentId,s.student_code studentCode,s.full_name studentName,c.name className,TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i:%s') checkInTime,CASE a.status WHEN 'LATE' THEN 'สาย' ELSE 'มาเรียน' END status,CAST(a.confidence AS DECIMAL(5,2)) confidence
      FROM attendance_records a
      JOIN check_in_sessions cs ON cs.id=a.check_in_session_id
      JOIN students s ON s.id=a.student_id
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
         confidence: number;
       })[]
     >(
-      "SELECT id,TIME_FORMAT(check_in_time,'%H:%i:%s') checkInTime,status,confidence FROM attendance_records WHERE student_id=? AND subject_id=? AND attendance_date=? LIMIT 1",
+      "SELECT id,TIME_FORMAT(check_in_time + INTERVAL 7 HOUR,'%H:%i:%s') checkInTime,status,confidence FROM attendance_records WHERE student_id=? AND subject_id=? AND attendance_date=? LIMIT 1",
       [best.studentId, session.subjectId, session.sessionDate],
     );
     if (existing[0]) {
@@ -142,7 +142,8 @@ export async function POST(request: Request) {
     }
     const [nowRows] = await connection.execute<
         (RowDataPacket & { time: string })[]
-      >("SELECT TIME_FORMAT(CURRENT_TIME,'%H:%i:%s') time"),
+      // The database clock is UTC; late_after is school (Bangkok) time.
+      >("SELECT TIME_FORMAT(UTC_TIMESTAMP() + INTERVAL 7 HOUR,'%H:%i:%s') time"),
       time = nowRows[0].time,
       status = time > session.lateAfter ? "LATE" : "PRESENT",
       confidence = Math.round(bestSimilarity * 10000) / 100;

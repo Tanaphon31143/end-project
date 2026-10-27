@@ -58,8 +58,8 @@ export async function GET() {
             attachment_mime attachmentMime,
             attachment_size attachmentSize,
             (attachment_data IS NOT NULL) hasAttachment,
-            DATE_FORMAT(created_at, '%d/%m/%Y %H:%i') createdAt,
-            DATE_FORMAT(reviewed_at, '%d/%m/%Y %H:%i') reviewedAt
+            DATE_FORMAT(created_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') createdAt,
+            DATE_FORMAT(reviewed_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') reviewedAt
      FROM profile_edit_requests
      WHERE student_id = ?
      ORDER BY created_at DESC, id DESC`,

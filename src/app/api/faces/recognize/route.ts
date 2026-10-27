@@ -80,7 +80,11 @@ export async function POST(request: Request) {
      JOIN face_data fd ON fd.student_id=fs.student_id AND fd.status='READY'
      JOIN students s ON s.id=fs.student_id AND s.status='ACTIVE'
      ${classroomId === null
-       ? "LEFT JOIN classrooms c ON c.id=s.class_id"
+       ? // No session classroom: label each match with the student's room in the current term.
+         `LEFT JOIN (SELECT academic_year,semester FROM school_settings ORDER BY id LIMIT 1) cur_term ON 1=1
+          LEFT JOIN student_term_enrollments cur_e ON cur_e.student_id=s.id
+            AND cur_e.academic_year=cur_term.academic_year AND cur_e.semester=cur_term.semester
+          LEFT JOIN classrooms c ON c.id=cur_e.classroom_id`
        : `JOIN student_term_enrollments ste ON ste.student_id=s.id AND ste.classroom_id=?
             AND ste.semester=? AND ste.academic_year=?
           JOIN classrooms c ON c.id=ste.classroom_id`}`,

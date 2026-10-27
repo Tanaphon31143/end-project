@@ -44,6 +44,16 @@ import type { AcademicTerm } from "@/lib/academic-term";
 // Database servers may use UTC. School-day filters must use Thailand's date.
 const schoolTodaySql = "DATE(UTC_TIMESTAMP() + INTERVAL 7 HOUR)";
 
+// students.class_id is no longer maintained since rosters moved to per-term enrollments.
+// Joins the student's classroom (alias c) and enrollment (alias cur_e) for the school's
+// current term, as set in school_settings.
+function currentTermClassroomJoin(studentAlias: string) {
+  return `LEFT JOIN (SELECT academic_year,semester FROM school_settings ORDER BY id LIMIT 1) cur_term ON 1=1
+    LEFT JOIN student_term_enrollments cur_e ON cur_e.student_id=${studentAlias}.id
+      AND cur_e.academic_year=cur_term.academic_year AND cur_e.semester=cur_term.semester
+    LEFT JOIN classrooms c ON c.id=cur_e.classroom_id`;
+}
+
 async function rows<T extends RowDataPacket>(
   sql: string,
   values?: Array<string | number | Date | null>,
@@ -82,7 +92,7 @@ export async function getDashboardData() {
     >(
       // Room for the term the record belongs to (same rule as /api/attendance), not the
       // student's legacy class_id, so promoted students keep the room they were in.
-      `SELECT st.student_code id,st.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 5`,
+      `SELECT st.student_code id,st.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 5`,
     ),
     rows<RowDataPacket & { date: string; students: number; rate: number; recorded: number }>(
       `SELECT DATE_FORMAT(attendance_date,'%Y-%m-%d') date,COUNT(DISTINCT CASE WHEN status IN ('PRESENT','LATE') THEN student_id END) students,ROUND(100*SUM(status IN ('PRESENT','LATE'))/COUNT(*),2) rate,COUNT(*) recorded FROM attendance_records WHERE attendance_date BETWEEN ${schoolTodaySql}-INTERVAL 29 DAY AND ${schoolTodaySql} GROUP BY attendance_date ORDER BY attendance_date`,
@@ -195,7 +205,7 @@ export async function getReportData(
     db
       .execute<
         (RowDataPacket & ReportRecord)[]
-        >(`SELECT DATE_FORMAT(a.attendance_date,'%Y-%m-%d') date,st.student_code studentCode,st.full_name studentName,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุ') subjectName,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') time,a.status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) WHERE ${where} ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 2000`, params)
+        >(`SELECT DATE_FORMAT(a.attendance_date,'%Y-%m-%d') date,st.student_code studentCode,st.full_name studentName,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุ') subjectName,COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i'),'-') time,a.status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) WHERE ${where} ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 2000`, params)
       .then((x) => x[0]),
     rows<RowDataPacket & { id: number; name: string }>(
       `SELECT id,name FROM classrooms ORDER BY level,name`,
@@ -248,7 +258,7 @@ export async function getReportData(
 }
 export async function getUsers() {
   return rows<RowDataPacket & AdminUserRecord>(
-    `SELECT CONCAT('A',a.id) id,a.id databaseId,a.full_name name,a.email,'admin' role,a.status,CONCAT('A',LPAD(a.id,3,'0')) code,NULL classId,'' className,'' classLevel,CAST(a.created_at AS CHAR) createdAt,0 hasProfileImage,CASE WHEN a.status='ACTIVE' AND EXISTS(SELECT 1 FROM auth_sessions session_row WHERE session_row.account_id=a.id AND session_row.account_role='admin' AND session_row.revoked_at IS NULL AND session_row.expires_at>NOW(3)) THEN 1 ELSE 0 END isLoggedIn FROM admins a UNION ALL SELECT CONCAT('T',t.id),t.id,t.full_name,t.email,'teacher',t.status,COALESCE(t.teacher_code,CONCAT('T',LPAD(t.id,3,'0'))),NULL,'','',CAST(t.created_at AS CHAR),t.profile_image IS NOT NULL,CASE WHEN t.status='ACTIVE' AND EXISTS(SELECT 1 FROM auth_sessions session_row WHERE session_row.account_id=t.id AND session_row.account_role='teacher' AND session_row.revoked_at IS NULL AND session_row.expires_at>NOW(3)) THEN 1 ELSE 0 END FROM teachers t UNION ALL SELECT CONCAT('S',s.id),s.id,s.full_name,s.email,'student',s.status,s.student_code,s.class_id,COALESCE(c.name,''),COALESCE(c.level,''),CAST(s.created_at AS CHAR),s.profile_image IS NOT NULL,CASE WHEN s.status='ACTIVE' AND EXISTS(SELECT 1 FROM auth_sessions session_row WHERE session_row.account_id=s.id AND session_row.account_role='student' AND session_row.revoked_at IS NULL AND session_row.expires_at>NOW(3)) THEN 1 ELSE 0 END FROM students s LEFT JOIN classrooms c ON c.id=s.class_id ORDER BY role,name`,
+    `SELECT CONCAT('A',a.id) id,a.id databaseId,a.full_name name,a.email,'admin' role,a.status,CONCAT('A',LPAD(a.id,3,'0')) code,NULL classId,'' className,'' classLevel,CAST(a.created_at + INTERVAL 7 HOUR AS CHAR) createdAt,0 hasProfileImage,CASE WHEN a.status='ACTIVE' AND EXISTS(SELECT 1 FROM auth_sessions session_row WHERE session_row.account_id=a.id AND session_row.account_role='admin' AND session_row.revoked_at IS NULL AND session_row.expires_at>NOW(3)) THEN 1 ELSE 0 END isLoggedIn FROM admins a UNION ALL SELECT CONCAT('T',t.id),t.id,t.full_name,t.email,'teacher',t.status,COALESCE(t.teacher_code,CONCAT('T',LPAD(t.id,3,'0'))),NULL,'','',CAST(t.created_at + INTERVAL 7 HOUR AS CHAR),t.profile_image IS NOT NULL,CASE WHEN t.status='ACTIVE' AND EXISTS(SELECT 1 FROM auth_sessions session_row WHERE session_row.account_id=t.id AND session_row.account_role='teacher' AND session_row.revoked_at IS NULL AND session_row.expires_at>NOW(3)) THEN 1 ELSE 0 END FROM teachers t UNION ALL SELECT CONCAT('S',s.id),s.id,s.full_name,s.email,'student',s.status,s.student_code,cur_e.classroom_id,COALESCE(c.name,''),COALESCE(c.level,''),CAST(s.created_at + INTERVAL 7 HOUR AS CHAR),s.profile_image IS NOT NULL,CASE WHEN s.status='ACTIVE' AND EXISTS(SELECT 1 FROM auth_sessions session_row WHERE session_row.account_id=s.id AND session_row.account_role='student' AND session_row.revoked_at IS NULL AND session_row.expires_at>NOW(3)) THEN 1 ELSE 0 END FROM students s ${currentTermClassroomJoin("s")} ORDER BY role,name`,
   );
 }
 export async function getStudents() {
@@ -262,7 +272,7 @@ export async function getStudents() {
       phone: string;
     }
   >(
-    `SELECT s.student_code id,s.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(CAST(s.class_number AS CHAR),'-') number,COALESCE(s.parent_name,'-') parent,COALESCE(s.phone,'-') phone FROM students s LEFT JOIN classrooms c ON c.id=s.class_id ORDER BY s.student_code`,
+    `SELECT s.student_code id,s.full_name name,COALESCE(c.name,'ยังไม่ระบุ') room,COALESCE(CAST(cur_e.class_number AS CHAR),'-') number,COALESCE(s.parent_name,'-') parent,COALESCE(s.phone,'-') phone FROM students s ${currentTermClassroomJoin("s")} ORDER BY s.student_code`,
   );
 }
 export async function getStudentPageData(selectedTerm?: AcademicTerm) {
@@ -554,19 +564,19 @@ export async function getFaces() {
       date: string;
     }
   >(
-    `SELECT s.student_code id,s.full_name name,CONCAT(f.image_count,' รูป') photos,CASE f.status WHEN 'READY' THEN 'พร้อมใช้งาน' WHEN 'NEEDS_IMAGES' THEN 'ควรเพิ่มรูป' ELSE 'ปิดใช้งาน' END status,DATE_FORMAT(f.registered_at,'%d/%m/%Y') date FROM face_data f JOIN students s ON s.id=f.student_id ORDER BY f.registered_at DESC`,
+    `SELECT s.student_code id,s.full_name name,CONCAT(f.image_count,' รูป') photos,CASE f.status WHEN 'READY' THEN 'พร้อมใช้งาน' WHEN 'NEEDS_IMAGES' THEN 'ควรเพิ่มรูป' ELSE 'ปิดใช้งาน' END status,DATE_FORMAT(f.registered_at + INTERVAL 7 HOUR,'%d/%m/%Y') date FROM face_data f JOIN students s ON s.id=f.student_id ORDER BY f.registered_at DESC`,
   );
 }
 export async function getFacePageData() {
   const [faceRows, sampleRows, studentRows] = await Promise.all([
     rows<RowDataPacket & Omit<FaceRecord, "sampleIds">>(
-      `SELECT f.id faceDataId,f.student_id studentId,s.student_code studentCode,s.full_name studentName,COALESCE(c.name,'ยังไม่ระบุ') className,f.image_count photoCount,f.status,DATE_FORMAT(f.registered_at,'%d/%m/%Y %H:%i') registeredAt,DATE_FORMAT(f.updated_at,'%d/%m/%Y %H:%i') updatedAt FROM face_data f JOIN students s ON s.id=f.student_id LEFT JOIN classrooms c ON c.id=s.class_id ORDER BY f.updated_at DESC`,
+      `SELECT f.id faceDataId,f.student_id studentId,s.student_code studentCode,s.full_name studentName,COALESCE(c.name,'ยังไม่ระบุ') className,f.image_count photoCount,f.status,DATE_FORMAT(f.registered_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') registeredAt,DATE_FORMAT(f.updated_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') updatedAt FROM face_data f JOIN students s ON s.id=f.student_id ${currentTermClassroomJoin("s")} ORDER BY f.updated_at DESC`,
     ),
     rows<RowDataPacket & { id: number; studentId: number }>(
       `SELECT id,student_id studentId FROM face_samples ORDER BY created_at,id`,
     ),
     rows<RowDataPacket & FaceStudentOption>(
-      `SELECT s.id,s.student_code code,s.full_name name,COALESCE(c.name,'ยังไม่ระบุ') className,f.status faceStatus FROM students s LEFT JOIN classrooms c ON c.id=s.class_id LEFT JOIN face_data f ON f.student_id=s.id WHERE s.status='ACTIVE' ORDER BY s.student_code`,
+      `SELECT s.id,s.student_code code,s.full_name name,COALESCE(c.name,'ยังไม่ระบุ') className,f.status faceStatus FROM students s ${currentTermClassroomJoin("s")} LEFT JOIN face_data f ON f.student_id=s.id WHERE s.status='ACTIVE' ORDER BY s.student_code`,
     ),
   ]);
   const sampleIdsByStudent = new Map<number, number[]>();
@@ -592,14 +602,14 @@ export async function getAttendance() {
       status: string;
     }
   >(
-    `SELECT CAST(a.id AS CHAR) id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,st.full_name student,COALESCE(sb.subject_name,'-') subject,COALESCE(DATE_FORMAT(a.check_in_time,'%H:%i:%s'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 200`,
+    `SELECT CAST(a.id AS CHAR) id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,st.full_name student,COALESCE(sb.subject_name,'-') subject,COALESCE(DATE_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i:%s'),'-') time,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 200`,
   );
 }
 export async function getAttendancePageData(): Promise<AttendancePageData> {
   const term = await getSchoolTerm();
   const [records, students, subjectData] = await Promise.all([
     rows<RowDataPacket & AttendanceRecord>(
-      `SELECT a.id,a.student_id studentId,st.student_code studentCode,st.full_name studentName,COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subjectName,DATE_FORMAT(a.attendance_date,'%Y-%m-%d') attendanceDate,IFNULL(TIME_FORMAT(a.check_in_time,'%H:%i:%s'),NULL) checkInTime,a.status,IFNULL(CAST(a.confidence AS DECIMAL(5,2)),NULL) confidence,DATE_FORMAT(a.created_at,'%d/%m/%Y %H:%i') createdAt FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 500`,
+      `SELECT a.id,a.student_id studentId,st.student_code studentCode,st.full_name studentName,COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) classroomId,COALESCE(c.name,'ยังไม่ระบุ') className,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subjectName,DATE_FORMAT(a.attendance_date,'%Y-%m-%d') attendanceDate,IFNULL(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i:%s'),NULL) checkInTime,a.status,IFNULL(CAST(a.confidence AS DECIMAL(5,2)),NULL) confidence,DATE_FORMAT(a.created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt FROM attendance_records a JOIN students st ON st.id=a.student_id LEFT JOIN subjects sb ON sb.id=a.subject_id LEFT JOIN check_in_sessions cs ON cs.id=a.check_in_session_id LEFT JOIN classrooms c ON c.id=COALESCE(cs.classroom_id,sb.classroom_id,st.class_id) ORDER BY a.attendance_date DESC,a.check_in_time DESC,a.id DESC LIMIT 500`,
     ),
     rows<
       RowDataPacket & {

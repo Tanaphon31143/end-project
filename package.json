@@ -34,7 +34,9 @@
     "db:school-announcements": "node --env-file=.env.local scripts/migrate-school-announcements.mjs",
     "db:school-announcements:check": "node --env-file=.env.local scripts/migrate-school-announcements.mjs --check",
     "db:student-password-change": "node --env-file=.env.local scripts/migrate-student-password-change.mjs",
-    "db:student-password-change:check": "node --env-file=.env.local scripts/migrate-student-password-change.mjs --check"
+    "db:student-password-change:check": "node --env-file=.env.local scripts/migrate-student-password-change.mjs --check",
+    "db:attendance-time-utc": "node --env-file=.env.local scripts/migrate-attendance-check-in-time-utc.mjs",
+    "db:attendance-time-utc:check": "node --env-file=.env.local scripts/migrate-attendance-check-in-time-utc.mjs --check"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
