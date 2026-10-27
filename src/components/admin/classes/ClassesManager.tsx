@@ -7,15 +7,18 @@ import { ArrowUpRight, BookOpen, Check, ChevronDown, MoreHorizontal, Pencil, Plu
 import type { Classroom, ClassroomValue, TeacherOption } from "./types";
 import { confirmDanger, showActionError, showActionSuccess } from "@/lib/sweet-alert";
 
-type Props = { initialClasses: Classroom[]; teachers: TeacherOption[]; academicYear: string; semester: "1" | "2" };
+type Props = { initialClasses: Classroom[]; teachers: TeacherOption[]; academicYear: string; semester: "1" | "2"; academicYears: string[] };
 
 const emptyValue = (academicYear: string, semester: "1" | "2"): ClassroomValue => ({
   className: "", gradeLevel: "ม.5", roomNumber: "1", advisorTeacherId: null,
   academicYear, semester, isActive: true, note: "",
 });
 
-export default function ClassesManager({ initialClasses, teachers, academicYear, semester }: Props) {
+export default function ClassesManager({ initialClasses, teachers, academicYear, semester, academicYears: initialYears }: Props) {
   const [classes, setClasses] = useState(initialClasses);
+  const [termYear, setTermYear] = useState(academicYear);
+  const [termSemester, setTermSemester] = useState(semester);
+  const [availableYears, setAvailableYears] = useState(initialYears);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState("ทั้งหมด");
   const [modal, setModal] = useState(false);
@@ -43,15 +46,24 @@ export default function ClassesManager({ initialClasses, teachers, academicYear,
       className: classroom.name, gradeLevel: classroom.level, roomNumber: classroom.roomNumber,
       advisorTeacherId: classroom.advisorTeacherId, academicYear: classroom.academicYear,
       semester: classroom.semester, isActive: classroom.isActive, note: classroom.note,
-    } : emptyValue(academicYear, semester));
+    } : emptyValue(termYear, termSemester));
     setModal(true);
   }
 
-  async function reload() {
-    const response = await fetch("/api/classes", { cache: "no-store" });
+  async function reload(year = termYear, selectedSemester = termSemester) {
+    const response = await fetch(`/api/classes?academicYear=${encodeURIComponent(year)}&semester=${selectedSemester}`, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok || !Array.isArray(data.classrooms)) throw new Error(data.message || "โหลดรายชื่อห้องเรียนไม่สำเร็จ กรุณาโหลดหน้าใหม่");
     setClasses(data.classrooms);
+    if (Array.isArray(data.academicYears)) setAvailableYears(data.academicYears);
+  }
+
+  async function changeTerm(year: string, selectedSemester: "1" | "2") {
+    setTermYear(year);
+    setTermSemester(selectedSemester);
+    setError("");
+    try { await reload(year, selectedSemester); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "โหลดข้อมูลเทอมไม่สำเร็จ"); }
   }
 
   async function save() {
@@ -103,7 +115,11 @@ export default function ClassesManager({ initialClasses, teachers, academicYear,
     </header>
 
     <section className="classes-summary" aria-label="ภาพรวมห้องเรียน">
-      <div className="term-summary"><span>ภาคเรียนปัจจุบัน</span><strong>{semester}/{academicYear}</strong></div>
+      <div className="term-summary">
+        <span>รายชื่อนักเรียนของภาคเรียน</span>
+        <label className="class-term-select"><span className="sr-only">ปีการศึกษา</span><select value={termYear} onChange={(event) => void changeTerm(event.target.value, termSemester)}>{availableYears.map((year) => <option value={year} key={year}>{year}</option>)}</select></label>
+        <label className="class-term-select"><span className="sr-only">ภาคเรียน</span><select value={termSemester} onChange={(event) => void changeTerm(termYear, event.target.value as "1" | "2")}><option value="1">ภาคเรียนที่ 1</option><option value="2">ภาคเรียนที่ 2</option></select></label>
+      </div>
       <dl>
         <div><dt>ห้องเรียนทั้งหมด</dt><dd>{classes.length}</dd></div>
         <div><dt>กำลังเปิดใช้งาน</dt><dd>{activeRooms}</dd></div>
@@ -122,16 +138,16 @@ export default function ClassesManager({ initialClasses, teachers, academicYear,
 
       <div className="classroom-list">
         {filteredClasses.map((classroom) => <article className="classroom-row" key={classroom.id}>
-          <Link className="classroom-row-link" href={`/admin/classes/${classroom.id}`} aria-label={`เปิดห้อง ${classroom.name}`}>
+          <Link className="classroom-row-link" href={`/admin/classes/${classroom.id}?academicYear=${encodeURIComponent(termYear)}&semester=${termSemester}`} aria-label={`เปิดห้อง ${classroom.name}`}>
             <div className="classroom-monogram" aria-hidden="true">{classroom.name.replace("ม.", "").slice(0, 2)}</div>
-            <div className="classroom-identity"><div><h3>{classroom.name}</h3><span className={classroom.isActive ? "is-active" : "is-inactive"}>{classroom.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}</span></div><p>ปีการศึกษา {classroom.academicYear} · ภาคเรียนที่ {classroom.semester}</p></div>
+            <div className="classroom-identity"><div><h3>{classroom.name}</h3><span className={classroom.isActive ? "is-active" : "is-inactive"}>{classroom.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}</span></div><p>รายชื่อภาคเรียนที่ {termSemester}/{termYear}</p></div>
             <div className="classroom-advisor"><span>ครูที่ปรึกษา</span><strong>{classroom.advisorName}</strong></div>
             <div className="classroom-count"><UsersRound size={17} aria-hidden="true" /><strong>{classroom.studentCount}</strong><span>คน</span></div>
             <span className="classroom-open-hint">ดูห้องเรียน <ArrowUpRight size={17} /></span>
           </Link>
           <button className="classroom-more" aria-label={`จัดการห้อง ${classroom.name}`} aria-expanded={menu === classroom.id} onClick={() => setMenu(menu === classroom.id ? null : classroom.id)}><MoreHorizontal size={19} /></button>
           {menu === classroom.id && <div className="classroom-inline-menu">
-            <Link href={`/admin/classes/${classroom.id}`}><ArrowUpRight size={15} />ดูห้องเรียน</Link>
+            <Link href={`/admin/classes/${classroom.id}?academicYear=${encodeURIComponent(termYear)}&semester=${termSemester}`}><ArrowUpRight size={15} />ดูห้องเรียน</Link>
             <button onClick={() => { setMenu(null); open(classroom); }}><Pencil size={15} />แก้ไขข้อมูล</button>
             <button className="danger" onClick={() => void remove(classroom)}><Trash2 size={15} />ลบห้องเรียน</button>
           </div>}

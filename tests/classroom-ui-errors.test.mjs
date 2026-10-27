@@ -17,7 +17,8 @@ function fixture(fetch, confirmed = true) {
   const errors = [], successes = [], busyStates = [];
   let rooms = [{ id: 1 }, { id: 2 }];
   const exports = {};
-  const context = { exports, Error, fetch, busy: false, setMenu() {},
+  const context = { exports, Error, fetch, encodeURIComponent, busy: false, setMenu() {},
+    termYear: '2569', termSemester: '1', setAvailableYears() {},
     confirmDanger: async () => confirmed,
     showActionError: async message => errors.push(message),
     showActionSuccess: async message => successes.push(message),
@@ -48,8 +49,9 @@ test('classroom deletion success plus refresh failure does not resurrect deleted
   assert.match(f.errors[0], /ลบห้องเรียนแล้ว/); assert.equal(f.successes.length, 0);
 });
 test('classroom successful delete refreshes list; cancelling never sends a request', async () => {
-  let calls = 0;
-  const fetch = async () => ++calls === 1 ? Response.json({ message: 'deleted' }) : Response.json({ classrooms: [{ id: 2 }] });
+  let calls = 0; const urls = [];
+  const fetch = async url => { urls.push(url); return ++calls === 1 ? Response.json({ message: 'deleted' }) : Response.json({ classrooms: [{ id: 2 }] }); };
   const f = fixture(fetch); await f.remove(); assert.deepEqual(f.successes, ['deleted']); assert.equal(f.errors.length, 0);
+  assert.equal(urls[1], '/api/classes?academicYear=2569&semester=1');
   const cancelled = fixture(fetch, false); await cancelled.remove(); assert.equal(calls, 2); assert.equal(cancelled.busyStates.length, 0);
 });

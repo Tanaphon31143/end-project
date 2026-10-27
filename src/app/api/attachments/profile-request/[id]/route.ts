@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
-import { getAdminSession, getStudentSession } from "@/lib/auth";
+import { getAdminSession, getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -30,6 +30,7 @@ export async function GET(
     getAdminSession(),
   ]);
 
+  if (!adminSession && studentSession?.mustChangePassword) return passwordChangeRequired();
   if (!studentSession && !adminSession) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบก่อนดูไฟล์" }, { status: 401 });
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { notificationPagination, notificationReadCommand } from "@/lib/student-notification-rules.mjs";
 import {
   getStudentNotifications,
@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }

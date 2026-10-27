@@ -10,6 +10,7 @@ export default async function ClassesPage() {
       teachers={data.teachers}
       academicYear={data.academicYear}
       semester={data.semester}
+      academicYears={data.academicYears}
     />
   );
 }

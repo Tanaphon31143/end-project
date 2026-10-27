@@ -2,7 +2,7 @@ import "server-only";
 import { getAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-export type AdminAuditAction = "CREATE" | "UPDATE" | "DELETE" | "PASSWORD_CHANGE";
+export type AdminAuditAction = "CREATE" | "UPDATE" | "DELETE" | "PASSWORD_CHANGE" | "ENROLL" | "UNENROLL";
 
 export async function recordAdminAudit(
   request: Request,

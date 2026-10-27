@@ -65,6 +65,7 @@ model Student {
   status       AccountStatus      @default(ACTIVE)
   classroom    Classroom?         @relation(fields: [classId], references: [id])
   attendance   AttendanceRecord[]
+  termEnrollments StudentTermEnrollment[]
 
   @@index([classId, status], map: "idx_student_class_status")
   @@map("students")
@@ -81,14 +82,32 @@ model Classroom {
   sessions         CheckInSession[]
   schedules        Schedule[]
   subjectRequests  TeacherSubjectRequest[]
+  termEnrollments StudentTermEnrollment[]
 
   @@index([advisorTeacherId], map: "idx_classroom_advisor")
   @@map("classrooms")
 }
 
+model StudentTermEnrollment {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  studentId    Int       @map("student_id") @db.UnsignedInt
+  classroomId  Int       @map("classroom_id") @db.UnsignedInt
+  academicYear String    @map("academic_year") @db.VarChar(10)
+  semester     Int       @db.UnsignedTinyInt
+  classNumber  Int?      @map("class_number") @db.UnsignedInt
+  createdAt    DateTime  @default(now()) @map("created_at")
+  student      Student   @relation(fields: [studentId], references: [id])
+  classroom    Classroom @relation(fields: [classroomId], references: [id])
+
+  @@unique([studentId, academicYear, semester], map: "uq_student_term")
+  @@unique([classroomId, academicYear, semester, classNumber], map: "uq_classroom_term_number")
+  @@index([classroomId, academicYear, semester], map: "idx_enrollment_classroom_term")
+  @@map("student_term_enrollments")
+}
+
 model Subject {
   id             Int                @id @default(autoincrement()) @db.UnsignedInt
-  subjectCode    String             @unique @map("subject_code") @db.VarChar(30)
+  subjectCode    String             @map("subject_code") @db.VarChar(30)
   subjectName    String             @map("subject_name") @db.VarChar(200)
   teacherId      Int?               @map("teacher_id") @db.UnsignedInt
   classroomId    Int?               @map("classroom_id") @db.UnsignedInt
@@ -110,6 +129,7 @@ model Subject {
   schedules      Schedule[]
   attendance     AttendanceRecord[]
 
+  @@unique([subjectCode, academicYear, semester], map: "uq_subject_code_term")
   @@index([teacherId], map: "idx_subject_teacher")
   @@index([classroomId], map: "idx_subject_classroom")
   @@map("subjects")

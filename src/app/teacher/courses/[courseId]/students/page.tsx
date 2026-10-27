@@ -21,22 +21,23 @@ export default async function CourseStudentsPage({
   });
   if (!course?.classroom) notFound();
 
-  const students = await prisma.student.findMany({
-    where: { classId: course.classroom.id, status: "ACTIVE" },
-    select: { id: true, studentCode: true, fullName: true, classNumber: true },
-    orderBy: [{ classNumber: "asc" }, { studentCode: "asc" }],
+  const enrollments = await prisma.studentTermEnrollment.findMany({
+    where: { classroomId: course.classroom.id, academicYear: course.academicYear, semester: course.semester, student: { status: "ACTIVE" } },
+    select: { classNumber: true, student: { select: { id: true, studentCode: true, fullName: true } } },
+    orderBy: [{ classNumber: "asc" }, { student: { studentCode: "asc" } }],
   });
+  const students = enrollments.map(({ student, classNumber }) => ({ ...student, classNumber }));
 
   return (
     <div className="teacher-course-roster">
-      <Link className="teacher-course-roster-back" href="/teacher/courses">
+      <Link className="teacher-course-roster-back" href={`/teacher/courses?academicYear=${encodeURIComponent(course.academicYear)}&semester=${course.semester}`}>
         <ArrowLeft size={16} aria-hidden="true" /> กลับไปรายวิชาของฉัน
       </Link>
       <header className="teacher-course-roster-head">
         <span className="teacher-course-roster-icon" aria-hidden="true"><UsersRound size={23} /></span>
         <div>
           <h2>รายชื่อนักเรียน</h2>
-          <p>{course.subjectCode} · {course.subjectName} · {course.classroom.name}</p>
+          <p>{course.subjectCode} · {course.subjectName} · {course.classroom.name} · ภาคเรียนที่ {course.semester}/{course.academicYear}</p>
         </div>
         <span>{students.length} คน</span>
       </header>
@@ -53,7 +54,7 @@ export default async function CourseStudentsPage({
             ))}</tbody>
           </table>
         ) : (
-          <p className="teacher-course-roster-empty">ยังไม่มีนักเรียนที่กำลังใช้งานในห้องเรียนนี้</p>
+          <p className="teacher-course-roster-empty">ยังไม่มีรายชื่อผู้เรียนในภาคเรียนนี้ ให้ผู้ดูแลระบบเพิ่มรายชื่อเข้าเรียนโดยใช้บัญชีนักเรียนเดิมได้ อีเมลและข้อมูลใบหน้าจะใช้ต่อได้ทันที</p>
         )}
       </section>
     </div>

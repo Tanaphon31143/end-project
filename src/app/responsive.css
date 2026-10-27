@@ -636,9 +636,6 @@
     white-space: nowrap;
   }
 
-  .admin-header-brand,
-  .teacher-header-brand,
-  .student-header-title,
   :is(.profile-copy, .user-copy, .teacher-profile-chevron),
   .fullscreen-control,
   .search-box kbd {
@@ -654,7 +651,28 @@
 
   .header-title-wrap,
   .topbar-title {
-    flex: 0 0 44px;
+    min-width: 0;
+    flex: 0 1 auto;
+    gap: 4px;
+  }
+
+  :is(.admin-header-brand, .teacher-header-brand, .student-header-title) {
+    display: grid;
+    min-width: 0;
+  }
+
+  :is(.admin-header-brand, .teacher-header-brand, .student-header-title) strong {
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: normal;
+  }
+
+  :is(.admin-header-brand, .teacher-header-brand, .student-header-title) > span {
+    font-size: 11px;
+  }
+
+  .student-header-title {
+    margin-left: 0;
   }
 
   .admin-search-toggle,

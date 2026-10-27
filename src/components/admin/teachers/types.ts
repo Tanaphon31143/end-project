@@ -2,6 +2,8 @@ export type TeacherStatus = "ACTIVE" | "INACTIVE";
 
 export type TeacherRecord = {
   databaseId: number;
+  hasProfileImage?: number | boolean;
+  isLoggedIn: boolean | number;
   teacherCode: string;
   fullName: string;
   email: string;

@@ -1,4 +1,4 @@
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { getActiveSessionsForStudent } from "@/lib/student-check-in";
 import { checkLivenessFailureLimit, issueLivenessChallenge } from "@/lib/student-liveness";
 import { canIssueLivenessChallenge } from "@/lib/student-rules.mjs";
@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) return Response.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
 
   const body = (await request.json().catch(() => ({}))) as { sessionId?: unknown };

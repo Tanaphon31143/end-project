@@ -10,7 +10,7 @@ test("teacher workflow: สร้างรอบ ป้องกันสแก�
   const connection = await mysql.createConnection({ host: parsed.hostname, port: Number(parsed.port || 3306), user: decodeURIComponent(parsed.username), password: decodeURIComponent(parsed.password), database: parsed.pathname.slice(1), ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" } });
   await connection.beginTransaction();
   try {
-    const [[base]] = await connection.query(`SELECT sb.id subjectId,sb.teacher_id teacherId,sb.classroom_id classroomId,st.id studentId FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id WHERE sb.is_active=1 AND st.status='ACTIVE' LIMIT 1`);
+    const [[base]] = await connection.query(`SELECT sb.id subjectId,sb.teacher_id teacherId,sb.classroom_id classroomId,st.id studentId FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id WHERE sb.is_active=1 AND st.status='ACTIVE' LIMIT 1`);
     assert.ok(base, "ฐานทดสอบต้องมีครู รายวิชา ห้อง และนักเรียนอย่างน้อยหนึ่งชุด");
     const sessionDate = "2099-12-30";
     const [session] = await connection.execute(`INSERT INTO check_in_sessions(subject_id,classroom_id,session_date,start_time,end_time,late_after,status,created_by_teacher_id) VALUES(?,?,?,'08:00','09:00','08:15','ACTIVE',?)`, [base.subjectId, base.classroomId, sessionDate, base.teacherId]);

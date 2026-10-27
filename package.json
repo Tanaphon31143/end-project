@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "db:admin-schema": "node --env-file=.env.local scripts/apply-admin-schema.mjs",
+    "db:academic-terms": "node --env-file=.env.local scripts/migrate-academic-terms.mjs",
+    "db:academic-terms:check": "node --env-file=.env.local scripts/migrate-academic-terms.mjs --check",
     "db:teacher-schedules": "node --env-file=.env.local scripts/migrate-teacher-schedules.mjs",
     "db:teacher-subject-requests": "node --env-file=.env.local scripts/migrate-teacher-subject-requests.mjs",
     "db:calibrate-faces": "node --env-file=.env.local scripts/calibrate-face-threshold.mjs",
@@ -28,7 +30,13 @@
     "test:student:round4": "node --test tests/student-round4.test.mjs tests/student-round4.integration.test.mjs",
     "test:student:face-self-enrollment": "node --test tests/student-face-self-enrollment.integration.test.mjs",
     "test:student:integration": "node --env-file=.env.test --test tests/student-check-in.integration.test.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "db:school-announcements": "node --env-file=.env.local scripts/migrate-school-announcements.mjs",
+    "db:school-announcements:check": "node --env-file=.env.local scripts/migrate-school-announcements.mjs --check",
+    "db:student-password-change": "node --env-file=.env.local scripts/migrate-student-password-change.mjs",
+    "db:student-password-change:check": "node --env-file=.env.local scripts/migrate-student-password-change.mjs --check",
+    "db:attendance-time-utc": "node --env-file=.env.local scripts/migrate-attendance-check-in-time-utc.mjs",
+    "db:attendance-time-utc:check": "node --env-file=.env.local scripts/migrate-attendance-check-in-time-utc.mjs --check"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

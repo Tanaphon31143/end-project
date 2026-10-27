@@ -151,6 +151,14 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const [existingSubjects] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM subjects WHERE subject_code=? AND academic_year=? AND semester=? LIMIT 1",
+      [v.subjectCode, v.academicYear, v.semester],
+    );
+    if (existingSubjects.length) {
+      await connection.rollback();
+      return Response.json({ message: "รหัสวิชานี้มีอยู่แล้วในปีการศึกษาและภาคเรียนที่เลือก" }, { status: 409 });
+    }
     const [result] = await connection.execute<ResultSetHeader>(
       `INSERT INTO subjects (subject_code,subject_name,teacher_id,grade_level,classroom_id,semester,academic_year,credits,study_days,start_time,end_time,location,attendance_mode,is_active,description) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
@@ -215,6 +223,14 @@ export async function PUT(request: Request) {
     if (!classRows[0] || classRows[0].level !== v.gradeLevel) {
       await connection.rollback();
       return Response.json({ message: "ชั้นเรียนไม่ตรงกับระดับชั้นที่เลือก" }, { status: 400 });
+    }
+    const [existingSubjects] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM subjects WHERE subject_code=? AND academic_year=? AND semester=? AND id<>? LIMIT 1",
+      [v.subjectCode, v.academicYear, v.semester, id],
+    );
+    if (existingSubjects.length) {
+      await connection.rollback();
+      return Response.json({ message: "รหัสวิชานี้มีอยู่แล้วในปีการศึกษาและภาคเรียนที่เลือก" }, { status: 409 });
     }
     const [result] = await connection.execute<ResultSetHeader>(
       `UPDATE subjects SET subject_code=?,subject_name=?,teacher_id=?,grade_level=?,classroom_id=?,semester=?,academic_year=?,credits=?,study_days=?,start_time=?,end_time=?,location=?,attendance_mode=?,is_active=?,description=? WHERE id=?`,

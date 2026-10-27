@@ -1,20 +1,28 @@
 "use client";
 import { useState } from "react";
 import { ChevronDown, FileSpreadsheet, Plus, UserPlus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import StudentImportModal from "./StudentImportModal";
 import { RippleButton } from "@/components/portal/RippleButton";
 type Room = { id: number; name: string; level: string };
 export default function StudentAddDropdown({
   classrooms,
+  academicYear,
+  semester,
+  academicYears,
   onAddSingle,
+  onEnrollExisting,
+  onImportDone,
 }: {
   classrooms: Room[];
+  academicYear: string;
+  semester: "1" | "2";
+  academicYears: string[];
   onAddSingle: () => void;
+  onEnrollExisting: () => void;
+  onImportDone: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false),
     [importing, setImporting] = useState(false);
-  const router = useRouter();
   return (
     <div className="student-add-launcher">
       <RippleButton
@@ -42,6 +50,18 @@ export default function StudentAddDropdown({
           <button
             onClick={() => {
               setOpen(false);
+              onEnrollExisting();
+            }}
+          >
+            <UserPlus size={17} />
+            <span>
+              <b>เพิ่มบัญชีเดิมเข้าเทอม</b>
+              <small>ค้นหาด้วยรหัสนักเรียนหรืออีเมล</small>
+            </span>
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
               setImporting(true);
             }}
           >
@@ -56,7 +76,10 @@ export default function StudentAddDropdown({
       {importing && (
         <StudentImportModal
           classrooms={classrooms}
-          onDone={async () => router.refresh()}
+          academicYear={academicYear}
+          semester={semester}
+          academicYears={academicYears}
+          onDone={onImportDone}
           onClose={() => setImporting(false)}
         />
       )}

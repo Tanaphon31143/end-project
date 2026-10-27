@@ -1,11 +1,32 @@
 import { NextResponse } from "next/server";
 import { requireTeacher } from "@/lib/api-auth";
+import {
+  getSchoolTerm,
+  parseAcademicTerm,
+  type AcademicTerm,
+} from "@/lib/academic-term";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   const auth = await requireTeacher();
   if ("error" in auth) return auth.error;
   const query = new URL(request.url).searchParams;
+  const schoolTerm = await getSchoolTerm();
+  let term: AcademicTerm;
+  try {
+    term = parseAcademicTerm(
+      {
+        academicYear: query.get("academicYear") ?? undefined,
+        semester: query.get("semester") ?? undefined,
+      },
+      schoolTerm,
+    );
+  } catch {
+    return NextResponse.json(
+      { message: "ปีการศึกษาหรือภาคเรียนไม่ถูกต้อง" },
+      { status: 400 },
+    );
+  }
   const datePattern = /^\d{4}-\d{2}-\d{2}$/;
   if (
     (query.get("from") && !datePattern.test(query.get("from")!)) ||
@@ -40,6 +61,8 @@ export async function GET(request: Request) {
       attendanceDate: { gte: from, lte: to },
       subject: {
         teacherId: auth.teacher.id,
+        academicYear: term.academicYear,
+        semester: term.semester,
         ...(subjectId ? { id: Number(subjectId) } : {}),
       },
     },

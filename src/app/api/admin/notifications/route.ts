@@ -28,7 +28,7 @@ export async function GET() {
               r.field_type fieldType, r.old_value oldValue, r.new_value newValue,
               r.reason, r.attachment_name attachmentName,
               (r.attachment_data IS NOT NULL) hasAttachment,
-              DATE_FORMAT(r.created_at, '%d/%m/%Y %H:%i') createdAt,
+              DATE_FORMAT(r.created_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') createdAt,
               UNIX_TIMESTAMP(r.created_at) createdAtEpoch
        FROM profile_edit_requests r
        JOIN students s ON s.id = r.student_id
@@ -50,7 +50,7 @@ export async function GET() {
     `SELECT r.id, t.full_name teacherName, r.subject_name subjectName,
             r.subject_code subjectCode, c.name classroomName,
             r.semester, r.academic_year academicYear,
-            DATE_FORMAT(r.updated_at, '%d/%m/%Y %H:%i') createdAt,
+            DATE_FORMAT(r.updated_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') createdAt,
             UNIX_TIMESTAMP(r.updated_at) createdAtEpoch
      FROM teacher_subject_requests r
      JOIN teachers t ON t.id = r.teacher_id

@@ -80,9 +80,11 @@ async function getStudentSessionsForToday(
               ELSE 'OPEN'
             END availability
      FROM check_in_sessions cs
-     JOIN subjects sb ON sb.id = cs.subject_id
+     JOIN subjects sb ON sb.id = cs.subject_id AND sb.classroom_id = cs.classroom_id
      JOIN classrooms c ON c.id = cs.classroom_id
-     JOIN students st ON st.class_id = cs.classroom_id
+     JOIN student_term_enrollments ste ON ste.classroom_id = cs.classroom_id
+       AND ste.semester = sb.semester AND ste.academic_year = sb.academic_year
+     JOIN students st ON st.id = ste.student_id AND st.status = 'ACTIVE'
      LEFT JOIN teachers t ON t.id = sb.teacher_id
      LEFT JOIN schedules sc ON sc.id = cs.schedule_id
      WHERE st.id = ?

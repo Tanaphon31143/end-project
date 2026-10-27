@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getCheckInPageData } from "@/lib/admin-data";
 import { getAdminSession } from "@/lib/auth";
+import { termEnrollmentWhere } from "@/lib/academic-term";
 import { db } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
@@ -119,7 +120,10 @@ export async function PATCH(request: Request) {
     );
   try {
     const result = await prisma.$transaction(async tx => {
-      const session = await tx.checkInSession.findUnique({ where: { id: BigInt(id) } });
+      const session = await tx.checkInSession.findUnique({
+        where: { id: BigInt(id) },
+        include: { subject: { select: { academicYear: true, semester: true } } },
+      });
       if (!session) return null;
       // Claim the transition once. Both staff roles use the same session and
       // attendance tables; repeated closes must not create duplicate absences.
@@ -131,7 +135,19 @@ export async function PATCH(request: Request) {
       let absentCreated = 0;
       if (status === "CLOSED") {
         const students = await tx.student.findMany({
-          where: { classId: session.classroomId, status: "ACTIVE" }, select: { id: true },
+          where: {
+            status: "ACTIVE",
+            termEnrollments: {
+              some: termEnrollmentWhere(
+                {
+                  academicYear: session.subject.academicYear,
+                  semester: session.subject.semester,
+                },
+                session.classroomId,
+              ),
+            },
+          },
+          select: { id: true },
         });
         const existing = await tx.attendanceRecord.findMany({
           where: { checkInSessionId: session.id }, select: { studentId: true },

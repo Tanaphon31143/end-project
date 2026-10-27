@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { RowDataPacket } from "mysql2/promise";
 import { NextResponse } from "next/server";
 import { requireTeacher, requestMeta } from "@/lib/api-auth";
+import { termEnrollmentWhere } from "@/lib/academic-term";
 import { db } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import { protectTeacherMutation } from "@/lib/api-security";
@@ -179,9 +180,21 @@ export async function PATCH(request: Request) {
         absentCreated: 0,
       });
     const students = await prisma.student.findMany({
-      where: { classId: session.classroomId, status: "ACTIVE" },
-      select: { id: true },
+      where: {
+        status: "ACTIVE",
+        termEnrollments: {
+          some: termEnrollmentWhere(
+            {
+              academicYear: session.subject.academicYear,
+              semester: session.subject.semester,
+            },
+            session.classroomId,
+          ),
+        },
+      },
+      select: { id: true, studentCode: true },
     });
+    const studentCodes = new Map(students.map((student) => [student.id, student.studentCode]));
     let alreadyClosed = false;
     let absentCreated = 0;
     await prisma.$transaction(
@@ -227,7 +240,9 @@ export async function PATCH(request: Request) {
               action: "CREATE",
               entity: "attendance_record",
               entityId: String(record.id),
-              description: `ปิดรอบและบันทึกขาดเรียน นักเรียน ${record.studentId}`,
+              // The dashboard feed hides these per-student rows ("ปิดรอบ…" on attendance_record);
+              // the CLOSE row below summarises them.
+              description: `ปิดรอบ ${session.subject.subjectCode}: บันทึกขาดเรียน นักเรียนรหัส ${studentCodes.get(record.studentId) ?? record.studentId}`,
               ...requestMeta(request),
             })),
           });

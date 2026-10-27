@@ -1,79 +1,67 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  KeyRound,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  X,
-  Users, Crown, UserRound, GraduationCap, MoreVertical, Download,
-} from "lucide-react";
-import { Badge, PersonCell } from "@/components/admin/AdminPage";
+import { Eye, KeyRound, Pencil, Plus, Search, Trash2, X, Users, Crown, UserRound, GraduationCap, MoreVertical, Download, SlidersHorizontal, LayoutGrid, List, ChevronDown } from "lucide-react";
+import { ProfileAvatar } from "./ProfileAvatar";
+import { useAccountPresence, AccountPresenceBadge, AccountPresenceNotice, loginStatusLabel } from "./AccountPresence";
+import { PersonCell } from "@/components/admin/AdminPage";
 import { confirmDanger, showActionSuccess } from "@/lib/sweet-alert";
-import {
-  EMPTY_USER,
-  ROLE_LABELS,
-  type AdminUserRecord,
-  type UserFormValue,
-  type UserRole,
-} from "./types";
+import { nameInitials } from "@/lib/name-initials";
+import { EMPTY_USER, type AdminUserRecord, type UserFormValue, type UserRole } from "./types";
+import { ManagementPageHeader, ManagementSummary, ManagementPagination, ManagementEmpty, exportManagementCsv } from "./UserManagementUI";
 
 type ModalMode = "create" | "view" | "edit" | "password";
 type Errors = Partial<Record<keyof UserFormValue, string>>;
-const USERS_PER_PAGE = 15;
-
-function roleTone(role: UserRole) {
-  return role === "admin" ? "purple" : role === "teacher" ? "blue" : "gray";
+const roleNames: Record<UserRole,string> = {admin:"ผู้ดูแลระบบ",teacher:"ครู",student:"นักเรียน"};
+function displayDate(value?:string) {
+  if(!value)return "—";
+  const date=new Date(value.replace(" ","T"));
+  return Number.isNaN(date.getTime())?"—":date.toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"});
 }
 
-export default function UsersManager({
-  initialUsers,
-}: {
-  initialUsers: AdminUserRecord[];
-}) {
-  const [users, setUsers] = useState(initialUsers);
-  const [query, setQuery] = useState("");
-  const [role, setRole] = useState<UserRole | "">("");
-  const [status, setStatus] = useState("");
-  const [page, setPage] = useState(1);
-  const [modal, setModal] = useState<ModalMode | null>(null);
-  const [selected, setSelected] = useState<AdminUserRecord | null>(null);
-  const [value, setValue] = useState<UserFormValue>(EMPTY_USER);
-  const [errors, setErrors] = useState<Errors>({});
-  const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    tone: "success" | "error";
-  } | null>(null);
+function accountTrend(accounts:AdminUserRecord[]) {
+  const now=new Date();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+  const dates=accounts.map(account=>account.createdAt?new Date(account.createdAt.replace(" ","T")).getTime():NaN).filter(Number.isFinite);
+  const monthCount=dates.filter(date=>date>=monthStart).length;
+  const previousCount=dates.filter(date=>date<monthStart).length;
+  const growth=previousCount?Math.round((accounts.length-previousCount)/previousCount*100):null;
+  const series=Array.from({length:8},(_,index)=>dates.filter(date=>date<=now.getTime()-(7-index)*7*86400000).length);
+  return {label:growth===null?(monthCount?`ใหม่ ${monthCount}`:"0%"):`${Math.abs(growth)}%`,description:previousCount?"เพิ่มจากต้นเดือน":"เดือนนี้",direction:(growth===null?(monthCount?'up':'flat'):growth>0?'up':growth<0?'down':'flat') as "up"|"down"|"flat",series};
+}
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase("th");
-    return users.filter((user) => {
-      const matchesQuery =
-        !needle ||
-        [user.id, user.code, user.name, user.email].some((item) =>
-          item.toLocaleLowerCase("th").includes(needle),
-        );
-      return matchesQuery && (!role || user.role === role) && (!status || user.status === status);
-    });
-  }, [query, role, status, users]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filtered.length / USERS_PER_PAGE),
-  );
-  const currentPage = Math.min(page, totalPages);
-  const pageStart = filtered.length
-    ? (currentPage - 1) * USERS_PER_PAGE + 1
-    : 0;
-  const pageEnd = Math.min(currentPage * USERS_PER_PAGE, filtered.length);
-  const visibleUsers = filtered.slice(pageStart ? pageStart - 1 : 0, pageEnd);
-
+export default function UsersManager({initialUsers}:{initialUsers:AdminUserRecord[]}) {
+  const [userRecords,setUsers]=useState(initialUsers);
+  const {accounts:users,isStale,refresh:refreshPresence}=useAccountPresence(userRecords);
+  const [query,setQuery]=useState("");
+  const [role,setRole]=useState<UserRole|"">("");
+  const [status,setStatus]=useState("");
+  const [grade,setGrade]=useState("");
+  const [classroom,setClassroom]=useState("");
+  const [page,setPage]=useState(1);
+  const [pageSize,setPageSize]=useState(20);
+  const [checked,setChecked]=useState<Set<string>>(new Set());
+  const [view,setView]=useState<"list"|"grid">("list");
+  const [modal,setModal]=useState<ModalMode|null>(null);
+  const [selected,setSelected]=useState<AdminUserRecord|null>(null);
+  const [value,setValue]=useState<UserFormValue>(EMPTY_USER);
+  const [errors,setErrors]=useState<Errors>({});
+  const [busy,setBusy]=useState(false);
+  const [toast,setToast]=useState<{message:string;tone:"success"|"error"}|null>(null);
+  const grades=useMemo(()=>Array.from(new Set(users.filter(u=>u.role==="student").map(u=>u.classLevel).filter((g):g is string=>Boolean(g)))).sort((a,b)=>a.localeCompare(b,"th",{numeric:true})),[users]);
+  const classrooms=useMemo(()=>Array.from(new Map(users.filter(u=>u.role==="student"&&u.classId&&(!grade||u.classLevel===grade)).map(u=>[u.classId!,{id:u.classId!,name:u.className||"ยังไม่ระบุ"}])).values()).sort((a,b)=>a.name.localeCompare(b.name,"th",{numeric:true})),[users,grade]);
+  const filtered=useMemo(()=>{const needle=query.trim().toLocaleLowerCase("th");return users.filter(user=>(!needle||[user.id,user.code,user.name,user.email].some(text=>text.toLocaleLowerCase("th").includes(needle)))&&(!role||user.role===role)&&(!status||(status==="ONLINE")===Boolean(user.isLoggedIn))&&(!grade||(user.role==="student"&&user.classLevel===grade))&&(!classroom||(user.role==="student"&&String(user.classId)===classroom)));},[query,role,status,grade,classroom,users]);
+  const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
+  const currentPage=Math.min(page,totalPages);
+  const pageStart=filtered.length?(currentPage-1)*pageSize+1:0;
+  const pageEnd=Math.min(currentPage*pageSize,filtered.length);
+  const visibleUsers=filtered.slice(pageStart?pageStart-1:0,pageEnd);
+  const selectedUsers=filtered.filter(user=>checked.has(user.id));
+  const studentFiltersAvailable=!role||role==="student";
+  function changeRole(next:UserRole|""){setRole(next);setPage(1);if(next&&next!=="student"){setGrade("");setClassroom("");}}
+  function toggleUser(id:string){setChecked(previous=>{const next=new Set(previous);if(next.has(id))next.delete(id);else next.add(id);return next;});}
+  function togglePage(){setChecked(previous=>{const next=new Set(previous);const all=visibleUsers.every(u=>next.has(u.id));visibleUsers.forEach(u=>all?next.delete(u.id):next.add(u.id));return next;});}
+  function exportUsers(){const rows=selectedUsers.length?selectedUsers:filtered;exportManagementCsv("users.csv",["รหัสผู้ใช้","ชื่อ-นามสกุล","อีเมล","ประเภทผู้ใช้","ระดับชั้น","ห้องเรียน","สถานะการเข้าสู่ระบบ","วันที่สร้าง"],rows.map(u=>[u.code||u.id,u.name,u.email,roleNames[u.role],u.classLevel||"",u.className||"",loginStatusLabel(Boolean(u.isLoggedIn)),u.createdAt||""]));}
   function notify(message: string, tone: "success" | "error") {
     setToast({ message, tone });
     window.setTimeout(() => setToast(null), 3500);
@@ -106,6 +94,7 @@ export default function UsersManager({
     if (!response.ok || !data.users)
       throw new Error(data.message || "โหลดข้อมูลล่าสุดไม่สำเร็จ");
     setUsers(data.users);
+    await refreshPresence();
   }
 
   function validate() {
@@ -182,205 +171,31 @@ export default function UsersManager({
     }
   }
 
-  const readOnly = modal === "view";
-  const passwordOnly = modal === "password";
-  const modalTitle =
-    modal === "create"
-      ? "เพิ่มผู้ใช้งาน"
-      : modal === "edit"
-        ? "แก้ไขผู้ใช้งาน"
-        : modal === "password"
-          ? "เปลี่ยนรหัสผ่าน"
-          : "รายละเอียดผู้ใช้งาน";
-
-  return (
-    <main className="admin-content users-page">
-      <div className="page-intro">
-        <div>
-          <h2>บัญชีผู้ใช้งาน</h2>
-          <p>จัดการบัญชี บทบาท และสิทธิ์การเข้าถึงระบบ</p>
+  const readOnly=modal==="view";
+  const passwordOnly=modal==="password";
+  const modalTitle=modal==="create"?"เพิ่มผู้ใช้งาน":modal==="edit"?"แก้ไขผู้ใช้งาน":modal==="password"?"เปลี่ยนรหัสผ่าน":"รายละเอียดผู้ใช้งาน";
+  function createUser(nextRole:UserRole){open("create");setValue({...EMPTY_USER,role:nextRole});}
+  function actions(user:AdminUserRecord) {
+    return <div className="um-actions"><button type="button" className="um-icon-button" aria-label={`ดูรายละเอียด ${user.name}`} title="ดูรายละเอียด" onClick={()=>open("view",user)}><Eye size={17}/></button><button type="button" className="um-icon-button" aria-label={`แก้ไข ${user.name}`} title="แก้ไข" onClick={()=>open("edit",user)}><Pencil size={17}/></button><button type="button" className="um-icon-button" aria-label={`ตัวเลือกเพิ่มเติม ${user.name}`} popoverTarget={`user-actions-${user.id}`} onClick={event=>{const menu=document.getElementById(`user-actions-${user.id}`);if(!menu)return;const rect=event.currentTarget.getBoundingClientRect();menu.style.left=`${Math.max(8,Math.min(rect.right-208,window.innerWidth-216))}px`;menu.style.top=`${rect.bottom+110>window.innerHeight?Math.max(8,rect.top-110):rect.bottom+8}px`;}}><MoreVertical size={17}/></button><div id={`user-actions-${user.id}`} popover="auto" className="users-action-popover" aria-label={`จัดการบัญชี ${user.name}`} onClick={event=>{if((event.target as HTMLElement).closest("button"))event.currentTarget.hidePopover();}}><button type="button" onClick={()=>open("password",user)}><KeyRound size={16}/>เปลี่ยนรหัสผ่าน</button><button type="button" className="danger" disabled={busy} onClick={()=>void remove(user)}><Trash2 size={16}/>ลบบัญชี</button></div></div>;
+  }
+  return (<main className="admin-content um-page users-management">
+    <ManagementPageHeader title="จัดการผู้ใช้งาน" description="จัดการข้อมูลผู้ใช้ แยกตามประเภทผู้ใช้งาน พร้อมดูรายละเอียดและสิทธิ์การเข้าถึงระบบ"/>
+    <ManagementSummary variant="users" items={[{label:"ผู้ใช้งานทั้งหมด",value:users.length,unit:"บัญชี",icon:Users,trend:accountTrend(users)},{label:"นักเรียน",value:users.filter(u=>u.role==="student").length,unit:"บัญชี",icon:GraduationCap,tone:"green",trend:accountTrend(users.filter(u=>u.role==="student"))},{label:"ครู",value:users.filter(u=>u.role==="teacher").length,unit:"บัญชี",icon:UserRound,trend:accountTrend(users.filter(u=>u.role==="teacher"))},{label:"ผู้ดูแลระบบ",value:users.filter(u=>u.role==="admin").length,unit:"บัญชี",icon:Crown,tone:"purple",trend:accountTrend(users.filter(u=>u.role==="admin"))}]}/>
+    <section className="um-panel users-roster" aria-label="รายชื่อผู้ใช้งาน">
+      <AccountPresenceNotice isStale={isStale} onRetry={refreshPresence}/>
+      <div className="users-roster-top">
+        <div className="users-category-tabs" role="group" aria-label="ประเภทผู้ใช้งาน">{([{value:"",label:"ทั้งหมด"},{value:"teacher",label:"ครู"},{value:"student",label:"นักเรียน"}] as const).map(tab=><button type="button" key={tab.value} aria-pressed={role===tab.value} onClick={()=>changeRole(tab.value)}>{tab.label} <span>({users.filter(u=>!tab.value||u.role===tab.value).length})</span></button>)}</div>
+        <div className="um-tools">
+          <button type="button" className="um-secondary" disabled={!filtered.length} onClick={exportUsers}><Download size={16}/>{selectedUsers.length?`ส่งออกที่เลือก (${selectedUsers.length})`:"ส่งออกข้อมูล"}</button>
+          <div className="users-add-menu"><button type="button" className="um-primary" popoverTarget="users-create-menu" onClick={event=>{const menu=document.getElementById("users-create-menu");if(!menu)return;const rect=event.currentTarget.getBoundingClientRect();menu.style.left=`${Math.max(8,Math.min(rect.right-208,window.innerWidth-216))}px`;menu.style.top=`${rect.bottom+8}px`;}}><Plus size={18}/>เพิ่มผู้ใช้งาน<ChevronDown size={15}/></button><div id="users-create-menu" popover="auto" className="users-action-popover users-create-popover" aria-label="เพิ่มบัญชีผู้ใช้">{(["student","teacher","admin"] as const).map(nextRole=><button type="button" key={nextRole} onClick={event=>{createUser(nextRole);event.currentTarget.parentElement?.hidePopover();}}>เพิ่ม{roleNames[nextRole]}</button>)}</div></div>
+          <div className="users-view-switch" role="group" aria-label="รูปแบบรายชื่อ"><button type="button" aria-label="แสดงแบบตาราง" aria-pressed={view==="list"} onClick={()=>setView("list")}><List size={18}/></button><button type="button" aria-label="แสดงแบบการ์ด" aria-pressed={view==="grid"} onClick={()=>setView("grid")}><LayoutGrid size={18}/></button></div>
         </div>
-        <button className="admin-button primary" onClick={() => open("create")}>
-          <Plus size={18} />
-          เพิ่มผู้ใช้งาน
-        </button>
       </div>
-      <section className="users-summary" aria-label="จำนวนบัญชีตามบทบาท">
-        {[{ label: "ผู้ใช้งานทั้งหมด", count: users.length, Icon: Users, tone: "blue" }, { label: "ผู้ดูแลระบบ", count: users.filter((u) => u.role === "admin").length, Icon: Crown, tone: "purple" }, { label: "ครู", count: users.filter((u) => u.role === "teacher").length, Icon: UserRound, tone: "blue" }, { label: "นักเรียน", count: users.filter((u) => u.role === "student").length, Icon: GraduationCap, tone: "green" }].map(({ label, count, Icon, tone }) => <div className="users-summary-item" key={label}><span className={`users-summary-icon ${tone}`}><Icon size={30} /></span><div><h3>{label}</h3><strong>{count} <small>บัญชี</small></strong></div></div>)}
-      </section>
-      <div className="admin-filters">
-        <label>
-          <Search size={18} />
-          <input
-            aria-label="ค้นหาผู้ใช้งาน"
-            placeholder="ค้นหาชื่อ อีเมล หรือรหัสผู้ใช้"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-          />
-        </label>
-        <select
-          aria-label="บทบาทผู้ใช้งาน"
-          value={role}
-          onChange={(event) => {
-            setRole(event.target.value as UserRole | "");
-            setPage(1);
-          }}
-        >
-          <option value="">ทุกบทบาท</option>
-          <option value="admin">ผู้ดูแลระบบ</option>
-          <option value="teacher">ครู</option>
-          <option value="student">นักเรียน</option>
-        </select>
-        <select aria-label="สถานะบัญชี" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="">ทุกสถานะ</option><option value="ACTIVE">ใช้งาน</option><option value="INACTIVE">ระงับ</option></select>
-        <button
-          className="admin-button secondary filter-reset-button"
-          onClick={() => {
-            setQuery("");
-            setRole("");
-            setStatus("");
-            setPage(1);
-          }}
-        >
-          ล้างตัวกรอง
-        </button>
-      </div>
-      <section className="dashboard-card admin-table-card">
-        <div className="card-head">
-          <div>
-            <h2>รายชื่อผู้ใช้งาน</h2>
-            <p>
-              แสดง {pageStart}–{pageEnd} จาก {filtered.length} บัญชี
-            </p>
-          </div>
-          <div className="users-list-tools"><span className="row-count">{filtered.length} บัญชี</span><button className="admin-button secondary" onClick={() => {
-            const escape = (text: string) => `"${(/^[\s]*[=+@-]/.test(text) ? "'" + text : text).replaceAll('"', '""')}"`;
-            const csv = "\uFEFF" + [["รหัส", "ชื่อ", "อีเมล", "บทบาท", "สถานะ"], ...filtered.map((u) => [u.code || u.id, u.name, u.email, ROLE_LABELS[u.role], u.status === "ACTIVE" ? "ใช้งาน" : "ระงับ"])].map((row) => row.map(escape).join(",")).join("\r\n");
-            const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = "users.csv"; link.click(); URL.revokeObjectURL(url);
-          }}><Download size={17} />ส่งออกข้อมูล</button></div>
-        </div>
-        <div className="admin-data-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>รหัส</th>
-                <th>ชื่อผู้ใช้งาน</th>
-                <th>บทบาท</th>
-                <th>สถานะ</th>
-                <th>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length ? (
-                visibleUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <b>{user.code || user.id}</b>
-                    </td>
-                    <td>
-                      <PersonCell
-                        initials={user.name.slice(0, 2)}
-                        name={user.name}
-                        detail={user.email}
-                      />
-                    </td>
-                    <td>
-                      <Badge tone={roleTone(user.role)}>
-                        {ROLE_LABELS[user.role]}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge tone={user.status === "ACTIVE" ? "green" : "red"}>
-                        {user.status === "ACTIVE" ? "ใช้งาน" : "ระงับ"}
-                      </Badge>
-                    </td>
-                    <td>
-                      <div className="table-actions">
-                        <button onClick={() => open("view", user)} title="ดู">
-                          <Eye size={16} />
-                          <span>ดูรายละเอียด</span>
-                        </button>
-                        <button type="button" className="users-menu-trigger" aria-label={`จัดการบัญชี ${user.name}`} popoverTarget={`user-actions-${user.id}`} onClick={(event) => {
-                          const menu = document.getElementById(`user-actions-${user.id}`);
-                          if (!menu) return;
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          menu.style.left = `${Math.max(8, Math.min(rect.right - 208, window.innerWidth - 216))}px`;
-                          menu.style.top = `${rect.bottom + 150 > window.innerHeight ? Math.max(8, rect.top - 150) : rect.bottom + 8}px`;
-                        }}><MoreVertical size={18} /></button>
-                        <div id={`user-actions-${user.id}`} popover="auto" className="users-action-popover" aria-label={`จัดการบัญชี ${user.name}`} onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.hidePopover(); }}>
-                        <button
-                          onClick={() => open("edit", user)}
-                          title="แก้ไข"
-                        >
-                          <Pencil size={16} />
-                          <span>แก้ไข</span>
-                        </button>
-                        <button
-                          onClick={() => open("password", user)}
-                          title="เปลี่ยนรหัสผ่าน"
-                        >
-                          <KeyRound size={16} />
-                          <span>เปลี่ยนรหัสผ่าน</span>
-                        </button>
-                        <button
-                          className="danger"
-                          disabled={busy}
-                          onClick={() => remove(user)}
-                          title="ลบ"
-                        >
-                          <Trash2 size={16} />
-                          <span>ลบ</span>
-                        </button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5}>
-                    <div className="subject-empty">
-                      <span>ไม่พบผู้ใช้งาน</span>
-                      <p>ลองเปลี่ยนคำค้นหาหรือตัวกรอง</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length > 0 && (
-          <nav className="admin-pagination" aria-label="หน้ารายชื่อผู้ใช้งาน">
-            <span className="admin-pagination-meta" aria-live="polite">
-              รายการที่ {pageStart}–{pageEnd} จากทั้งหมด {filtered.length}
-            </span>
-            <div className="admin-pagination-controls">
-              <button
-                type="button"
-                aria-label="ไปหน้าก่อนหน้า"
-                disabled={currentPage === 1}
-                onClick={() => setPage(currentPage - 1)}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <span>
-                หน้า {currentPage} จาก {totalPages}
-              </span>
-              <button
-                type="button"
-                aria-label="ไปหน้าถัดไป"
-                disabled={currentPage === totalPages}
-                onClick={() => setPage(currentPage + 1)}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </nav>
-        )}
-      </section>
-
+      <div className="users-content-filters"><label className="um-search"><Search size={18}/><input aria-label="ค้นหาผู้ใช้งาน" placeholder="ค้นหาชื่อ รหัสนักเรียน/ครู หรืออีเมล..." value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}}/></label><label><span>ประเภทผู้ใช้</span><select aria-label="ประเภทผู้ใช้งาน" value={role} onChange={e=>changeRole(e.target.value as UserRole|"")}><option value="">ทั้งหมด</option><option value="admin">ผู้ดูแลระบบ</option><option value="teacher">ครู</option><option value="student">นักเรียน</option></select></label><label><span>ระดับชั้น</span><select aria-label="ระดับชั้น" disabled={!studentFiltersAvailable} value={grade} onChange={e=>{setGrade(e.target.value);setClassroom("");setPage(1);}}><option value="">ทุกระดับชั้น</option>{grades.map(g=><option key={g} value={g}>{g}</option>)}</select></label><label><span>ห้องเรียน</span><select aria-label="ห้องเรียน" disabled={!studentFiltersAvailable} value={classroom} onChange={e=>{setClassroom(e.target.value);setPage(1);}}><option value="">ทุกห้องเรียน</option>{classrooms.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label><span>สถานะ</span><select aria-label="สถานะการเข้าสู่ระบบ" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="">ทุกสถานะ</option><option value="ONLINE">กำลังใช้งาน</option><option value="OFFLINE">ออกจากระบบแล้ว</option></select></label><button type="button" className="um-secondary" onClick={()=>{setQuery("");changeRole("");setStatus("");setGrade("");setClassroom("");setChecked(new Set());}}><SlidersHorizontal size={16}/>ล้างตัวกรอง</button></div>
+      {selectedUsers.length>0&&<div className="users-selection" role="status">เลือก {selectedUsers.length} บัญชีในผลลัพธ์นี้<button type="button" onClick={()=>setChecked(new Set())}>ยกเลิกการเลือก</button></div>}
+      {!filtered.length?<ManagementEmpty title="ไม่พบผู้ใช้งาน"/>:view==="list"?<div className="um-table-wrap"><table className="um-table users-data"><thead><tr><th><input type="checkbox" aria-label="เลือกผู้ใช้ทั้งหมดในหน้านี้" checked={visibleUsers.length>0&&visibleUsers.every(u=>checked.has(u.id))} onChange={togglePage}/></th><th>#</th><th>รูป</th><th>ชื่อ-นามสกุล</th><th>รหัสผู้ใช้ / อีเมล</th><th>ประเภท</th><th>ระดับชั้น/ห้อง</th><th>การเข้าสู่ระบบ</th><th>วันที่สร้าง</th><th>จัดการ</th></tr></thead><tbody>{visibleUsers.map((user,index)=><tr key={user.id}><td><input type="checkbox" aria-label={`เลือก ${user.name}`} checked={checked.has(user.id)} onChange={()=>toggleUser(user.id)}/></td><td>{pageStart+index}</td><td><ProfileAvatar reference={user.id} name={user.name} hasImage={user.hasProfileImage} className={`users-avatar ${user.role}`}/></td><td><div className="users-name"><strong>{user.name}</strong><small>{roleNames[user.role]}</small></div></td><td><div className="users-code"><strong>{user.code||user.id}</strong><small>{user.email}</small></div></td><td><span className={`users-role ${user.role}`}>{roleNames[user.role]}</span></td><td>{user.role==="student"?(user.className||"ยังไม่ระบุ"):"—"}</td><td><AccountPresenceBadge isLoggedIn={Boolean(user.isLoggedIn)}/></td><td className="users-date"><span>{displayDate(user.createdAt)}</span><small>{user.createdAt?new Date(user.createdAt.replace(" ","T")).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}):""}</small></td><td>{actions(user)}</td></tr>)}</tbody></table></div>:<div className="users-card-grid">{visibleUsers.map(user=><article className="users-person-card" key={user.id}><div><input type="checkbox" aria-label={`เลือก ${user.name}`} checked={checked.has(user.id)} onChange={()=>toggleUser(user.id)}/><AccountPresenceBadge isLoggedIn={Boolean(user.isLoggedIn)}/></div><PersonCell initials={nameInitials(user.name)} name={user.name} detail={user.email}/><p>{user.code||user.id} · <span className={`users-role ${user.role}`}>{roleNames[user.role]}</span></p><footer>{actions(user)}</footer></article>)}</div>}
+      <ManagementPagination page={currentPage} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={size=>{setPageSize(size);setPage(1);}} label="บัญชี"/>
+    </section>
       {modal && (
         <div
           className="subject-modal-layer"
@@ -490,7 +305,7 @@ export default function UsersManager({
                   </label>
                   <label className="subject-field">
                     <span>
-                      สถานะ <b>*</b>
+                      สถานะบัญชี <b>*</b>
                     </span>
                     <select
                       value={value.status}

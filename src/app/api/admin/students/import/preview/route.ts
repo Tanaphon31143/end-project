@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
+import { getSchoolTerm, parseAcademicTerm } from "@/lib/academic-term";
 
 const aliases: Record<string, string[]> = {
   student_code: [
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
   const form = await request.formData(),
     file = form.get("file"),
     classId = Number(form.get("classId"));
+  let term;
+  try { term = parseAcademicTerm({ academicYear: form.get("academicYear"), semester: form.get("semester") }, await getSchoolTerm()); }
+  catch (error) { return Response.json({ message: error instanceof Error ? error.message : "ภาคเรียนไม่ถูกต้อง" }, { status: 400 }); }
   if (!classId)
     return Response.json({ message: "กรุณาเลือกห้องเรียน" }, { status: 400 });
   if (!(file instanceof File))
@@ -160,23 +164,37 @@ export async function POST(request: Request) {
   const codes = raw
       .map((x) => String(x.student_code ?? "").trim())
       .filter(Boolean),
+    emails = raw
+      .map((x) => String(x.email ?? "").trim().toLowerCase())
+      .filter(Boolean),
     numbers = raw
       .map((x) => Number(String(x.number ?? "").trim()))
       .filter((number) => Number.isInteger(number) && number > 0);
-  const [existingCodes] = codes.length
+  const [existingAccounts] = codes.length || emails.length
     ? await db.query<(RowDataPacket & { student_code: string })[]>(
-        "SELECT student_code FROM students WHERE student_code IN (?)",
-        [codes],
+        `SELECT id,student_code,email FROM students WHERE ${[
+          codes.length ? "student_code IN (?)" : "",
+          emails.length ? "email IN (?)" : "",
+        ].filter(Boolean).join(" OR ")}`,
+        [...(codes.length ? [codes] : []), ...(emails.length ? [emails] : [])],
       )
     : [[]];
   const [existingNumbers] = numbers.length
     ? await db.query<(RowDataPacket & { class_number: number })[]>(
-        "SELECT class_number FROM students WHERE class_id=? AND class_number IN (?)",
-        [classId, numbers],
+        "SELECT class_number FROM student_term_enrollments WHERE classroom_id=? AND academic_year=? AND semester=? AND class_number IN (?)",
+        [classId, term.academicYear, term.semester, numbers],
       )
     : [[]];
-  const dbCodes = new Set(existingCodes.map((x) => x.student_code)),
-    dbNumbers = new Set(existingNumbers.map((x) => Number(x.class_number))),
+  const accountsByCode = new Map(existingAccounts.map((account) => [account.student_code, account]));
+  const accountsByEmail = new Map(existingAccounts.map((account) => [String(account.email).toLowerCase(), account]));
+  const [existingEnrollments] = existingAccounts.length
+    ? await db.query<(RowDataPacket & { student_id: number })[]>(
+        "SELECT student_id FROM student_term_enrollments WHERE academic_year=? AND semester=? AND student_id IN (?)",
+        [term.academicYear, term.semester, existingAccounts.map((account) => account.id)],
+      )
+    : [[]];
+  const enrolledIds = new Set(existingEnrollments.map((row) => Number(row.student_id)));
+  const dbNumbers = new Set(existingNumbers.map((x) => Number(x.class_number))),
     seenCodes = new Set<string>(),
     seenNumbers = new Set<number>();
   const rows = raw.map((record, index) => {
@@ -199,10 +217,15 @@ export async function POST(request: Request) {
         .trim()
         .toLowerCase(),
       errors: string[] = [];
+    let existing = false;
+    const codeAccount = accountsByCode.get(studentCode);
+    const emailAccount = email ? accountsByEmail.get(email) : undefined;
+    const matchedAccount = codeAccount || emailAccount;
+    if (codeAccount && emailAccount && codeAccount.id !== emailAccount.id) errors.push("รหัสนักเรียนและอีเมลเป็นคนละบัญชีกัน");
     if (!studentCode) errors.push("กรุณาระบุรหัสนักเรียน");
     else if (seenCodes.has(studentCode))
       errors.push("รหัสนักเรียนซ้ำภายในไฟล์");
-    else if (dbCodes.has(studentCode))
+    else if (!matchedAccount && accountsByCode.has(studentCode))
       errors.push("รหัสนักเรียนนี้มีอยู่ในระบบแล้ว");
     if (!fullName) errors.push("กรุณาระบุชื่อ");
     if (numberText && !number) errors.push("เลขที่ต้องเป็นตัวเลขจำนวนเต็ม");
@@ -210,6 +233,10 @@ export async function POST(request: Request) {
       errors.push("เลขที่ซ้ำในห้องเดียวกัน");
     if (email && !/^\S+@\S+\.\S+$/.test(email))
       errors.push("รูปแบบอีเมลไม่ถูกต้อง");
+    if (matchedAccount) {
+      existing = true;
+      if (enrolledIds.has(Number(matchedAccount.id))) errors.push("บัญชีนี้มีรายชื่อในภาคเรียนนี้แล้ว");
+    }
     if (studentCode) seenCodes.add(studentCode);
     if (number) seenNumbers.add(number);
     return {
@@ -222,6 +249,7 @@ export async function POST(request: Request) {
       number,
       phone: String(record.phone ?? "").trim(),
       email,
+      existing,
       guardianName: String(record.guardian_name ?? "").trim(),
       guardianPhone: String(record.guardian_phone ?? "").trim(),
       valid: !errors.length,

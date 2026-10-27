@@ -176,7 +176,8 @@ async function insertAccount(
     );
   } else {
     await connection.execute(
-      "INSERT INTO students(email,full_name,password_hash,student_code,status) VALUES(?,?,?,?,?)",
+      // The admin chose this password, so the student must replace it at first sign-in.
+      "INSERT INTO students(email,full_name,password_hash,must_change_password,student_code,status) VALUES(?,?,?,1,?,?)",
       [value.email, value.name, value.passwordHash, value.code, value.status],
     );
   }
@@ -376,7 +377,8 @@ export async function PATCH(request: Request) {
         ? "teachers"
         : "students";
   const [result] = await db.execute<ResultSetHeader>(
-    `UPDATE ${table} SET password_hash=? WHERE id=?`,
+    // A student must replace a password the admin set (see student-password-policy).
+    `UPDATE ${table} SET password_hash=?${table === "students" ? ",must_change_password=1" : ""} WHERE id=?`,
     [hashPassword(password), ref.id],
   );
   if (!result.affectedRows)

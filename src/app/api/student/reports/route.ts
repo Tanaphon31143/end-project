@@ -1,5 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES, validateIssueImage } from "@/lib/issue-attachment-rules.mjs";
 export const runtime = "nodejs";
@@ -13,6 +13,7 @@ const allowed = [
 ];
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student)
     return Response.json(
       { message: "กรุณาเข้าสู่ระบบนักเรียน" },
@@ -42,7 +43,11 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   const [subjects] = await db.execute<RowDataPacket[]>(
-    `SELECT sb.id FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id WHERE sb.id=? AND st.id=? AND st.status='ACTIVE' LIMIT 1`,
+    `SELECT sb.id FROM subjects sb
+     JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id
+       AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+     JOIN students st ON st.id=ste.student_id
+     WHERE sb.id=? AND st.id=? AND st.status='ACTIVE' LIMIT 1`,
     [subjectId, student.id],
   );
   if (!subjects.length)

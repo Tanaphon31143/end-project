@@ -62,7 +62,7 @@ test("student check-in: challenge is one-time and its audit evidence is persiste
     const auth = await studentCookie();
     const [[subject]] = await connection.query(
       `SELECT sb.id subjectId, sb.classroom_id classroomId
-       FROM subjects sb JOIN students st ON st.class_id = sb.classroom_id
+       FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id
        WHERE st.id = ? AND sb.is_active = 1 LIMIT 1`,
       [auth.studentId],
     );

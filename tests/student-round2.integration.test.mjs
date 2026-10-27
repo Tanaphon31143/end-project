@@ -23,7 +23,7 @@ async function fixture() {
     );
     assert.ok(student);
     const [[course]] = await connection.query(
-      "SELECT sb.id FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id WHERE st.id=? AND sb.is_active=1 LIMIT 1",
+      "SELECT sb.id FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id WHERE st.id=? AND sb.is_active=1 LIMIT 1",
       [student.id],
     );
     assert.ok(course);

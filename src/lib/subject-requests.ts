@@ -103,8 +103,8 @@ const columns = `r.id, r.teacher_id teacherId, t.full_name teacherName, r.classr
   c.name classroomName, r.subject_name subjectName, r.subject_code subjectCode,
   r.semester, r.academic_year academicYear, r.description, r.schedules_json schedulesJson,
   r.status, r.admin_remark adminRemark, r.subject_id subjectId,
-  DATE_FORMAT(r.created_at, '%d/%m/%Y %H:%i') createdAt,
-  DATE_FORMAT(r.updated_at, '%d/%m/%Y %H:%i') updatedAt`;
+  DATE_FORMAT(r.created_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') createdAt,
+  DATE_FORMAT(r.updated_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') updatedAt`;
 function mapRow(row: RequestRow): SubjectRequest {
   const { schedulesJson, ...rest } = row;
   return { ...rest, description: row.description || "", id: Number(row.id), teacherId: Number(row.teacherId), classroomId: Number(row.classroomId), subjectId: row.subjectId === null ? null : Number(row.subjectId), schedules: typeof schedulesJson === "string" ? JSON.parse(schedulesJson) : schedulesJson };

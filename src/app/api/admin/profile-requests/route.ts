@@ -1,10 +1,37 @@
 import { NextResponse } from "next/server";
-import type { RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
+
+/** Applies an approved room or number change to the student's enrollment for the current term. */
+async function updateCurrentEnrollment(
+  connection: PoolConnection,
+  studentId: number,
+  column: "classroom_id" | "class_number",
+  value: number | null,
+): Promise<{ status: number; message: string } | null> {
+  try {
+    const [result] = await connection.execute<ResultSetHeader>(
+      `UPDATE student_term_enrollments e
+       JOIN (SELECT academic_year,semester FROM school_settings ORDER BY id LIMIT 1) term
+         ON e.academic_year=term.academic_year AND e.semester=term.semester
+       SET e.${column}=?
+       WHERE e.student_id=?`,
+      [value, studentId],
+    );
+    if (!result.affectedRows)
+      return { status: 409, message: "นักเรียนยังไม่มีรายชื่อในภาคเรียนปัจจุบัน กรุณาเพิ่มเข้าภาคเรียนก่อนอนุมัติ" };
+    return null;
+  } catch (error) {
+    // uq_classroom_term_number: another student already has this number in the room this term.
+    if ((error as { code?: string }).code === "ER_DUP_ENTRY")
+      return { status: 409, message: "เลขที่นี้มีนักเรียนคนอื่นใช้แล้วในห้องและภาคเรียนเดียวกัน" };
+    throw error;
+  }
+}
 
 export async function GET() {
   const admin = await getAdminSession();
@@ -46,8 +73,8 @@ export async function GET() {
             r.attachment_mime attachmentMime,
             r.attachment_size attachmentSize,
             (r.attachment_data IS NOT NULL) hasAttachment,
-            DATE_FORMAT(r.created_at, '%d/%m/%Y %H:%i') createdAt,
-            DATE_FORMAT(r.reviewed_at, '%d/%m/%Y %H:%i') reviewedAt
+            DATE_FORMAT(r.created_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') createdAt,
+            DATE_FORMAT(r.reviewed_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') reviewedAt
      FROM profile_edit_requests r
      JOIN students s ON s.id = r.student_id
      ORDER BY (r.status = 'PENDING') DESC, r.created_at DESC`,
@@ -138,11 +165,19 @@ export async function PATCH(request: Request) {
             [req.newValue, req.studentId],
           );
           break;
+        // Rosters come from student_term_enrollments, so room and number changes apply to
+        // the current term's enrollment. The legacy students columns are kept in step.
         case "CLASS_NUMBER": {
           const num = parseInt(req.newValue, 10);
+          const classNumber = Number.isInteger(num) && num >= 1 && num <= 999 ? num : null;
+          const failure = await updateCurrentEnrollment(connection, req.studentId, "class_number", classNumber);
+          if (failure) {
+            await connection.rollback();
+            return NextResponse.json({ message: failure.message }, { status: failure.status });
+          }
           await connection.execute(
             `UPDATE students SET class_number = ? WHERE id = ?`,
-            [Number.isFinite(num) ? num : null, req.studentId],
+            [classNumber, req.studentId],
           );
           break;
         }
@@ -152,12 +187,22 @@ export async function PATCH(request: Request) {
             `SELECT id FROM classrooms WHERE name = ? OR id = ? LIMIT 1`,
             [req.newValue, parseInt(req.newValue, 10) || 0],
           );
-          if (classrooms[0]) {
-            await connection.execute(
-              `UPDATE students SET class_id = ? WHERE id = ?`,
-              [classrooms[0].id, req.studentId],
+          if (!classrooms[0]) {
+            await connection.rollback();
+            return NextResponse.json(
+              { message: `ไม่พบห้องเรียน "${req.newValue}" กรุณาตรวจสอบชื่อห้องก่อนอนุมัติ` },
+              { status: 400 },
             );
           }
+          const failure = await updateCurrentEnrollment(connection, req.studentId, "classroom_id", Number(classrooms[0].id));
+          if (failure) {
+            await connection.rollback();
+            return NextResponse.json({ message: failure.message }, { status: failure.status });
+          }
+          await connection.execute(
+            `UPDATE students SET class_id = ? WHERE id = ?`,
+            [classrooms[0].id, req.studentId],
+          );
           break;
         }
         case "GRADE_LEVEL":

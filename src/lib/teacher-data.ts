@@ -2,6 +2,12 @@ import "server-only";
 import type { AttendanceStatus } from "@prisma/client";
 import type { RowDataPacket } from "mysql2/promise";
 import { cache } from "react";
+import { nameInitials } from "@/lib/name-initials";
+import {
+  getSchoolTerm,
+  termEnrollmentWhere,
+  type AcademicTerm,
+} from "@/lib/academic-term";
 import { db } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 
@@ -30,7 +36,12 @@ function lastWeekdays(count: number) {
   return dates;
 }
 
-async function loadTeacherCourses(teacherId: number) {
+async function loadTeacherCourses(
+  teacherId: number,
+  academicYear: string,
+  semester: number,
+  includeBothSemesters: boolean,
+) {
   const dayNames = [
     "",
     "วันจันทร์",
@@ -42,19 +53,19 @@ async function loadTeacherCourses(teacherId: number) {
     "วันอาทิตย์",
   ];
   const subjectsPromise = prisma.subject.findMany({
-      where: { teacherId, isActive: true },
-      include: {
-        classroom: {
-          select: {
-            id: true,
-            name: true,
-            level: true,
-            _count: { select: { students: { where: { status: "ACTIVE" } } } },
-          },
-        },
+    where: {
+      teacherId,
+      isActive: true,
+      academicYear,
+      ...(includeBothSemesters ? {} : { semester }),
+    },
+    include: {
+      classroom: {
+        select: { id: true, name: true, level: true },
       },
-      orderBy: { subjectCode: "asc" },
-    });
+    },
+    orderBy: { subjectCode: "asc" },
+  });
   type ScheduleRow = RowDataPacket & {
     id: number;
     subjectId: number;
@@ -65,14 +76,37 @@ async function loadTeacherCourses(teacherId: number) {
   };
   const scheduleRowsPromise = db
     .execute<ScheduleRow[]>(
-      `SELECT sc.id,sc.subject_id subjectId,sc.day_of_week dayOfWeek,sc.period_name periodName,TIME_FORMAT(sc.start_time,'%H:%i') startTime,TIME_FORMAT(sc.end_time,'%H:%i') endTime FROM schedules sc JOIN subjects sb ON sb.id=sc.subject_id WHERE sb.teacher_id=? AND sc.is_active=1 ORDER BY sc.day_of_week,sc.start_time`,
-      [teacherId],
+      `SELECT sc.id,sc.subject_id subjectId,sc.day_of_week dayOfWeek,sc.period_name periodName,TIME_FORMAT(sc.start_time,'%H:%i') startTime,TIME_FORMAT(sc.end_time,'%H:%i') endTime FROM schedules sc JOIN subjects sb ON sb.id=sc.subject_id WHERE sb.teacher_id=? AND sb.academic_year=? AND sc.is_active=1 ORDER BY sc.day_of_week,sc.start_time`,
+      [teacherId, academicYear],
     )
     .then(([rows]) => rows);
   const [subjects, scheduleRows] = await Promise.all([
     subjectsPromise,
     scheduleRowsPromise,
   ]);
+  const classroomIds = [
+    ...new Set(
+      subjects
+        .map((subject) => subject.classroomId)
+        .filter((id): id is number => id !== null),
+    ),
+  ];
+  const enrollments = classroomIds.length
+    ? await prisma.studentTermEnrollment.findMany({
+        where: {
+          academicYear,
+          ...(includeBothSemesters ? {} : { semester }),
+          classroomId: { in: classroomIds },
+          student: { status: "ACTIVE" },
+        },
+        select: { classroomId: true, semester: true },
+      })
+    : [];
+  const studentCounts = new Map<string, number>();
+  for (const enrollment of enrollments) {
+    const key = `${enrollment.classroomId}:${enrollment.semester}`;
+    studentCounts.set(key, (studentCounts.get(key) ?? 0) + 1);
+  }
   return subjects.map((subject) => {
     const schedules = scheduleRows
       .filter((schedule) => schedule.subjectId === subject.id)
@@ -107,21 +141,41 @@ async function loadTeacherCourses(teacherId: number) {
             .map((item) => `${item.day} ${item.startTime}–${item.endTime}`)
             .join(" • ")
         : `${timeText(subject.startTime)}–${timeText(subject.endTime)}`,
-      students: subject.classroom?._count.students ?? 0,
+      students: subject.classroomId
+        ? studentCounts.get(`${subject.classroomId}:${subject.semester}`) ?? 0
+        : 0,
       schedules,
     };
   });
 }
 
-export const getTeacherCourses = cache(loadTeacherCourses);
+const loadTeacherCoursesCached = cache(loadTeacherCourses);
+
+export async function getTeacherCourses(
+  teacherId: number,
+  term?: AcademicTerm,
+  includeBothSemesters = false,
+) {
+  const selectedTerm = term ?? (await getSchoolTerm());
+  return loadTeacherCoursesCached(
+    teacherId,
+    selectedTerm.academicYear,
+    selectedTerm.semester,
+    includeBothSemesters,
+  );
+}
 
 export async function getTeacherDashboard(teacherId: number) {
+  const term = await getSchoolTerm();
   const todayKey = bangkokDate(),
     today = dateValue(todayKey);
   const [courses, sessions, todayAttendance] = await Promise.all([
-    getTeacherCourses(teacherId),
+    getTeacherCourses(teacherId, term),
     prisma.checkInSession.findMany({
-      where: { sessionDate: today, subject: { teacherId } },
+      where: {
+        sessionDate: today,
+        subject: { teacherId, academicYear: term.academicYear, semester: term.semester },
+      },
       include: {
         subject: { include: { classroom: true } },
         attendance: { select: { status: true } },
@@ -129,7 +183,10 @@ export async function getTeacherDashboard(teacherId: number) {
       orderBy: { startTime: "asc" },
     }),
     prisma.attendanceRecord.findMany({
-      where: { attendanceDate: today, subject: { teacherId } },
+      where: {
+        attendanceDate: today,
+        subject: { teacherId, academicYear: term.academicYear, semester: term.semester },
+      },
       select: { status: true },
     }),
   ]);
@@ -143,9 +200,16 @@ export async function getTeacherDashboard(teacherId: number) {
   ];
   const days = lastWeekdays(10);
   const [studentCount, history] = await Promise.all([
-    prisma.student.count({
-      where: { status: "ACTIVE", classId: { in: classroomIds } },
-    }),
+    classroomIds.length
+      ? prisma.studentTermEnrollment.count({
+          where: {
+            academicYear: term.academicYear,
+            semester: term.semester,
+            classroomId: { in: classroomIds },
+            student: { status: "ACTIVE" },
+          },
+        })
+      : Promise.resolve(0),
     subjectIds.length
       ? prisma.attendanceRecord.findMany({
           where: {
@@ -169,7 +233,7 @@ export async function getTeacherDashboard(teacherId: number) {
   const expected = sessions.reduce(
     (sum, session) =>
       sum +
-      (courses.find((course) => course.classroomId === session.classroomId)
+      (courses.find((course) => course.id === session.subjectId)
         ?.students ?? 0),
     0,
   );
@@ -188,7 +252,7 @@ export async function getTeacherDashboard(teacherId: number) {
       (item) => item.status === "PRESENT" || item.status === "LATE",
     ).length;
     const total =
-      courses.find((course) => course.classroomId === session.classroomId)
+      courses.find((course) => course.id === session.subjectId)
         ?.students ?? 0;
     const start = timeText(session.startTime);
     const state =
@@ -341,7 +405,6 @@ async function loadTeacherIdentity(
   } catch {
     /* profile image columns are added by the teacher schema migration */
   }
-  const cleanName = teacher.fullName.replace(/^(นาย|นาง|นางสาว)/, "").trim();
   return {
     id: teacher.id,
     name: teacher.fullName,
@@ -349,7 +412,7 @@ async function loadTeacherIdentity(
     phone: teacher.phone ?? "",
     code: teacher.teacherCode ?? "ยังไม่ระบุ",
     position: teacher.department ?? "ครูผู้สอน",
-    initials: cleanName.slice(0, 2) || "ครู",
+    initials: nameInitials(teacher.fullName),
     hasProfileImage,
   };
 }
@@ -358,6 +421,8 @@ export const getTeacherIdentity = cache(loadTeacherIdentity);
 
 export type TeacherHistoryFilters = {
   subjectId?: number;
+  academicYear?: string;
+  semester?: number;
   from?: string;
   to?: string;
   search?: string;
@@ -384,6 +449,8 @@ export async function getTeacherHistory(
     subject: {
       teacherId,
       ...(filters.subjectId ? { id: filters.subjectId } : {}),
+      ...(filters.academicYear ? { academicYear: filters.academicYear } : {}),
+      ...(filters.semester ? { semester: filters.semester } : {}),
     },
     ...(from || to
       ? {
@@ -476,8 +543,29 @@ export async function getTeacherSessionDetail(
     },
   });
   if (!session) return null;
+  const recordedStudentIds = [
+    ...new Set(session.attendance.map((row) => row.studentId)),
+  ];
   const students = await prisma.student.findMany({
-    where: { classId: session.classroomId, status: "ACTIVE" },
+    where: {
+      OR: [
+        {
+          status: "ACTIVE",
+          termEnrollments: {
+            some: termEnrollmentWhere(
+              {
+                academicYear: session.subject.academicYear,
+                semester: session.subject.semester,
+              },
+              session.classroomId,
+            ),
+          },
+        },
+        ...(recordedStudentIds.length
+          ? [{ id: { in: recordedStudentIds } }]
+          : []),
+      ],
+    },
     select: { id: true, studentCode: true, fullName: true },
     orderBy: { studentCode: "asc" },
   });
@@ -526,7 +614,7 @@ export async function getTeacherNotifications(teacherId: number) {
     createdAt: string;
   };
   const [rows] = await db.execute<NotificationRow[]>(
-    `SELECT CAST(id AS CHAR) id,title,message detail,href,is_read isRead,DATE_FORMAT(created_at,'%d/%m/%Y %H:%i') createdAt FROM teacher_notifications WHERE teacher_id=? ORDER BY created_at DESC,id DESC LIMIT 20`,
+    `SELECT CAST(id AS CHAR) id,title,message detail,href,is_read isRead,DATE_FORMAT(created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt FROM teacher_notifications WHERE teacher_id=? ORDER BY created_at DESC,id DESC LIMIT 20`,
     [teacherId],
   );
   return rows.map((row) => ({

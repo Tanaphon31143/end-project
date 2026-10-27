@@ -31,8 +31,10 @@ async function materializeStudentNotificationEvents(studentId: number) {
         'check_in_session' entity, CAST(cs.id AS CHAR) entityId,
         CONCAT('/student/attendance/scan?sessionId=',cs.id) url,
         CONCAT('session:',cs.id) eventKey
-      FROM check_in_sessions cs JOIN subjects sb ON sb.id=cs.subject_id
-      JOIN students st ON st.class_id=cs.classroom_id
+      FROM check_in_sessions cs JOIN subjects sb ON sb.id=cs.subject_id AND sb.classroom_id=cs.classroom_id
+      JOIN student_term_enrollments ste ON ste.classroom_id=cs.classroom_id
+        AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+      JOIN students st ON st.id=ste.student_id
       WHERE st.id=? AND st.status='ACTIVE' AND cs.status='ACTIVE'
         AND cs.session_date=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)
         AND TIME(UTC_TIMESTAMP()+INTERVAL 7 HOUR) BETWEEN cs.start_time AND cs.end_time
@@ -42,7 +44,7 @@ async function materializeStudentNotificationEvents(studentId: number) {
         CONCAT(COALESCE(sb.subject_name,'การเข้าเรียน'), ' วันที่ ', DATE_FORMAT(a.attendance_date,'%d/%m/%Y')),
         'attendance_record', CAST(a.id AS CHAR), '/student/attendance/history', CONCAT('attendance:',a.id,':',a.status)
       FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id
-      WHERE a.student_id=? AND a.status IN ('PRESENT','LATE','ABSENT') AND a.attendance_date>=CURRENT_DATE-INTERVAL 30 DAY
+      WHERE a.student_id=? AND a.status IN ('PRESENT','LATE','ABSENT') AND a.attendance_date>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)-INTERVAL 30 DAY
       UNION ALL
       SELECT 'ISSUE_RESOLVED', 'ผลการตรวจสอบคำร้อง',
         CONCAT('คำร้อง #',r.id,': ',COALESCE(NULLIF(r.resolution,''),CASE r.status WHEN 'COMPLETED' THEN 'ตรวจสอบเสร็จแล้ว' ELSE 'คำร้องถูกปฏิเสธ' END)),
@@ -59,12 +61,17 @@ async function materializeStudentNotificationEvents(studentId: number) {
       SELECT 'COURSE_UPDATED', 'รายวิชามีการเปลี่ยนแปลง', CONCAT(sb.subject_code,' ',sb.subject_name),
         'subject', CAST(sb.id AS CHAR), CONCAT('/student/courses/',sb.id), CONCAT('course-audit:',al.log_id)
       FROM audit_logs al JOIN subjects sb ON CAST(sb.id AS CHAR) COLLATE utf8mb4_unicode_ci=al.entity_id COLLATE utf8mb4_unicode_ci
-      JOIN students st ON st.class_id=sb.classroom_id
+      JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id
+        AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+      JOIN students st ON st.id=ste.student_id
       WHERE st.id=? AND al.entity='subject' AND al.action='UPDATE' AND al.created_at>=NOW()-INTERVAL 30 DAY
       UNION ALL
       SELECT 'COURSE_UPDATED', 'คาบเรียนมีการเปลี่ยนแปลง', CONCAT(sb.subject_code,' ปิดรอบเช็คชื่อแล้ว'),
         'check_in_session', CAST(cs.id AS CHAR), CONCAT('/student/courses/',sb.id), CONCAT('session-closed:',cs.id)
-      FROM check_in_sessions cs JOIN subjects sb ON sb.id=cs.subject_id JOIN students st ON st.class_id=cs.classroom_id
+      FROM check_in_sessions cs JOIN subjects sb ON sb.id=cs.subject_id AND sb.classroom_id=cs.classroom_id
+      JOIN student_term_enrollments ste ON ste.classroom_id=cs.classroom_id
+        AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+      JOIN students st ON st.id=ste.student_id
       WHERE st.id=? AND cs.status='CLOSED' AND cs.session_date=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)
     ) e
     WHERE NOT EXISTS (

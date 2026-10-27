@@ -1,5 +1,12 @@
 .admin-shell {
-  --sidebar-w: 244px;
+  --sidebar-w: 257px;
+  --admin-sidebar-background: #082a54;
+  --admin-sidebar-text: #d7e4f3;
+  --admin-sidebar-active: #1473f5;
+  --admin-sidebar-hover: #ffffff1a;
+  --admin-sidebar-group-background: #ffffff10;
+  --admin-sidebar-shadow: 4px 0 18px rgb(8 42 84 / 12%);
+  --admin-sidebar-active-shadow: 0 8px 20px rgb(0 86 210 / 30%);
   min-height: 100dvh;
   background: #f6f8fc;
   color: #0f172a;
@@ -17,33 +24,41 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
-  padding: 22px 15px;
-  background: linear-gradient(165deg, #082752 0%, #0c3367 52%, #123f7a 100%);
+  padding: 20px 13px 14px;
+  background: var(--admin-sidebar-background);
   color: white;
-  box-shadow: 8px 0 30px #0b2b5912;
+  box-shadow: var(--admin-sidebar-shadow);
   transition:
     width 0.25s,
     transform 0.25s;
+  overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+.admin-sidebar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .admin-brand {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 11px;
-  padding: 2px 7px 20px;
-  border-bottom: 1px solid #ffffff16;
+  min-height: 76px;
+  gap: 13px;
+  padding: 0 10px 18px;
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
 }
 .brand-scan {
   display: grid;
   place-items: center;
-  width: 43px;
-  height: 43px;
+  width: 50px;
+  height: 50px;
   flex: none;
-  border-radius: 12px;
+  border-radius: 50%;
   overflow: hidden;
-  padding: 5px;
+  padding: 4px;
   background: #fff;
-  box-shadow: 0 7px 18px #030e2855;
 }
 .brand-scan img {
   width: 100%;
@@ -62,48 +77,59 @@
   white-space: nowrap;
 }
 .brand-copy strong {
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 .brand-copy span {
-  margin-top: 3px;
+  margin-top: 2px;
   font-size: 12px;
-  color: #d7e1f2;
+  color: #d6e3f4;
 }
 .brand-copy small {
-  font-size: 11px;
-  color: #98abc8;
+  margin-top: 7px;
+  color: #91a7c5;
+  font: 500 10px/1.2 Arial, sans-serif;
+  letter-spacing: 0.08em;
 }
 .admin-sidebar nav {
   display: grid;
-  gap: 4px;
-  padding: 18px 0 8px;
+  gap: 3px;
+  padding: 16px 0 14px;
 }
 .admin-sidebar nav a,
 .sidebar-bottom > a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 40px;
-  padding: 9px 12px;
+  gap: 13px;
+  min-height: 46px;
+  padding: 10px 13px;
   border-radius: 9px;
-  color: #d6dfed;
-  font-size: 14px;
+  color: var(--admin-sidebar-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
   white-space: nowrap;
-  transition: 0.18s;
+}
+.admin-sidebar nav a svg {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  stroke-width: 2.15;
 }
 .admin-sidebar nav a:hover,
 .sidebar-bottom > a:hover {
-  background: #ffffff10;
+  background: var(--admin-sidebar-hover);
   color: white;
 }
 .admin-sidebar nav a.active {
-  background: linear-gradient(100deg, #2764ff, #4455f3);
+  background: var(--admin-sidebar-active);
   color: white;
-  box-shadow: 0 8px 22px #071a4b66;
+  box-shadow: var(--admin-sidebar-active-shadow);
 }
 .sidebar-bottom {
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 14px;
   border-top: 1px solid #ffffff16;
 }
 
@@ -979,25 +1005,29 @@
     display: none;
   }
 }
-@media (max-width: 900px) {
-  .admin-sidebar {
-    transform: translateX(-100%);
-    width: 244px;
-  }
-  .admin-sidebar.open {
-    transform: none;
+.admin-backdrop {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .admin-sidebar.collapsed {
+    align-items: stretch;
   }
   .admin-sidebar.collapsed .brand-copy,
   .admin-sidebar.collapsed nav span,
   .admin-sidebar.collapsed .sidebar-bottom > a span {
     display: block;
   }
-  .admin-sidebar.collapsed {
-    align-items: stretch;
+  .admin-sidebar.collapsed .sidebar-school-card {
+    display: flex;
+  }
+  .admin-sidebar.collapsed .admin-brand {
+    padding-inline: 10px;
   }
   .admin-sidebar.collapsed nav a,
   .admin-sidebar.collapsed .sidebar-bottom > a {
     justify-content: flex-start;
+    padding-inline: 13px;
   }
   .sidebar-x {
     position: absolute;
@@ -1011,16 +1041,9 @@
     border-radius: 7px;
     padding: 5px;
   }
-  .admin-main {
-    margin-left: 0;
-  }
-  .admin-backdrop.show {
-    position: fixed;
-    inset: 0;
-    z-index: 39;
-    border: 0;
-    background: #06162b99;
-  }
+}
+
+@media (max-width: 900px) {
   .dashboard-upper,
   .dashboard-lower {
     grid-template-columns: 1fr;
@@ -2613,6 +2636,28 @@
   }
 }
 
+/* Shared circular header controls across every admin route. */
+.admin-shell .admin-header button:is(.bell, .fullscreen-control) {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  border: 1px solid #d6e3f5;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 88%);
+  color: #173860;
+}
+
+.admin-shell .admin-header button:is(.bell, .fullscreen-control):hover {
+  border-color: #a9c3fa;
+  background: #f4f8ff;
+}
+
+.admin-shell .admin-header button:is(.bell, .fullscreen-control):focus-visible {
+  outline: 3px solid #80b6ff;
+  outline-offset: 3px;
+}
+
 /* Admin bell shares the teacher/student notification feedback. */
 .admin-header .bell {
   transition: transform 150ms ease-out, border-color 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out;
@@ -2638,4 +2683,18 @@
 .admin-sidebar .brand-scan,
 .admin-sidebar .brand-scan img {
   border-radius: 50%;
+}
+
+/* Motion is shared with the student sidebar through portal-ui.css. */
+.admin-shell .admin-sidebar a:focus-visible {
+  outline: 2px solid #f4f8ff;
+  outline-offset: -2px;
+}
+.admin-sidebar .portal-sidebar-logout {
+  color: #ff6b75;
+}
+.admin-sidebar .portal-sidebar-logout:hover,
+.admin-sidebar .portal-sidebar-logout:focus-visible {
+  color: #ff9ca3;
+  background: rgb(244 63 94 / 14%);
 }

@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   let classroomId: number | null = null;
+  let sessionTerm: { semester: number; academicYear: string } | null = null;
   if (teacherSession) {
     let sessionId: bigint;
     try {
@@ -54,14 +55,18 @@ export async function POST(request: Request) {
         ),
         subject: { teacherId: teacherSession.id },
       },
-      select: { classroomId: true },
+      select: {
+        classroomId: true,
+        subject: { select: { classroomId: true, semester: true, academicYear: true } },
+      },
     });
-    if (!session)
+    if (!session || session.subject.classroomId !== session.classroomId)
       return Response.json(
         { message: "ไม่พบรอบเช็คชื่อที่เปิดอยู่หรือไม่มีสิทธิ์" },
         { status: 403 },
       );
     classroomId = session.classroomId;
+    sessionTerm = session.subject;
   }
   type ThresholdRow = RowDataPacket & { threshold: number };
   const [settings] = await db.execute<ThresholdRow[]>("SELECT CAST(face_match_threshold AS DOUBLE) threshold FROM school_settings ORDER BY id LIMIT 1");
@@ -70,8 +75,22 @@ export async function POST(request: Request) {
     ? Math.min(0.9, Math.max(0.5, configuredThreshold || 0.55))
     : Math.min(0.9, Math.max(0.5, Number(body.threshold) || configuredThreshold || 0.55));
   const [rows] = await db.execute<SampleRow[]>(
-    `SELECT fs.student_id studentId,s.student_code studentCode,s.full_name studentName,COALESCE(c.name,'ยังไม่ระบุ') className,fs.embedding FROM face_samples fs JOIN face_data fd ON fd.student_id=fs.student_id AND fd.status='READY' JOIN students s ON s.id=fs.student_id AND s.status='ACTIVE' LEFT JOIN classrooms c ON c.id=s.class_id${classroomId === null ? "" : " WHERE s.class_id=?"}`,
-    classroomId === null ? [] : [classroomId],
+    `SELECT fs.student_id studentId,s.student_code studentCode,s.full_name studentName,COALESCE(c.name,'ยังไม่ระบุ') className,fs.embedding
+     FROM face_samples fs
+     JOIN face_data fd ON fd.student_id=fs.student_id AND fd.status='READY'
+     JOIN students s ON s.id=fs.student_id AND s.status='ACTIVE'
+     ${classroomId === null
+       ? // No session classroom: label each match with the student's room in the current term.
+         `LEFT JOIN (SELECT academic_year,semester FROM school_settings ORDER BY id LIMIT 1) cur_term ON 1=1
+          LEFT JOIN student_term_enrollments cur_e ON cur_e.student_id=s.id
+            AND cur_e.academic_year=cur_term.academic_year AND cur_e.semester=cur_term.semester
+          LEFT JOIN classrooms c ON c.id=cur_e.classroom_id`
+       : `JOIN student_term_enrollments ste ON ste.student_id=s.id AND ste.classroom_id=?
+            AND ste.semester=? AND ste.academic_year=?
+          JOIN classrooms c ON c.id=ste.classroom_id`}`,
+    classroomId === null || !sessionTerm
+      ? []
+      : [classroomId, sessionTerm.semester, sessionTerm.academicYear],
   );
   let best: SampleRow | null = null,
     bestSimilarity = 0;

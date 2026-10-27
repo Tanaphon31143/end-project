@@ -17,22 +17,31 @@ type PreviewRow = {
   email: string;
   guardianName: string;
   valid: boolean;
+  existing: boolean;
   errors: string[];
 };
 const SUPPORTED_FILE = /\.(xlsx|xls|xlsm|xlsb|csv)$/i,
   MAX_FILE_SIZE = 10 * 1024 * 1024;
 export default function StudentImportModal({
   classrooms,
+  academicYear,
+  semester,
+  academicYears,
   onClose,
   onDone,
 }: {
   classrooms: Room[];
+  academicYear: string;
+  semester: "1" | "2";
+  academicYears: string[];
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
   const [step, setStep] = useState(1),
     [level, setLevel] = useState(""),
     [classId, setClassId] = useState(0),
+    [year, setYear] = useState(academicYear),
+    [selectedSemester, setSelectedSemester] = useState(semester),
     [file, setFile] = useState<File | null>(null),
     [rows, setRows] = useState<PreviewRow[]>([]),
     [detectedColumns, setDetectedColumns] = useState<string[]>([]),
@@ -78,6 +87,8 @@ export default function StudentImportModal({
     const fd = new FormData();
     fd.set("file", file);
     fd.set("classId", String(classId));
+    fd.set("academicYear", year);
+    fd.set("semester", selectedSemester);
     try {
       const r = await fetch("/api/admin/students/import/preview", {
           method: "POST",
@@ -102,7 +113,7 @@ export default function StudentImportModal({
     const r = await fetch("/api/admin/students/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, rows }),
+        body: JSON.stringify({ classId, rows, academicYear: year, semester: selectedSemester }),
       }),
       d = await r.json();
     setBusy(false);
@@ -120,7 +131,7 @@ export default function StudentImportModal({
         <header>
           <div>
             <h2>นำเข้ารายชื่อนักเรียนจาก Excel</h2>
-            <p>เพิ่มนักเรียนหลายคนเข้าสู่ห้องเรียนพร้อมกัน</p>
+            <p>เพิ่มรายชื่อในภาคเรียนที่ {selectedSemester}/{year} โดยจับคู่บัญชีเดิมด้วยรหัสหรืออีเมล</p>
           </div>
           <button onClick={onClose}>
             <X size={19} />
@@ -137,6 +148,19 @@ export default function StudentImportModal({
         {step === 1 && (
           <div className="import-body">
             <div className="import-room-row">
+              <label>
+                ปีการศึกษา *
+                <select value={year} onChange={(event) => setYear(event.target.value)}>
+                  {academicYears.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+              <label>
+                ภาคเรียน *
+                <select value={selectedSemester} onChange={(event) => setSelectedSemester(event.target.value as "1" | "2")}>
+                  <option value="1">ภาคเรียนที่ 1</option>
+                  <option value="2">ภาคเรียนที่ 2</option>
+                </select>
+              </label>
               <label>
                 ระดับชั้น *
                 <select
@@ -245,7 +269,7 @@ export default function StudentImportModal({
                           className={x.valid ? "preview-ok" : "preview-bad"}
                         >
                           {x.valid
-                            ? "✓ พร้อมนำเข้า"
+                            ? x.existing ? "✓ เพิ่มบัญชีเดิมเข้ารายชื่อ" : "✓ สร้างบัญชีและเพิ่มรายชื่อ"
                             : `✕ ${x.errors.join(", ")}`}
                         </span>
                       </td>

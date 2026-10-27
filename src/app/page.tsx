@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import styles from "./page.module.css";
+import { AuthBrand } from "@/components/AuthBrand";
 import { RippleButton } from "@/components/portal/RippleButton";
 
 type Status =
@@ -165,14 +165,13 @@ export default function Home() {
     return "";
   });
 
-  const effectiveStatus =
-    authErrorMessage && status === "idle" ? "error" : status;
-
   function handleGoogleLogin() {
     setAuthErrorMessage("");
     setErrors({ email: "", password: "" });
     setGoogleLoading(true);
     setStatus("loading");
+    // A full navigation is required: the route answers with a redirect to Google's OAuth page.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/api/auth/google");
   }
 
@@ -189,22 +188,7 @@ export default function Home() {
       />
       <section className={styles.newsPanel} aria-labelledby="news-title">
         <div className={styles.newsInner}>
-          <div className={styles.brandBlock}>
-            <div className={styles.brandMark}>
-              <Image
-                className={styles.brandLogo}
-                src="/school-logo.jpg"
-                alt="ตราสัญลักษณ์โรงเรียน"
-                width={800}
-                height={445}
-                priority
-              />
-            </div>
-            <div>
-              <p className={styles.brandName}>School OS</p>
-              <p className={styles.brandCaption}>ศูนย์บัญชาการโรงเรียน</p>
-            </div>
-          </div>
+          <AuthBrand />
 
           <div className={styles.newsMain}>
             <div className={styles.newsIntro}>
@@ -239,6 +223,9 @@ export default function Home() {
       </section>
 
       <section className={styles.loginPanel} aria-labelledby="login-title">
+        <div className={styles.mobileLoginBrand}>
+          <AuthBrand compact />
+        </div>
         <div className={styles.loginCard}>
           <div className={styles.intro}>
             <h2 id="login-title">เข้าสู่ระบบ</h2>

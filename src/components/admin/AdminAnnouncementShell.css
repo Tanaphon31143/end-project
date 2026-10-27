@@ -1,0 +1,149 @@
+.admin-announcement-shell {
+  --announcement-blue: #1268f5;
+  --announcement-ink: #10264a;
+  --announcement-muted: #607b9f;
+  min-height: 100dvh;
+  color: var(--announcement-ink);
+  background: #edf5fc;
+  font-family: var(--font-sf-thonburi), Tahoma, "Leelawadee UI", sans-serif;
+}
+
+.admin-announcement-shell .admin-main {
+  min-width: 0;
+  background: #edf5fc;
+}
+
+.admin-announcement-shell .admin-header {
+  height: 68px;
+  padding-inline: 22px;
+  gap: 16px;
+  background: #fafdff;
+  border-bottom-color: #dce8f5;
+  backdrop-filter: none;
+}
+
+.admin-announcement-shell .header-title-wrap {
+  gap: 12px;
+}
+
+.admin-announcement-shell .admin-header-brand strong {
+  color: #132949;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.admin-announcement-shell .admin-header-brand > span {
+  margin-top: 3px;
+}
+
+.admin-announcement-shell .admin-announcement-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #536f92;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-announcement-shell .admin-announcement-breadcrumb a {
+  color: #536f92;
+  text-decoration: none;
+}
+
+.admin-announcement-shell .admin-announcement-breadcrumb a:hover {
+  color: var(--announcement-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.admin-announcement-shell .admin-announcement-breadcrumb svg {
+  flex: none;
+  color: #8ca1bc;
+}
+
+.admin-announcement-shell .admin-announcement-breadcrumb [aria-current="page"] {
+  color: #3c5d86;
+}
+
+.admin-announcement-shell .mobile-menu {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e1eaf4;
+  border-radius: 10px;
+  background: #fff;
+  color: #204673;
+  cursor: pointer;
+}
+
+.admin-announcement-shell .admin-header .header-actions {
+  gap: 10px;
+}
+
+.admin-announcement-shell .admin-header :is(.bell, .fullscreen-control) {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid #e0eaf5;
+  border-radius: 11px;
+  background: #fff;
+  color: #274e7c;
+  cursor: pointer;
+}
+
+.admin-announcement-shell .admin-header :is(.bell, .fullscreen-control):hover {
+  border-color: #b8d2f1;
+  background: #f3f8ff;
+  color: var(--announcement-blue);
+}
+
+.admin-announcement-shell .admin-header .profile-avatar {
+  background: #102b52;
+}
+
+.admin-announcement-shell .admin-header .profile-copy b {
+  font-size: 14px;
+}
+
+.admin-announcement-shell .admin-header .profile-copy small {
+  font-size: 12px;
+}
+
+.admin-announcement-shell .admin-main :is(button, a):focus-visible {
+  outline: 3px solid #8dc2ff;
+  outline-offset: 2px;
+}
+
+.admin-announcement-shell .admin-main ::selection {
+  background: #cfe4ff;
+  color: #10264a;
+}
+
+@media (max-width: 768px) {
+  .admin-announcement-shell .admin-header {
+    height: 64px;
+    padding-inline: max(12px, env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 639px) {
+  .admin-announcement-shell .admin-header {
+    gap: 4px;
+    padding-inline: max(10px, env(safe-area-inset-left));
+  }
+
+  .admin-announcement-shell .admin-header .header-actions {
+    gap: 5px;
+  }
+
+  .admin-announcement-shell .admin-header .admin-notification-wrap {
+    flex: 0 0 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-announcement-shell :is(.bell, .fullscreen-control) {
+    transition: none;
+  }
+}

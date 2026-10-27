@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -24,6 +24,7 @@ const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function GET() {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
@@ -58,8 +59,8 @@ export async function GET() {
             attachment_mime attachmentMime,
             attachment_size attachmentSize,
             (attachment_data IS NOT NULL) hasAttachment,
-            DATE_FORMAT(created_at, '%d/%m/%Y %H:%i') createdAt,
-            DATE_FORMAT(reviewed_at, '%d/%m/%Y %H:%i') reviewedAt
+            DATE_FORMAT(created_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') createdAt,
+            DATE_FORMAT(reviewed_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') reviewedAt
      FROM profile_edit_requests
      WHERE student_id = ?
      ORDER BY created_at DESC, id DESC`,
@@ -76,6 +77,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }

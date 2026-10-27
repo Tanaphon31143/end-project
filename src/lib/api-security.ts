@@ -5,13 +5,20 @@ const globalBuckets = globalThis as typeof globalThis & { teacherRateLimits?: Ma
 const buckets = globalBuckets.teacherRateLimits ?? new Map<string, Bucket>();
 if (process.env.NODE_ENV !== "production") globalBuckets.teacherRateLimits = buckets;
 
-export function protectTeacherMutation(request: Request, teacherId: number, action: string, limit = 30, windowMs = 60_000) {
+export function isCrossSiteRequest(request: Request) {
   const origin = request.headers.get("origin");
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   const protocol = request.headers.get("x-forwarded-proto") ?? new URL(request.url).protocol.replace(":", "");
   const fetchSite = request.headers.get("sec-fetch-site");
-  if ((origin && host && origin !== `${protocol}://${host}`) || (fetchSite && !["same-origin", "none"].includes(fetchSite)))
-    return NextResponse.json({ message: "คำขอถูกปฏิเสธเพื่อความปลอดภัย กรุณารีเฟรชหน้าแล้วลองใหม่" }, { status: 403 });
+  return Boolean((origin && host && origin !== `${protocol}://${host}`) || (fetchSite && !["same-origin", "none"].includes(fetchSite)));
+}
+
+export function crossSiteRejection() {
+  return NextResponse.json({ message: "คำขอถูกปฏิเสธเพื่อความปลอดภัย กรุณารีเฟรชหน้าแล้วลองใหม่" }, { status: 403 });
+}
+
+export function protectTeacherMutation(request: Request, teacherId: number, action: string, limit = 30, windowMs = 60_000) {
+  if (isCrossSiteRequest(request)) return crossSiteRejection();
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
   const key = `${teacherId}:${ip}:${action}`;
   const now = Date.now();

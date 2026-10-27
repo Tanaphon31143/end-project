@@ -105,8 +105,8 @@ export async function getStudentNotifications(
       `SELECT id, user_id userId, user_role userRole, type, title, message,
               related_entity_type relatedEntityType, related_entity_id relatedEntityId,
               action_url actionUrl, is_read isRead,
-              DATE_FORMAT(read_at, '%Y-%m-%d %H:%i') readAt,
-              DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') createdAt
+              DATE_FORMAT(read_at + INTERVAL 7 HOUR, '%Y-%m-%d %H:%i') readAt,
+              DATE_FORMAT(created_at + INTERVAL 7 HOUR, '%Y-%m-%d %H:%i') createdAt
        FROM notifications
        WHERE user_id = ? AND user_role = 'student'
        ORDER BY created_at DESC, id DESC

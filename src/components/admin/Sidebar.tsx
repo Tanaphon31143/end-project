@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SidebarItem } from "@/components/portal/SidebarItem";
+import { AdminUserNavigation } from "./AdminUserNavigation";
 import type { RefObject } from "react";
 import {
   BarChart3,
@@ -41,11 +42,13 @@ export function Sidebar({
   open,
   collapsed,
   onClose,
+  onLogout,
   sidebarRef,
 }: {
   open: boolean;
   collapsed: boolean;
   onClose: () => void;
+  onLogout: () => void;
   sidebarRef: RefObject<HTMLElement | null>;
 }) {
   const pathname = usePathname();
@@ -85,6 +88,16 @@ export function Sidebar({
         </div>
         <nav aria-label="เมนูหลัก">
           {adminNavigation.map(([label, Icon, href]) => {
+            if (href === "/admin/users") {
+              return (
+                <AdminUserNavigation
+                  key={label}
+                  collapsed={collapsed}
+                  onClose={onClose}
+                />
+              );
+            }
+
             const active =
               href === "/admin/dashboard"
                 ? pathname === href
@@ -110,7 +123,15 @@ export function Sidebar({
             </span>
             <div><strong>โรงเรียนขุขันธ์</strong><span>อำเภอขุขันธ์ จังหวัดศรีสะเกษ</span></div>
           </div>
-          <Link className="portal-sidebar-logout" href="/" title="ออกจากระบบ">
+          <Link
+            className="portal-sidebar-logout"
+            href="/"
+            title="ออกจากระบบ"
+            onClick={(event) => {
+              event.preventDefault();
+              onLogout();
+            }}
+          >
             <LogOut className="portal-sidebar-icon" size={19} />
             <span>ออกจากระบบ</span>
           </Link>

@@ -1,5 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { faceSimilarity, isFaceEmbedding } from "@/lib/face-match";
 import {
@@ -19,6 +19,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return Response.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return Response.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
@@ -201,7 +203,7 @@ export async function POST(request: Request) {
       confidence: number;
     })[]
   >(
-    `SELECT id, TIME_FORMAT(check_in_time, '%H:%i:%s') checkInTime, status, confidence
+    `SELECT id, TIME_FORMAT(check_in_time + INTERVAL 7 HOUR, '%H:%i:%s') checkInTime, status, confidence
      FROM attendance_records
      WHERE student_id = ? AND check_in_session_id = ?
      LIMIT 1`,
@@ -346,7 +348,8 @@ export async function POST(request: Request) {
 
   // 7. Attendance Success: Determine Status (PRESENT vs LATE) and insert into attendance_records
   const [nowRows] = await db.execute<(RowDataPacket & { time: string })[]>(
-    `SELECT TIME_FORMAT(CURRENT_TIME, '%H:%i:%s') time`,
+    // The database clock is UTC; late_after is school (Bangkok) time.
+    `SELECT TIME_FORMAT(UTC_TIMESTAMP() + INTERVAL 7 HOUR, '%H:%i:%s') time`,
   );
   const currentTime = nowRows[0].time;
   const isLate = currentTime > session.lateAfter;

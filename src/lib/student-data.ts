@@ -1,9 +1,11 @@
 import "server-only";
 import type { RowDataPacket } from "mysql2/promise";
 import { cache } from "react";
+import { nameInitials } from "@/lib/name-initials";
 import type { AttendanceDayRecord } from "@/lib/attendance-stats";
 import { db } from "@/lib/db";
 import { normalizeCoursePage } from "@/lib/face-registration-rules.mjs";
+import { getSchoolTerm } from "@/lib/academic-term";
 
 const studyDayLabels: Record<string, string> = {
   "1": "จันทร์",
@@ -84,25 +86,27 @@ type CountRow = RowDataPacket & {
   total: number;
 };
 
-type SchoolSettings = { semester: number; academicYear: string };
-
-const getSchoolSettings = cache(async (): Promise<SchoolSettings | null> => {
-  const [settings] = await db.execute<(RowDataPacket & SchoolSettings)[]>(
-    `SELECT semester,academic_year academicYear FROM school_settings ORDER BY id LIMIT 1`,
-  );
-  return settings[0] ?? null;
-});
+const getSchoolSettings = cache(async () => getSchoolTerm());
 
 export async function getStudentDashboardData(
   studentId: number,
 ): Promise<StudentDashboardData | null> {
-  const [student, settings, [counts], [today], [recent]] =
+  const term = await getSchoolSettings();
+  const [student, [counts], [today], [recent]] =
     await Promise.all([
       getStudentIdentity(studentId),
-      getSchoolSettings(),
       db.execute<CountRow[]>(
-        `SELECT (SELECT COUNT(*) FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id WHERE st.id=? AND sb.is_active=1) subjects,SUM(a.status='PRESENT') present,SUM(a.status='LATE') late,SUM(a.status='ABSENT') absent,SUM(a.status='LEAVE') leaveCount,COUNT(a.id) total FROM attendance_records a WHERE a.student_id=?`,
-        [studentId, studentId],
+        `SELECT (SELECT COUNT(*) FROM subjects sb
+                   JOIN student_term_enrollments ste ON ste.student_id=? AND ste.classroom_id=sb.classroom_id
+                     AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+                  WHERE sb.is_active=1 AND sb.semester=? AND sb.academic_year=?) subjects,
+                SUM(a.status='PRESENT') present,SUM(a.status='LATE') late,
+                SUM(a.status='ABSENT') absent,SUM(a.status='LEAVE') leaveCount,COUNT(a.id) total
+         FROM attendance_records a JOIN subjects sb ON sb.id=a.subject_id
+         JOIN student_term_enrollments ste ON ste.student_id=a.student_id AND ste.classroom_id=sb.classroom_id
+           AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+         WHERE a.student_id=? AND sb.semester=? AND sb.academic_year=?`,
+        [studentId, term.semester, term.academicYear, studentId, term.semester, term.academicYear],
       ),
       db.execute<
         (RowDataPacket & {
@@ -115,8 +119,17 @@ export async function getStudentDashboardData(
           endTime: string;
         })[]
       >(
-        `SELECT sb.id,sb.subject_code code,sb.subject_name name,COALESCE(t.full_name,'ยังไม่กำหนด') teacher,COALESCE(sb.location,c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(sc.start_time,'%H:%i'),TIME_FORMAT(sb.start_time,'%H:%i'),'--:--') startTime,COALESCE(TIME_FORMAT(sc.end_time,'%H:%i'),TIME_FORMAT(sb.end_time,'%H:%i'),'--:--') endTime FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id LEFT JOIN teachers t ON t.id=sb.teacher_id LEFT JOIN classrooms c ON c.id=sb.classroom_id LEFT JOIN schedules sc ON sc.subject_id=sb.id AND sc.is_active=1 AND sc.day_of_week=WEEKDAY(UTC_TIMESTAMP() + INTERVAL 7 HOUR)+1 WHERE st.id=? AND sb.is_active=1 AND (sc.id IS NOT NULL OR (NOT EXISTS(SELECT 1 FROM schedules legacy_sc WHERE legacy_sc.subject_id=sb.id AND legacy_sc.is_active=1) AND (sb.study_days IS NULL OR sb.study_days='' OR FIND_IN_SET(ELT(WEEKDAY(UTC_TIMESTAMP() + INTERVAL 7 HOUR)+1,'จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'),sb.study_days) OR FIND_IN_SET(WEEKDAY(UTC_TIMESTAMP() + INTERVAL 7 HOUR)+1,sb.study_days)))) ORDER BY COALESCE(sc.start_time,sb.start_time) LIMIT 6`,
-        [studentId],
+        `SELECT sb.id,sb.subject_code code,sb.subject_name name,COALESCE(t.full_name,'ยังไม่กำหนด') teacher,COALESCE(sb.location,c.name,'ยังไม่ระบุ') room,COALESCE(TIME_FORMAT(sc.start_time,'%H:%i'),TIME_FORMAT(sb.start_time,'%H:%i'),'--:--') startTime,COALESCE(TIME_FORMAT(sc.end_time,'%H:%i'),TIME_FORMAT(sb.end_time,'%H:%i'),'--:--') endTime
+         FROM subjects sb
+         JOIN student_term_enrollments ste ON ste.student_id=? AND ste.classroom_id=sb.classroom_id
+           AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+         JOIN students st ON st.id=ste.student_id AND st.status='ACTIVE'
+         LEFT JOIN teachers t ON t.id=sb.teacher_id LEFT JOIN classrooms c ON c.id=sb.classroom_id
+         LEFT JOIN schedules sc ON sc.subject_id=sb.id AND sc.is_active=1 AND sc.day_of_week=WEEKDAY(UTC_TIMESTAMP() + INTERVAL 7 HOUR)+1
+         WHERE sb.is_active=1 AND sb.semester=? AND sb.academic_year=?
+           AND (sc.id IS NOT NULL OR (NOT EXISTS(SELECT 1 FROM schedules legacy_sc WHERE legacy_sc.subject_id=sb.id AND legacy_sc.is_active=1) AND (sb.study_days IS NULL OR sb.study_days='' OR FIND_IN_SET(ELT(WEEKDAY(UTC_TIMESTAMP() + INTERVAL 7 HOUR)+1,'จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'),sb.study_days) OR FIND_IN_SET(WEEKDAY(UTC_TIMESTAMP() + INTERVAL 7 HOUR)+1,sb.study_days))))
+         ORDER BY COALESCE(sc.start_time,sb.start_time) LIMIT 6`,
+        [studentId, term.semester, term.academicYear],
       ),
       db.execute<
         (RowDataPacket & {
@@ -127,12 +140,16 @@ export async function getStudentDashboardData(
           status: "มาเรียน" | "สาย" | "ขาด" | "ลา";
         })[]
       >(
-        `SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id WHERE a.student_id=? ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 5`,
-        [studentId],
+        `SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status
+         FROM attendance_records a JOIN subjects sb ON sb.id=a.subject_id
+         JOIN student_term_enrollments ste ON ste.student_id=a.student_id AND ste.classroom_id=sb.classroom_id
+           AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+         WHERE a.student_id=? AND sb.semester=? AND sb.academic_year=?
+         ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 5`,
+        [studentId, term.semester, term.academicYear],
       ),
     ]);
   if (!student) return null;
-  if (!settings) throw new Error("ไม่พบการตั้งค่าโรงเรียนในฐานข้อมูล");
   const raw = counts[0] || {
     subjects: 0,
     present: 0,
@@ -152,7 +169,7 @@ export async function getStudentDashboardData(
       faceReady: student.faceReady,
       hasProfileImage: student.hasProfileImage,
     },
-    term: settings,
+    term,
     stats: {
       subjects: Number(raw.subjects) || 0,
       present: Number(raw.present) || 0,
@@ -194,6 +211,7 @@ export type StudentIdentity = {
 async function loadStudentIdentity(
   studentId: number,
 ): Promise<StudentIdentity | null> {
+  const term = await getSchoolTerm();
   const [rows] = await db.execute<
     (RowDataPacket &
       Omit<StudentIdentity, "initials" | "hasProfileImage" | "faceReady"> & {
@@ -201,8 +219,12 @@ async function loadStudentIdentity(
         faceReady: number;
       })[]
   >(
-    `SELECT s.id,s.full_name name,s.student_code code,s.email,COALESCE(s.phone,'') phone,COALESCE(DATE_FORMAT(s.birthday,'%Y-%m-%d'),'') birthday,COALESCE(s.address,'') address,(s.profile_image IS NOT NULL) hasProfileImage,EXISTS(SELECT 1 FROM face_data fd WHERE fd.student_id=s.id AND fd.status='READY') faceReady,s.class_id classId,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,s.class_number classNumber FROM students s LEFT JOIN classrooms c ON c.id=s.class_id WHERE s.id=? AND s.status='ACTIVE' LIMIT 1`,
-    [studentId],
+    `SELECT s.id,s.full_name name,s.student_code code,s.email,COALESCE(s.phone,'') phone,COALESCE(DATE_FORMAT(s.birthday,'%Y-%m-%d'),'') birthday,COALESCE(s.address,'') address,(s.profile_image IS NOT NULL) hasProfileImage,EXISTS(SELECT 1 FROM face_data fd WHERE fd.student_id=s.id AND fd.status='READY') faceReady,ste.classroom_id classId,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,ste.class_number classNumber
+     FROM students s
+     LEFT JOIN student_term_enrollments ste ON ste.student_id=s.id AND ste.semester=? AND ste.academic_year=?
+     LEFT JOIN classrooms c ON c.id=ste.classroom_id
+     WHERE s.id=? AND s.status='ACTIVE' LIMIT 1`,
+    [term.semester, term.academicYear, studentId],
   );
   const item = rows[0];
   return item
@@ -210,10 +232,7 @@ async function loadStudentIdentity(
         ...item,
         hasProfileImage: Boolean(item.hasProfileImage),
         faceReady: Boolean(item.faceReady),
-        initials: item.name
-          .replace(/^(นาย|นางสาว|เด็กชาย|เด็กหญิง)/, "")
-          .trim()
-          .slice(0, 2),
+        initials: nameInitials(item.name),
       }
     : null;
 }
@@ -222,11 +241,20 @@ export const getStudentIdentity = cache(loadStudentIdentity);
 
 export type StudentCourse={id:number;code:string;name:string;teacher:string;days:string[];startTime:string;endTime:string;room:string;credits:string;description:string;schedules:StudentCourseSchedule[];className?:string;classLevel?:string;gradeLevel?:string;semester?:number;academicYear?:string};
 export async function getStudentCourses(studentId:number):Promise<StudentCourse[]>{
+  const term = await getSchoolTerm();
   type CourseRow=RowDataPacket&Omit<StudentCourse,"days"|"schedules">&{studyDays:string};
   type ScheduleRow=RowDataPacket&{id:number;subjectId:number;dayOfWeek:number;periodName:string|null;startTime:string;endTime:string};
   const [[courseRows],[scheduleRows]]=await Promise.all([
-    db.execute<CourseRow[]>(`SELECT sb.id,sb.subject_code code,sb.subject_name name,COALESCE(t.full_name,'ยังไม่กำหนด') teacher,COALESCE(sb.study_days,'') studyDays,COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--') startTime,COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--') endTime,COALESCE(sb.location,c.name,'ยังไม่ระบุ') room,CAST(sb.credits AS CHAR) credits,COALESCE(sb.description,'') description,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,COALESCE(sb.grade_level,'') gradeLevel,COALESCE(sb.semester,1) semester,COALESCE(sb.academic_year,'') academicYear FROM subjects sb JOIN students st ON st.class_id=sb.classroom_id LEFT JOIN teachers t ON t.id=sb.teacher_id LEFT JOIN classrooms c ON c.id=sb.classroom_id WHERE st.id=? AND st.status='ACTIVE' AND sb.is_active=1 ORDER BY sb.start_time,sb.subject_code`,[studentId]),
-    db.execute<ScheduleRow[]>(`SELECT sc.id,sc.subject_id subjectId,sc.day_of_week dayOfWeek,sc.period_name periodName,TIME_FORMAT(sc.start_time,'%H:%i') startTime,TIME_FORMAT(sc.end_time,'%H:%i') endTime FROM schedules sc JOIN students st ON st.class_id=sc.classroom_id WHERE st.id=? AND st.status='ACTIVE' AND sc.is_active=1 ORDER BY sc.day_of_week,sc.start_time`,[studentId]),
+    db.execute<CourseRow[]>(`SELECT sb.id,sb.subject_code code,sb.subject_name name,COALESCE(t.full_name,'ยังไม่กำหนด') teacher,COALESCE(sb.study_days,'') studyDays,COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--') startTime,COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--') endTime,COALESCE(sb.location,c.name,'ยังไม่ระบุ') room,CAST(sb.credits AS CHAR) credits,COALESCE(sb.description,'') description,COALESCE(c.name,'ยังไม่ระบุ') className,COALESCE(c.level,'') classLevel,COALESCE(sb.grade_level,'') gradeLevel,COALESCE(sb.semester,1) semester,COALESCE(sb.academic_year,'') academicYear
+      FROM subjects sb JOIN students st ON st.id=? AND st.status='ACTIVE'
+      JOIN student_term_enrollments ste ON ste.student_id=st.id AND ste.classroom_id=sb.classroom_id AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+      LEFT JOIN teachers t ON t.id=sb.teacher_id LEFT JOIN classrooms c ON c.id=sb.classroom_id
+      WHERE sb.is_active=1 AND sb.semester=? AND sb.academic_year=? ORDER BY sb.start_time,sb.subject_code`,[studentId,term.semester,term.academicYear]),
+    db.execute<ScheduleRow[]>(`SELECT sc.id,sc.subject_id subjectId,sc.day_of_week dayOfWeek,sc.period_name periodName,TIME_FORMAT(sc.start_time,'%H:%i') startTime,TIME_FORMAT(sc.end_time,'%H:%i') endTime
+      FROM schedules sc JOIN subjects sb ON sb.id=sc.subject_id AND sb.classroom_id=sc.classroom_id
+      JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+      JOIN students st ON st.id=ste.student_id AND st.status='ACTIVE'
+      WHERE st.id=? AND sb.semester=? AND sb.academic_year=? AND sc.is_active=1 ORDER BY sc.day_of_week,sc.start_time`,[studentId,term.semester,term.academicYear]),
   ]);
   return courseRows.map(({studyDays,...course})=>{
     const schedules=scheduleRows.filter((schedule)=>schedule.subjectId===course.id).map((schedule)=>({...schedule,day:scheduleDayName(schedule.dayOfWeek),periodName:schedule.periodName||"คาบเรียน"}));
@@ -236,7 +264,7 @@ export async function getStudentCourses(studentId:number):Promise<StudentCourse[
 }
 
 export type StudentAttendance={id:number;date:string;subjectId:number|null;subjectCode:string;subject:string;classTime:string;checkIn:string;status:"มาเรียน"|"สาย"|"ขาด"|"ลา";note:string};
-export async function getStudentAttendance(studentId:number,filters:{from?:string;to?:string;subjectId?:number;status?:string}={}){const where=["a.student_id=?"],params:(string|number)[]=[studentId];if(filters.from){where.push("a.attendance_date>=?");params.push(filters.from)}if(filters.to){where.push("a.attendance_date<=?");params.push(filters.to)}if(filters.subjectId){where.push("a.subject_id=?");params.push(filters.subjectId)}const allowed:Record<string,string>={present:"PRESENT",late:"LATE",absent:"ABSENT",leave:"LEAVE"};if(filters.status&&allowed[filters.status]){where.push("a.status=?");params.push(allowed[filters.status])}const[rows]=await db.execute<(RowDataPacket&StudentAttendance)[]>(`SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,CONCAT(COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--'),'–',COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--')) classTime,COALESCE(TIME_FORMAT(a.check_in_time,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status,CASE WHEN a.status='LATE' THEN 'มาสาย' WHEN a.status='ABSENT' THEN 'ไม่พบการเช็คชื่อ' WHEN a.status='LEAVE' THEN 'ลา' ELSE '-' END note FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id WHERE ${where.join(" AND ")} ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 500`,params);return rows}
+export async function getStudentAttendance(studentId:number,filters:{from?:string;to?:string;subjectId?:number;status?:string}={}){const where=["a.student_id=?"],params:(string|number)[]=[studentId];if(filters.from){where.push("a.attendance_date>=?");params.push(filters.from)}if(filters.to){where.push("a.attendance_date<=?");params.push(filters.to)}if(filters.subjectId){where.push("a.subject_id=?");params.push(filters.subjectId)}const allowed:Record<string,string>={present:"PRESENT",late:"LATE",absent:"ABSENT",leave:"LEAVE"};if(filters.status&&allowed[filters.status]){where.push("a.status=?");params.push(allowed[filters.status])}const[rows]=await db.execute<(RowDataPacket&StudentAttendance)[]>(`SELECT a.id,DATE_FORMAT(a.attendance_date,'%d/%m/%Y') date,a.subject_id subjectId,COALESCE(sb.subject_code,'-') subjectCode,COALESCE(sb.subject_name,'ไม่ระบุรายวิชา') subject,CONCAT(COALESCE(TIME_FORMAT(sb.start_time,'%H:%i'),'--:--'),'–',COALESCE(TIME_FORMAT(sb.end_time,'%H:%i'),'--:--')) classTime,COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR,'%H:%i'),'-') checkIn,CASE a.status WHEN 'PRESENT' THEN 'มาเรียน' WHEN 'LATE' THEN 'สาย' WHEN 'ABSENT' THEN 'ขาด' ELSE 'ลา' END status,CASE WHEN a.status='LATE' THEN 'มาสาย' WHEN a.status='ABSENT' THEN 'ไม่พบการเช็คชื่อ' WHEN a.status='LEAVE' THEN 'ลา' ELSE '-' END note FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id WHERE ${where.join(" AND ")} ORDER BY a.attendance_date DESC,a.check_in_time DESC LIMIT 500`,params);return rows}
 
 export type StudentStatisticsFilters = {
   semester?: number;
@@ -357,42 +385,46 @@ export async function getStudentStatistics(
   const [student, [subjectOptions], settings] = await Promise.all([
     getStudentIdentity(studentId),
     db.execute<SubjectOptionRow[]>(
-      `SELECT sb.id,sb.subject_code code,sb.subject_name name,sb.semester,sb.academic_year academicYear
-       FROM subjects sb
-       JOIN students st ON st.class_id=sb.classroom_id
-       WHERE st.id=? AND st.status='ACTIVE'
-       ORDER BY CAST(sb.academic_year AS UNSIGNED) DESC,sb.semester DESC,sb.subject_name`,
-      [studentId],
+      `SELECT termSubjects.id,termSubjects.code,termSubjects.name,termSubjects.semester,termSubjects.academicYear
+       FROM (
+         SELECT sb.id,sb.subject_code code,sb.subject_name name,sb.semester,sb.academic_year academicYear
+         FROM subjects sb
+         WHERE EXISTS (
+           SELECT 1 FROM student_term_enrollments ste
+           WHERE ste.student_id=? AND ste.classroom_id=sb.classroom_id
+             AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+         )
+         UNION
+         SELECT sb.id,sb.subject_code code,sb.subject_name name,sb.semester,sb.academic_year academicYear
+         FROM subjects sb JOIN attendance_records owned ON owned.subject_id=sb.id AND owned.student_id=?
+       ) termSubjects
+       ORDER BY CAST(termSubjects.academicYear AS UNSIGNED) DESC,termSubjects.semester DESC,termSubjects.name`,
+      [studentId, studentId],
     ),
     getSchoolSettings(),
   ]);
 
   if (!student) return null;
 
-  const semesters = [...new Set(subjectOptions.map((item) => Number(item.semester)))].sort();
-  const academicYears = [...new Set(subjectOptions.map((item) => item.academicYear))].sort(
-    (a, b) => Number(b) - Number(a),
-  );
-  const terms = Array.from(
-    new Map(
-      subjectOptions.map((item) => [
-        `${item.semester}-${item.academicYear}`,
-        { semester: Number(item.semester), academicYear: item.academicYear },
-      ]),
-    ).values(),
-  );
-  const defaultSettings = settings;
   const requestedSemester = Number(requested.semester);
-  const semester = semesters.includes(requestedSemester)
-    ? requestedSemester
-    : semesters.includes(Number(defaultSettings?.semester))
-      ? Number(defaultSettings?.semester)
-      : semesters[0];
-  const academicYear = academicYears.includes(requested.academicYear || "")
-    ? requested.academicYear
-    : academicYears.includes(defaultSettings?.academicYear || "")
-      ? defaultSettings?.academicYear
-      : academicYears[0];
+  const requestedYear = requested.academicYear || "";
+  const validRequestedTerm = [1, 2].includes(requestedSemester) && /^\d{4}$/.test(requestedYear);
+  const academicYears = [...new Set([
+    ...subjectOptions.map((item) => item.academicYear),
+    settings.academicYear,
+    ...(validRequestedTerm ? [requestedYear] : []),
+  ])].sort((a, b) => Number(b) - Number(a));
+  const semesters = [1, 2];
+  const terms = academicYears.flatMap((academicYear) =>
+    [2, 1].map((semester) => ({ semester, academicYear })),
+  );
+  const requestedTerm = validRequestedTerm
+    ? { semester: requestedSemester, academicYear: requestedYear }
+    : undefined;
+  const schoolTerm = { semester: Number(settings.semester), academicYear: settings.academicYear };
+  const selectedTerm = requestedTerm || schoolTerm || terms[0];
+  const semester = selectedTerm?.semester;
+  const academicYear = selectedTerm?.academicYear;
 
   const subjectsForTerm = subjectOptions.filter(
     (item) =>
@@ -403,7 +435,7 @@ export async function getStudentStatistics(
     ? Number(requested.subjectId)
     : undefined;
 
-  const where = ["a.student_id=?", "st.status='ACTIVE'", "sb.classroom_id=st.class_id"];
+  const where = ["a.student_id=?", "st.status='ACTIVE'"];
   const values: Array<string | number> = [studentId];
   if (semester !== undefined) {
     where.push("sb.semester=?");
@@ -632,8 +664,8 @@ export async function getStudentFaceData(studentId: number): Promise<StudentFace
     >(
       `SELECT fd.status, fd.image_count imageCount,
               s.full_name studentName, s.student_code studentCode,
-              DATE_FORMAT(fd.registered_at, '%d/%m/%Y %H:%i') registeredAt,
-              DATE_FORMAT(fd.updated_at, '%d/%m/%Y %H:%i') updatedAt,
+              DATE_FORMAT(fd.registered_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') registeredAt,
+              DATE_FORMAT(fd.updated_at + INTERVAL 7 HOUR, '%d/%m/%Y %H:%i') updatedAt,
               registered_by_name registeredByName,
               registered_by_role registeredByRole,
               device_type deviceType,
@@ -731,7 +763,7 @@ export async function getStudentCourseDetail(
   courseId: number,
   requestedPage: number | string = 1,
 ): Promise<{ authorized: boolean; course: StudentCourseDetail | null }> {
-  // Check authorization: does this subject belong to the student's active classroom?
+  // Current memberships grant access to a course; attendance ownership keeps its history available after a move.
   const [courses] = await db.execute<
     (RowDataPacket & {
       id: number;
@@ -764,10 +796,21 @@ export async function getStudentCourseDetail(
             COALESCE(c.name, 'ยังไม่ระบุ') className,
             sb.classroom_id classroomId
      FROM subjects sb
-     JOIN students st ON st.class_id = sb.classroom_id
+     JOIN students st ON st.id=?
      LEFT JOIN teachers t ON t.id = sb.teacher_id
      LEFT JOIN classrooms c ON c.id = sb.classroom_id
-     WHERE st.id = ? AND sb.id = ? AND st.status = 'ACTIVE' AND sb.is_active = 1
+     WHERE sb.id = ? AND st.status = 'ACTIVE'
+       AND (
+         EXISTS (
+           SELECT 1 FROM student_term_enrollments ste
+           WHERE ste.student_id=st.id AND ste.classroom_id=sb.classroom_id
+             AND ste.semester=sb.semester AND ste.academic_year=sb.academic_year
+         )
+         OR EXISTS (
+           SELECT 1 FROM attendance_records owned
+           WHERE owned.student_id=st.id AND owned.subject_id=sb.id
+         )
+       )
      LIMIT 1`,
     [studentId, courseId],
   );
@@ -822,7 +865,7 @@ export async function getStudentCourseDetail(
                 COALESCE(TIME_FORMAT(cs.end_time, '%H:%i'), TIME_FORMAT(sb.end_time, '%H:%i'), '--:--')
               ) classTime,
               COALESCE(sb.location, c.name, 'ไม่ระบุ') room,
-              COALESCE(TIME_FORMAT(a.check_in_time, '%H:%i'), '-') checkIn,
+              COALESCE(TIME_FORMAT(a.check_in_time + INTERVAL 7 HOUR, '%H:%i'), '-') checkIn,
               CASE a.status
                 WHEN 'PRESENT' THEN 'มาเรียน'
                 WHEN 'LATE' THEN 'สาย'
@@ -968,7 +1011,7 @@ export type StudentIssue = {
 };
 export async function getStudentIssues(studentId: number): Promise<StudentIssue[]> {
   const [rows] = await db.execute<(RowDataPacket & StudentIssue)[]>(
-    `SELECT r.id,DATE_FORMAT(r.created_at,'%d/%m/%Y %H:%i') createdAt,COALESCE(s.subject_name,'ไม่ระบุรายวิชา') subject,r.issue_type issueType,CASE r.status WHEN 'PENDING' THEN 'รอตรวจสอบ' WHEN 'REVIEWING' THEN 'กำลังตรวจสอบ' WHEN 'COMPLETED' THEN 'เสร็จสิ้น' ELSE 'ปฏิเสธ' END status,COALESCE(r.resolution,'ยังไม่มีผลการดำเนินการ') resolution,(r.attachment_data IS NOT NULL OR EXISTS(SELECT 1 FROM attendance_issue_attachments att WHERE att.report_id=r.id)) hasAttachment FROM attendance_issue_reports r LEFT JOIN subjects s ON s.id=r.subject_id WHERE r.student_id=? ORDER BY r.created_at DESC LIMIT 100`,
+    `SELECT r.id,DATE_FORMAT(r.created_at + INTERVAL 7 HOUR,'%d/%m/%Y %H:%i') createdAt,COALESCE(s.subject_name,'ไม่ระบุรายวิชา') subject,r.issue_type issueType,CASE r.status WHEN 'PENDING' THEN 'รอตรวจสอบ' WHEN 'REVIEWING' THEN 'กำลังตรวจสอบ' WHEN 'COMPLETED' THEN 'เสร็จสิ้น' ELSE 'ปฏิเสธ' END status,COALESCE(r.resolution,'ยังไม่มีผลการดำเนินการ') resolution,(r.attachment_data IS NOT NULL OR EXISTS(SELECT 1 FROM attendance_issue_attachments att WHERE att.report_id=r.id)) hasAttachment FROM attendance_issue_reports r LEFT JOIN subjects s ON s.id=r.subject_id WHERE r.student_id=? ORDER BY r.created_at DESC LIMIT 100`,
     [studentId],
   );
   return rows.map((x) => ({ ...x, hasAttachment: Boolean(x.hasAttachment) }));

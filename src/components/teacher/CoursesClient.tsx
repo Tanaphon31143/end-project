@@ -119,46 +119,6 @@ const nextScheduleDate = (dayOfWeek?: number) => {
   }).format(date);
 };
 
-const mondayOfWeek = (value = new Date()) => {
-  const date = new Date(value);
-  const shift = (date.getDay() + 6) % 7;
-  date.setDate(date.getDate() - shift);
-  date.setHours(12, 0, 0, 0);
-  return date;
-};
-
-const formatWeekRange = (start: Date) => {
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-
-  const startDay = start.getDate();
-  const endDay = end.getDate();
-
-  const thaiMonths = [
-    "ม.ค.",
-    "ก.พ.",
-    "มี.ค.",
-    "เม.ย.",
-    "พ.ค.",
-    "มิ.ย.",
-    "ก.ค.",
-    "ส.ค.",
-    "ก.ย.",
-    "ต.ค.",
-    "พ.ย.",
-    "ธ.ค.",
-  ];
-
-  const startMonth = thaiMonths[start.getMonth()];
-  const endMonth = thaiMonths[end.getMonth()];
-  const endYear = end.getFullYear() + 543;
-
-  if (start.getMonth() === end.getMonth()) {
-    return `${startDay} - ${endDay} ${endMonth} ${endYear}`;
-  }
-  return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${endYear}`;
-};
-
 const schedulePlacement = (schedule: {
   startTime: string;
   endTime: string;
@@ -369,14 +329,14 @@ export function SubjectDetailCard({
         </button>
         <Link
           className="button secondary"
-          href={`/teacher/courses/${course.id}/students`}
+          href={`/teacher/courses/${course.id}/students?academicYear=${course.academicYear}&semester=${course.semester}`}
         >
           <UsersRound size={17} aria-hidden="true" />
           <span>ดูรายชื่อนักเรียน</span>
         </Link>
         <Link
           className="button secondary"
-          href={`/teacher/history?subjectId=${course.id}`}
+          href={`/teacher/history?subjectId=${course.id}&academicYear=${course.academicYear}&semester=${course.semester}`}
         >
           <History size={17} aria-hidden="true" />
           <span>ดูประวัติการเข้าเรียน</span>
@@ -764,28 +724,28 @@ export function WeeklyTimetable({
 
 export function CoursesClient({
   initialCourses,
+  initialTerm,
 }: {
   initialCourses: TeacherCourse[];
+  initialTerm: { academicYear: string; semester: number };
 }) {
   const router = useRouter();
-  const [selectedSemester, setSelectedSemester] = useState<number>(() => {
-    const current = initialCourses[0]?.semester;
-    return current === 2 ? 2 : 1;
-  });
-
-  const academicYear = initialCourses[0]?.academicYear || "2568";
+  const [selectedSemester, setSelectedSemester] = useState<number>(
+    initialTerm.semester,
+  );
+  const academicYear = initialTerm.academicYear;
 
   const semesterCourses = useMemo(() => {
-    const filtered = initialCourses.filter(
-      (course) => course.semester === selectedSemester,
+    return initialCourses.filter(
+      (course) =>
+        course.academicYear === academicYear &&
+        course.semester === selectedSemester,
     );
-    return filtered.length > 0 ? filtered : initialCourses;
-  }, [initialCourses, selectedSemester]);
+  }, [academicYear, initialCourses, selectedSemester]);
 
   const firstSchedulableCourse =
     semesterCourses.find((course) => course.schedules.length > 0) ??
-    semesterCourses[0] ??
-    initialCourses[0];
+    semesterCourses[0];
 
   const [modal, setModal] = useState(false);
   const [scheduleModal, setScheduleModal] = useState(false);
@@ -806,8 +766,8 @@ export function CoursesClient({
   const [query, setQuery] = useState("");
 
   const current = useMemo(
-    () => semesterCourses.find((course) => course.id === selected) ?? semesterCourses[0] ?? initialCourses[0],
-    [semesterCourses, initialCourses, selected],
+    () => semesterCourses.find((course) => course.id === selected) ?? semesterCourses[0],
+    [semesterCourses, selected],
   );
 
   const currentSchedule = useMemo(
@@ -878,19 +838,34 @@ export function CoursesClient({
 
   function handleSemesterChange(semester: number) {
     setSelectedSemester(semester);
-    const targetCourses = initialCourses.filter((c) => c.semester === semester);
-    const pool = targetCourses.length > 0 ? targetCourses : initialCourses;
-    const nextCourse = pool.find((c) => c.schedules.length > 0) ?? pool[0];
+    const targetCourses = initialCourses.filter(
+      (course) =>
+        course.academicYear === academicYear && course.semester === semester,
+    );
+    const nextCourse =
+      targetCourses.find((course) => course.schedules.length > 0) ??
+      targetCourses[0];
     if (nextCourse) {
       setSelected(nextCourse.id);
       const firstSched = nextCourse.schedules[0];
       setSelectedSchedule(firstSched?.id ?? 0);
       setSessionDate(nextScheduleDate(firstSched?.dayOfWeek));
+    } else {
+      setSelected(0);
+      setSelectedSchedule(0);
+      setSessionDate(nextScheduleDate(undefined));
+      setModal(false);
+      setScheduleModal(false);
     }
+    resetFilters();
+    router.replace(
+      `/teacher/courses?academicYear=${academicYear}&semester=${semester}`,
+      { scroll: false },
+    );
   }
 
   function openCheckIn(courseId: number, scheduleId?: number) {
-    const course = initialCourses.find((item) => item.id === courseId);
+    const course = semesterCourses.find((item) => item.id === courseId);
     const schedule =
       course?.schedules.find((item) => item.id === scheduleId) ??
       course?.schedules[0];
@@ -909,7 +884,7 @@ export function CoursesClient({
   }
 
   function handleSelectSchedule(courseId: number, scheduleId: number) {
-    const course = initialCourses.find((item) => item.id === courseId);
+    const course = semesterCourses.find((item) => item.id === courseId);
     const schedule =
       course?.schedules.find((item) => item.id === scheduleId) ??
       course?.schedules[0];
@@ -989,7 +964,7 @@ export function CoursesClient({
     <div className="courses-page">
       <PageHeader />
 
-      {initialCourses.length ? (
+      {semesterCourses.length ? (
         <>
           {current && (
             <SubjectDetailCard
@@ -1050,21 +1025,31 @@ export function CoursesClient({
         </>
       ) : (
         <section
-          className="panel courses-empty-panel"
-          aria-label="ยังไม่มีรายวิชา"
+          className="teacher-schedule-section"
+          aria-labelledby="weekly-schedule-title"
         >
-          <EmptyState
-            icon={BookOpen}
-            title="ยังไม่มีรายวิชาที่รับผิดชอบ"
-            description="ส่งคำขอเปิดรายวิชาและเลือกห้องเรียน จากนั้นรอผู้ดูแลระบบอนุมัติ"
+          <WeeklyScheduleHeader
+            selectedSemester={selectedSemester}
+            onSemesterChange={handleSemesterChange}
+            academicYear={academicYear}
           />
-          <Link
-            className="button primary courses-empty-action"
-            href="/teacher/subject-requests"
+          <div
+            className="panel courses-empty-panel"
+            aria-label={`ยังไม่มีรายวิชาในภาคเรียนที่ ${selectedSemester}`}
           >
-            <Plus size={17} aria-hidden="true" />
-            <span>ขอเปิดรายวิชา</span>
-          </Link>
+            <EmptyState
+              icon={BookOpen}
+              title={`ยังไม่มีรายวิชาในเทอม ${selectedSemester}`}
+              description="รายวิชา ตารางสอน และรายชื่อนักเรียนของเทอมนี้จะแสดงเมื่อมีการเพิ่มข้อมูล"
+            />
+            <Link
+              className="button primary courses-empty-action"
+              href={`/teacher/subject-requests?academicYear=${academicYear}&semester=${selectedSemester}`}
+            >
+              <Plus size={17} aria-hidden="true" />
+              <span>ขอเปิดรายวิชา</span>
+            </Link>
+          </div>
         </section>
       )}
 
@@ -1093,7 +1078,7 @@ export function CoursesClient({
                   value={selected}
                   onChange={(event) => {
                     const id = Number(event.target.value);
-                    const course = initialCourses.find(
+                    const course = semesterCourses.find(
                       (item) => item.id === id,
                     );
                     const schedule = course?.schedules[0];
@@ -1102,7 +1087,7 @@ export function CoursesClient({
                     setSessionDate(nextScheduleDate(schedule?.dayOfWeek));
                   }}
                 >
-                  {initialCourses.map((course) => (
+                  {semesterCourses.map((course) => (
                     <option value={course.id} key={course.id}>
                       {course.code} — {course.name}
                     </option>
@@ -1217,7 +1202,7 @@ export function CoursesClient({
               <div className="field full">
                 <label>รายวิชา</label>
                 <select name="subjectId" defaultValue={selected} required>
-                  {initialCourses.map((course) => (
+                  {semesterCourses.map((course) => (
                     <option value={course.id} key={course.id}>
                       {course.code} — {course.name} · {course.room}
                     </option>

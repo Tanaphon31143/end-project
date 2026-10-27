@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BookOpen,
   FlaskConical,
   Calculator,
   Palette,
@@ -9,7 +8,6 @@ import {
   Languages,
   Activity,
   Cpu,
-  GraduationCap,
 } from "lucide-react";
 
 export type SubjectTheme = {
