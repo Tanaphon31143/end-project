@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { getStudentSession } from '@/lib/auth';
+import { getStudentSession, passwordChangeRequired } from '@/lib/auth';
 import { buildGoogleAuthUrl } from '@/lib/google-auth';
 import { beginStudentFaceIdentity } from '@/lib/student-face-identity';
 import { db } from '@/lib/db';
@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const session = await getStudentSession();
+  if (session?.mustChangePassword) return passwordChangeRequired();
   if (!session) return Response.json({ message: 'กรุณาเข้าสู่ระบบนักเรียน' }, { status: 401 });
   if (request.headers.get('origin') !== new URL(request.url).origin)
     return Response.json({ message: 'คำขอไม่ถูกต้อง' }, { status: 403 });

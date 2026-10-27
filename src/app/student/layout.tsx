@@ -4,7 +4,6 @@ import { getStudentSession } from "@/lib/auth";
 import StudentShell from "@/components/student/StudentShell";
 import { StudentToastProvider } from "@/components/student/StudentToast";
 import { getStudentIdentity } from "@/lib/student-data";
-import { studentMustChangePassword } from "@/lib/student-password-policy";
 import ForcedPasswordChange from "@/components/student/ForcedPasswordChange";
 import "./student.css";
 import "../profile.css";
@@ -22,12 +21,10 @@ export default async function StudentLayout({
 }) {
   const session = await getStudentSession();
   if (!session) redirect("/");
-  const [identity, mustChangePassword] = await Promise.all([
-    getStudentIdentity(session.id),
-    studentMustChangePassword(session.id),
-  ]);
+  const identity = await getStudentIdentity(session.id);
   if (!identity) redirect("/");
-  if (mustChangePassword) return <ForcedPasswordChange name={identity.name} />;
+  // The student APIs refuse this session too (passwordChangeRequired in @/lib/auth).
+  if (session.mustChangePassword) return <ForcedPasswordChange name={identity.name} />;
 
   return (
     <StudentToastProvider>

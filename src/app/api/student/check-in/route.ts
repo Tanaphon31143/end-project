@@ -1,5 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { faceSimilarity, isFaceEmbedding } from "@/lib/face-match";
 import {
@@ -19,6 +19,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return Response.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return Response.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }

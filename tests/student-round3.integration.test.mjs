@@ -13,7 +13,7 @@ test('multiple attachment upload, ownership, download, legacy and notification v
   const db = await mysql.createConnection({host:url.hostname,port:Number(url.port||3306),user:decodeURIComponent(url.username),password:decodeURIComponent(url.password),database:url.pathname.slice(1),ssl:{rejectUnauthorized:true}});
   let reportId;
   try {
-    const [[student]] = await db.query("SELECT st.id,sb.id subjectId FROM students st JOIN subjects sb ON sb.classroom_id=st.class_id WHERE st.status='ACTIVE' LIMIT 1");
+    const [[student]] = await db.query("SELECT st.id,sb.id subjectId FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id WHERE st.status='ACTIVE' LIMIT 1");
     assert.ok(student);
     const headers = { cookie: cookie(student.id) };
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZQAAAABJRU5ErkJggg==','base64');

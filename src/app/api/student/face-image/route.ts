@@ -1,11 +1,12 @@
 import type { RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { studentIdentityRecord } from "@/lib/student-face-identity";
 export const runtime = "nodejs";
 type ImageRow = RowDataPacket & { imageData: Buffer; imageMime: string };
 export async function GET(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student)
     return Response.json(
       { message: "กรุณาเข้าสู่ระบบนักเรียน" },

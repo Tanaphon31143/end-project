@@ -1,5 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES, validateIssueImage } from "@/lib/issue-attachment-rules.mjs";
 export const runtime = "nodejs";
@@ -13,6 +13,7 @@ const allowed = [
 ];
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student)
     return Response.json(
       { message: "กรุณาเข้าสู่ระบบนักเรียน" },

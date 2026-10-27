@@ -9,6 +9,21 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// createdAt carries its +07:00 offset; show it as a Thai date and time.
+function formatPostedAt(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("th-TH", {
+        timeZone: "Asia/Bangkok",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+}
+
 function attachmentLabel(file: AnnouncementAttachment) {
   if (file.type === "application/pdf") return "PDF";
   return "รูปภาพ";
@@ -22,7 +37,7 @@ export default function StudentAnnouncementCard({
   return (
     <article className={styles.announcement}>
       <h3>{announcement.title}</h3>
-      <time>{announcement.createdAt}</time>
+      <time dateTime={announcement.createdAt}>{formatPostedAt(announcement.createdAt)}</time>
       <AnnouncementContent
         message={announcement.message}
         className={styles.message}

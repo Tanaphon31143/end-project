@@ -83,6 +83,14 @@ test("dashboard queries: school-time BE dates, no per-absence flood, term room",
   assert.match(source, /COUNT\(\*\) recorded FROM attendance_records WHERE attendance_date BETWEEN/);
 });
 
+test("announcement times are handed out in Bangkok time and shown as Thai dates", () => {
+  const lib = fs.readFileSync(new URL("../src/lib/announcements.ts", import.meta.url), "utf8");
+  assert.match(lib, /createdAt: bangkokIsoFromUtcSql\(row\.createdAt\) \?\? String\(row\.createdAt \?\? ""\)/);
+  const card = fs.readFileSync(new URL("../src/components/student/dashboard/StudentAnnouncementCard.tsx", import.meta.url), "utf8");
+  assert.match(card, /\{formatPostedAt\(announcement\.createdAt\)\}/);
+  assert.match(card, /timeZone: "Asia\/Bangkok"/);
+});
+
 test("the attendance chart shows an empty state only when the range has no records at all", () => {
   const source = fs.readFileSync(new URL("../src/components/admin/AttendanceChart.tsx", import.meta.url), "utf8");
   assert.match(source, /const hasRecords = visibleData\.some\(\(day\) => day\.recorded > 0\)/);

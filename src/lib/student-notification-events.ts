@@ -44,7 +44,7 @@ async function materializeStudentNotificationEvents(studentId: number) {
         CONCAT(COALESCE(sb.subject_name,'การเข้าเรียน'), ' วันที่ ', DATE_FORMAT(a.attendance_date,'%d/%m/%Y')),
         'attendance_record', CAST(a.id AS CHAR), '/student/attendance/history', CONCAT('attendance:',a.id,':',a.status)
       FROM attendance_records a LEFT JOIN subjects sb ON sb.id=a.subject_id
-      WHERE a.student_id=? AND a.status IN ('PRESENT','LATE','ABSENT') AND a.attendance_date>=CURRENT_DATE-INTERVAL 30 DAY
+      WHERE a.student_id=? AND a.status IN ('PRESENT','LATE','ABSENT') AND a.attendance_date>=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)-INTERVAL 30 DAY
       UNION ALL
       SELECT 'ISSUE_RESOLVED', 'ผลการตรวจสอบคำร้อง',
         CONCAT('คำร้อง #',r.id,': ',COALESCE(NULLIF(r.resolution,''),CASE r.status WHEN 'COMPLETED' THEN 'ตรวจสอบเสร็จแล้ว' ELSE 'คำร้องถูกปฏิเสธ' END)),

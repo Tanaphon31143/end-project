@@ -1,4 +1,4 @@
-import { getAdminSession, getStudentSession } from "@/lib/auth";
+import { getAdminSession, getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { getAnnouncementCapabilities } from "@/lib/announcements";
 import { db } from "@/lib/db";
 import type { RowDataPacket } from "mysql2/promise";
@@ -24,6 +24,7 @@ export async function GET(
 ) {
   const admin = await getAdminSession();
   const student = admin ? null : await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!admin && !student) {
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   }

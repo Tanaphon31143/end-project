@@ -129,7 +129,8 @@ function normalizeAnnouncement(row: RowDataPacket, attachments: AnnouncementAtta
     id: Number(row.id),
     title: String(row.title ?? ""),
     message: String(row.message ?? ""),
-    createdAt: String(row.createdAt ?? ""),
+    // created_at is UTC in the database; hand out Bangkok time with its offset, like scheduledAt.
+    createdAt: bangkokIsoFromUtcSql(row.createdAt) ?? String(row.createdAt ?? ""),
     createdBy: String(row.createdBy || "ผู้ดูแลระบบ"),
     published,
     scheduledAt,

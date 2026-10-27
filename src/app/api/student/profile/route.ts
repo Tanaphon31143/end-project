@@ -1,5 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession, revokeAccountSessions } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired, revokeAccountSessions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { DEFAULT_IMPORTED_STUDENT_PASSWORD } from "@/lib/student-password-policy";
@@ -20,6 +20,9 @@ export async function PATCH(request: Request) {
     currentPassword?: unknown;
     newPassword?: unknown;
   };
+  // Replacing the school-issued password is the one change allowed before it is done.
+  const changesPassword = typeof body.newPassword === "string" && body.newPassword !== "";
+  if (student.mustChangePassword && !changesPassword) return passwordChangeRequired();
   if (typeof body.newPassword === "string" && body.newPassword) {
     if (body.newPassword.length < 8)
       return Response.json(
@@ -134,6 +137,7 @@ export async function PATCH(request: Request) {
 }
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student)
     return Response.json(
       { message: "กรุณาเข้าสู่ระบบนักเรียน" },

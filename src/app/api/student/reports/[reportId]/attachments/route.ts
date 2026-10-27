@@ -1,9 +1,10 @@
-import { getStudentSession } from '@/lib/auth';
+import { getStudentSession, passwordChangeRequired } from '@/lib/auth';
 import { db } from '@/lib/db';
 import type { RowDataPacket } from 'mysql2/promise';
 
 export async function GET(request: Request, context: { params: Promise<{ reportId: string }> }) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) return Response.json({ message: 'กรุณาเข้าสู่ระบบนักเรียน' }, { status: 401 });
   const reportId = Number((await context.params).reportId);
   if (!Number.isSafeInteger(reportId) || reportId < 1) return new Response(null, { status: 404 });

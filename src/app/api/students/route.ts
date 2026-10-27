@@ -144,7 +144,7 @@ export async function POST(request: Request) {
     await connection.beginTransaction();
     await validateAccountReferences(connection, parsed.value);
     await validatePlacement(connection, { classId: parsed.value.classId, classNumber: parsed.value.classNumber, ...term });
-    const [result] = await connection.execute<ResultSetHeader>("INSERT INTO students(email,full_name,student_code,password_hash,parent_name,phone,status) VALUES(?,?,?,?,?,?,?)", [parsed.value.email, parsed.value.fullName, parsed.value.studentCode, hashPassword(parsed.value.password), parsed.value.parentName || null, parsed.value.phone || null, parsed.value.status]);
+    const [result] = await connection.execute<ResultSetHeader>("INSERT INTO students(email,full_name,student_code,password_hash,must_change_password,parent_name,phone,status) VALUES(?,?,?,?,1,?,?,?)", [parsed.value.email, parsed.value.fullName, parsed.value.studentCode, hashPassword(parsed.value.password), parsed.value.parentName || null, parsed.value.phone || null, parsed.value.status]);
     await connection.execute("INSERT INTO student_term_enrollments(student_id,classroom_id,academic_year,semester,class_number) VALUES(?,?,?,?,?)", [result.insertId, parsed.value.classId, term.academicYear, term.semester, parsed.value.classNumber]);
     await connection.commit();
     await recordAdminAudit(request, "CREATE", "student", result.insertId, `เพิ่มนักเรียน ${parsed.value.studentCode} ${parsed.value.fullName} ในภาคเรียน ${term.semester}/${term.academicYear}`);
@@ -170,7 +170,7 @@ export async function PUT(request: Request) {
     await validatePlacement(connection, { classId: parsed.value.classId, classNumber: parsed.value.classNumber, ...term }, id);
     const fields = [parsed.value.email, parsed.value.fullName, parsed.value.studentCode, parsed.value.parentName || null, parsed.value.phone || null, parsed.value.status];
     const [result] = parsed.value.password
-      ? await connection.execute<ResultSetHeader>("UPDATE students SET email=?,full_name=?,student_code=?,parent_name=?,phone=?,status=?,password_hash=? WHERE id=?", [...fields, hashPassword(parsed.value.password), id])
+      ? await connection.execute<ResultSetHeader>("UPDATE students SET email=?,full_name=?,student_code=?,parent_name=?,phone=?,status=?,password_hash=?,must_change_password=1 WHERE id=?", [...fields, hashPassword(parsed.value.password), id])
       : await connection.execute<ResultSetHeader>("UPDATE students SET email=?,full_name=?,student_code=?,parent_name=?,phone=?,status=? WHERE id=?", [...fields, id]);
     if (!result.affectedRows) { await connection.rollback(); return Response.json({ message: "ไม่พบนักเรียน" }, { status: 404 }); }
     const [enrollment] = await connection.execute<ResultSetHeader>(

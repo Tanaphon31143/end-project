@@ -13,6 +13,8 @@ export type AppSession = {
   name: string;
   email?: string;
   sessionId: string;
+  /** Students only: still on a school-issued password. Read from the database, never the cookie. */
+  mustChangePassword?: boolean;
 };
 
 type SessionPayload = AppSession & { exp: number };
@@ -21,6 +23,7 @@ type AccountRow = RowDataPacket & {
   name: string;
   email: string;
   status: string;
+  mustChangePassword: number;
 };
 
 function authSecret() {
@@ -96,8 +99,10 @@ async function verifiedSession(value?: string): Promise<AppSession | null> {
   // The role has already been validated by decodeSignedSession; table names
   // come exclusively from this allowlist, never from cookie text.
   const table = decoded.role === "admin" ? "admins" : decoded.role === "teacher" ? "teachers" : "students";
+  // Only students carry must_change_password (school-issued import password).
+  const mustChangeColumn = table === "students" ? "a.must_change_password" : "0";
   const [rows] = await db.execute<AccountRow[]>(
-    `SELECT a.id, a.full_name name, a.email, a.status
+    `SELECT a.id, a.full_name name, a.email, a.status, ${mustChangeColumn} mustChangePassword
      FROM auth_sessions s JOIN ${table} a ON a.id=s.account_id
      WHERE s.session_hash=? AND s.account_id=? AND s.account_role=?
        AND s.revoked_at IS NULL AND s.expires_at>NOW(3)
@@ -112,7 +117,16 @@ async function verifiedSession(value?: string): Promise<AppSession | null> {
     name: account.name,
     email: account.email,
     sessionId: decoded.sessionId,
+    ...(decoded.role === "student" ? { mustChangePassword: Boolean(account.mustChangePassword) } : {}),
   };
+}
+
+/** API answer for a student who must replace the school-issued password first. */
+export function passwordChangeRequired() {
+  return Response.json(
+    { message: "กรุณาตั้งรหัสผ่านใหม่ก่อนใช้งานระบบ", code: "PASSWORD_CHANGE_REQUIRED" },
+    { status: 403 },
+  );
 }
 
 export const getSession = cache(async () => {

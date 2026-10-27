@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getStudentSession } from "@/lib/auth";
+import { getStudentSession, passwordChangeRequired } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -24,6 +24,7 @@ const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function GET() {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }
@@ -76,6 +77,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) {
     return NextResponse.json({ message: "กรุณาเข้าสู่ระบบนักเรียน" }, { status: 401 });
   }

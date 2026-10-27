@@ -1,4 +1,4 @@
-import { getStudentSession } from '@/lib/auth';
+import { getStudentSession, passwordChangeRequired } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { issueFaceEnrollmentChallenge } from '@/lib/student-face-enrollment';
 import { getVerifiedFaceIdentity, studentIdentityRecord } from '@/lib/student-face-identity';
@@ -7,6 +7,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
   const student = await getStudentSession();
+  if (student?.mustChangePassword) return passwordChangeRequired();
   if (!student) return Response.json({ message: 'กรุณาเข้าสู่ระบบนักเรียน' }, { status: 401 });
   if (request.headers.get('origin') !== new URL(request.url).origin)
     return Response.json({ message: 'คำขอไม่ถูกต้อง' }, { status: 403 });
