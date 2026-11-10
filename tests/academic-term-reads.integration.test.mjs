@@ -30,7 +30,7 @@ test("real admin, teacher and student data loaders keep selected semesters isola
     const [[term]] = await db.execute("SELECT academic_year academicYear,semester FROM school_settings ORDER BY id LIMIT 1");
     return term;
   };
-  const dependencies = { "@/lib/db": { db }, "./db": { db }, "@/lib/prisma": { prisma }, "@/lib/academic-term": { getSchoolTerm, parseAcademicTerm, termEnrollmentWhere }, "./academic-term": { getSchoolTerm, parseAcademicTerm, termEnrollmentWhere }, "@/lib/face-registration-rules.mjs": { normalizeCoursePage } };
+  const dependencies = { "@/lib/db": { db }, "./db": { db }, "@/lib/prisma": { prisma }, "@/lib/academic-term": { getSchoolTerm, parseAcademicTerm, termEnrollmentWhere }, "./academic-term": { getSchoolTerm, parseAcademicTerm, termEnrollmentWhere }, "@/lib/face-registration-rules.mjs": { normalizeCoursePage }, "@/lib/name-initials": load("../src/lib/name-initials.ts", {}) };
   try {
     const admin = load("../src/lib/admin-data.ts", dependencies);
     const teacher = load("../src/lib/teacher-data.ts", dependencies);
