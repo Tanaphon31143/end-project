@@ -1,0 +1,21 @@
+/* Doubled class beats host rules such as `.stat-card span` so the digits keep the number's own font. */
+.portal-count.portal-count,
+.portal-count .portal-count-value {
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Final value for assistive technology while the visible digits animate. */
+.portal-count .portal-count-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

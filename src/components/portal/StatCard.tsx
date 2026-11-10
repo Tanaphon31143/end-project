@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { CountUp } from "./CountUp";
 
 export function StatCard({
   label,
@@ -22,7 +23,7 @@ export function StatCard({
       </div>
       <div className="stat-copy">
         <p>{label}</p>
-        <strong>{value}</strong>
+        <strong><CountUp value={value} /></strong>
         <small>{detail}</small>
       </div>
     </article>

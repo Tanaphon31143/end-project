@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleCheckBig,
   Clock3,
+  History,
   FileText,
   GraduationCap,
   IdCard,
@@ -22,7 +23,10 @@ import type { AppNotification } from "@/lib/notifications";
 import type { Announcement } from "@/lib/announcements";
 import type { StudentDashboardData, StudentStats } from "@/lib/student-data";
 import { Badge, StatCard } from "@/components/student/UI";
-import StudentAnnouncementCard from "./StudentAnnouncementCard";
+import AnnouncementCard from "@/components/announcements/AnnouncementCard";
+import { AnnouncementTicker } from "@/components/announcements/AnnouncementTicker";
+import { EmptyState } from "@/components/portal/EmptyState";
+import { LiveGreeting } from "@/components/portal/LiveGreeting";
 import DashboardDateTime from "./DashboardDateTime";
 
 type Props = {
@@ -56,7 +60,7 @@ export default function StudentDashboardView({ dashboard, notifications, statsDe
     <div className="student-dashboard dashboard-refresh">
       <section className="dashboard-welcome" aria-labelledby="dashboard-welcome-title">
         <div className="dashboard-welcome-copy">
-          <h1 id="dashboard-welcome-title">สวัสดี, {student.name} <span aria-hidden="true">👋</span></h1>
+          <h1 id="dashboard-welcome-title"><LiveGreeting name={student.name} /></h1>
           <span>{student.className} · รหัสนักเรียน {student.code}</span>
         </div>
         <div className="dashboard-school-mark" aria-hidden="true">
@@ -64,6 +68,12 @@ export default function StudentDashboardView({ dashboard, notifications, statsDe
         </div>
         <DashboardDateTime />
       </section>
+
+      <AnnouncementTicker
+        items={announcements.map(({ id, title, createdAt }) => ({ id, title, createdAt }))}
+        href="#school-news"
+        linkLabel="อ่านประกาศ"
+      />
 
       <section className="dashboard-profile card" aria-labelledby="dashboard-profile-title">
         <div className="dashboard-profile-photo">
@@ -112,7 +122,7 @@ export default function StudentDashboardView({ dashboard, notifications, statsDe
                 <div><strong>{course.name}</strong><p>{course.teacher} · {course.room}</p></div>
                 <span className="schedule-end">{course.endTime}</span>
               </article>
-            )) : <p className="dashboard-empty">ไม่มีตารางเรียนวันนี้</p>}
+            )) : <EmptyState compact icon={CalendarDays} title="วันนี้ไม่มีคาบเรียน" description="พักผ่อนให้เต็มที่ แล้วเจอกันคาบหน้า" action={{ href: "/student/courses", label: "ดูตารางเรียนทั้งหมด" }} />}
           </div>
         </article>
 
@@ -128,20 +138,20 @@ export default function StudentDashboardView({ dashboard, notifications, statsDe
                 <div><strong>{item.subject}</strong><p>{item.date} · เช็คชื่อ {item.checkIn}</p></div>
                 <Badge>{item.status}</Badge><ChevronRight size={17} className="attendance-arrow" />
               </article>
-            )) : <p className="dashboard-empty">ยังไม่มีประวัติการเช็คชื่อ</p>}
+            )) : <EmptyState compact icon={History} tone="violet" title="ยังไม่มีประวัติการเช็คชื่อ" description="เมื่อครูเปิดรอบเช็คชื่อและคุณสแกนใบหน้า รายการจะขึ้นที่นี่" action={{ href: "/student/attendance/scan", label: "ไปหน้าสแกนเช็คชื่อ" }} />}
           </div>
         </article>
       </section>
 
       <section className="dashboard-bottom-grid">
-        <article className="dashboard-panel dashboard-compact-panel card">
+        <article id="school-news" className="dashboard-panel dashboard-compact-panel card" tabIndex={-1}>
           <header className="dashboard-panel-head"><div><span className="dashboard-head-icon news"><Megaphone size={20} /></span><div><h2>ข่าวสารจากโรงเรียน</h2><p>ประกาศและข่าวสารล่าสุด</p></div></div></header>
-          {announcements.length ? <div className="dashboard-announcements">{announcements.map((item) => <StudentAnnouncementCard key={item.id} announcement={item} />)}</div> : <div className="dashboard-empty dashboard-news-empty"><Megaphone size={22} /><span>ยังไม่มีประกาศจากโรงเรียนในขณะนี้</span></div>}
+          {announcements.length ? <div className="dashboard-announcements">{announcements.map((item) => <AnnouncementCard key={item.id} announcement={item} />)}</div> : <EmptyState compact icon={Megaphone} tone="amber" title="ยังไม่มีประกาศจากโรงเรียน" description="ข่าวสารที่ฝ่ายบริหารเผยแพร่จะขึ้นที่นี่" />}
         </article>
         <article className="dashboard-panel dashboard-compact-panel card">
           <header className="dashboard-panel-head"><div><span className="dashboard-head-icon alert"><BellRing size={20} /></span><div><h2>การแจ้งเตือน</h2><p>รายการแจ้งเตือนของคุณ</p></div></div><Link href="/student/notifications">ดูทั้งหมด <ChevronRight size={16} /></Link></header>
           <div className="dashboard-notification-list">
-            {notifications.length ? notifications.slice(0, 2).map((notice) => <article key={notice.id}><span className={!notice.isRead ? "is-unread" : ""} /><div><strong>{notice.title}</strong><p>{notice.message}</p></div></article>) : <p className="dashboard-empty">ไม่มีการแจ้งเตือนใหม่</p>}
+            {notifications.length ? notifications.slice(0, 2).map((notice) => <article key={notice.id}><span className={!notice.isRead ? "is-unread" : ""} /><div><strong>{notice.title}</strong><p>{notice.message}</p></div></article>) : <EmptyState compact icon={BellRing} tone="green" title="ไม่มีการแจ้งเตือนใหม่" description="ผลเช็คชื่อและผลคำร้องของคุณจะแจ้งไว้ที่นี่" />}
           </div>
         </article>
         <article className="dashboard-panel dashboard-compact-panel card">

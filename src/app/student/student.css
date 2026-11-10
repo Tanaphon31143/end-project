@@ -6926,3 +6926,13 @@
 .dashboard-announcements h3 { font-size: 16px; }
 .dashboard-announcements time { color: #526078; font-size: 12px; }
 .dashboard-announcements p { white-space: pre-wrap; margin-top: 8px; font-size: 14px; line-height: 1.7; }
+
+/* School news panel: reachable from the announcement strip at the top of the dashboard. */
+.student-shell #school-news { scroll-margin-top: 90px; }
+.student-shell #school-news:focus { outline: none; }
+.student-shell #school-news:target { animation: student-news-flash 1.6s ease-out; }
+@keyframes student-news-flash { 0% { box-shadow: 0 0 0 0 rgb(11 95 255 / 35%); } 100% { box-shadow: 0 0 0 14px rgb(11 95 255 / 0%); } }
+@media (prefers-reduced-motion: reduce) { .student-shell #school-news:target { animation: none; } }
+.student-shell .dashboard-date-time strong svg { display: inline-block; margin-inline-end: 4px; vertical-align: -2px; }
+/* The dashboard grid gap already spaces the announcement strip. */
+.student-shell .dashboard-refresh > .announcement-ticker { margin: 0; }

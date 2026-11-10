@@ -86,7 +86,7 @@ test("dashboard queries: school-time BE dates, no per-absence flood, term room",
 test("announcement times are handed out in Bangkok time and shown as Thai dates", () => {
   const lib = fs.readFileSync(new URL("../src/lib/announcements.ts", import.meta.url), "utf8");
   assert.match(lib, /createdAt: bangkokIsoFromUtcSql\(row\.createdAt\) \?\? String\(row\.createdAt \?\? ""\)/);
-  const card = fs.readFileSync(new URL("../src/components/student/dashboard/StudentAnnouncementCard.tsx", import.meta.url), "utf8");
+  const card = fs.readFileSync(new URL("../src/components/announcements/AnnouncementCard.tsx", import.meta.url), "utf8");
   assert.match(card, /\{formatPostedAt\(announcement\.createdAt\)\}/);
   assert.match(card, /timeZone: "Asia\/Bangkok"/);
 });

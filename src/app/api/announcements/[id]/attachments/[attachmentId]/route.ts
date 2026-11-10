@@ -1,4 +1,4 @@
-import { getAdminSession, getStudentSession, passwordChangeRequired } from "@/lib/auth";
+import { getAdminSession, getStudentSession, getTeacherSession, passwordChangeRequired } from "@/lib/auth";
 import { getAnnouncementCapabilities } from "@/lib/announcements";
 import { db } from "@/lib/db";
 import type { RowDataPacket } from "mysql2/promise";
@@ -25,7 +25,9 @@ export async function GET(
   const admin = await getAdminSession();
   const student = admin ? null : await getStudentSession();
   if (student?.mustChangePassword) return passwordChangeRequired();
-  if (!admin && !student) {
+  // Teachers read the same published announcements as students.
+  const teacher = admin || student ? null : await getTeacherSession();
+  if (!admin && !student && !teacher) {
     return Response.json({ message: "ไม่มีสิทธิ์ใช้งาน" }, { status: 401 });
   }
 
@@ -39,14 +41,14 @@ export async function GET(
 
   const capabilities = await getAnnouncementCapabilities();
   if (!capabilities.attachments) return new Response(null, { status: 404 });
-  const visibleToStudent = capabilities.scheduling
+  const publishedOnly = capabilities.scheduling
     ? "AND n.is_published=1 AND (n.publish_at IS NULL OR n.publish_at<=UTC_TIMESTAMP(3))"
     : "AND n.is_published=1";
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT f.file_name name,f.mime_type mime,f.file_data data
      FROM school_announcement_attachments f
      JOIN school_announcements n ON n.id=f.announcement_id
-     WHERE n.id=? AND f.id=? ${student ? visibleToStudent : ""}`,
+     WHERE n.id=? AND f.id=? ${admin ? "" : publishedOnly}`,
     [announcementId, attachmentId],
   );
   const file = rows[0];

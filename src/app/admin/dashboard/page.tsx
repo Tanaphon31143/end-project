@@ -7,13 +7,18 @@ import { DashboardHero } from "@/components/admin/DashboardHero";
 import { QuickMenu } from "@/components/admin/QuickMenu";
 import { RecentAttendanceTable } from "@/components/admin/RecentAttendanceTable";
 import { StatCard } from "@/components/admin/StatCard";
+import { AnnouncementTicker } from "@/components/announcements/AnnouncementTicker";
 import { getDashboardData } from "@/lib/admin-data";
+import { getAnnouncements } from "@/lib/announcements";
 import "./status.css";
 import "./dashboard.css";
 
 export const dynamic = "force-dynamic";
 export default async function AdminDashboardPage() {
-  const { counts, recent, daily, attendanceStatus, activity, settings, calendarDates } = await getDashboardData();
+  const [{ counts, recent, daily, attendanceStatus, activity, settings, calendarDates }, announcements] = await Promise.all([
+    getDashboardData(),
+    getAnnouncements(true, 3),
+  ]);
   const term = `ภาคเรียนที่ ${settings.semester}/${settings.academicYear}`;
 
   return (
@@ -25,6 +30,14 @@ export default async function AdminDashboardPage() {
         <StatCard icon={BookOpen} title="รายวิชาทั้งหมด" value={counts.subjects.toLocaleString("th-TH")} unit="วิชา" note={term} tone="purple" />
         <StatCard icon={CircleCheck} title="เช็คชื่อวันนี้" value={counts.attendanceToday.toLocaleString("th-TH")} unit="คน" note="นักเรียนที่มาเรียนและมาสาย" tone="orange" />
       </section>
+      {/* Below the stat cards: they are pulled up over the hero with a negative margin. */}
+      <AnnouncementTicker
+        items={announcements.map(({ id, title, createdAt }) => ({ id, title, createdAt }))}
+        href="/admin/announcements"
+        linkLabel="จัดการประกาศ"
+        audienceNote="ครูและนักเรียนเห็นประกาศนี้บนแดชบอร์ดของตัวเอง"
+        emptyText="ยังไม่มีประกาศที่เผยแพร่ ครูและนักเรียนจะเห็นประกาศบนแดชบอร์ดทันทีที่เผยแพร่"
+      />
       <section className="dashboard-core-grid">
         <AttendanceChart data={daily} />
         <AttendanceOverview students={counts.students} status={attendanceStatus} />

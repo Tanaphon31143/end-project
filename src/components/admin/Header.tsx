@@ -6,11 +6,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useResponsiveOverlay } from "@/components/portal/useResponsiveOverlay";
 import { usePresence } from "@/components/portal/usePresence";
+import { EmptyState } from "@/components/portal/EmptyState";
 import {
   Bell,
   Check,
   ChevronDown,
   CircleUserRound,
+  ClipboardCheck,
   LogOut,
   Maximize2,
   Menu,
@@ -385,7 +387,7 @@ export function Header({
                   ))}
                 </div>
               ) : (
-                <p className="admin-notification-empty">ไม่มีคำร้องที่รอตรวจสอบ</p>
+                <EmptyState compact icon={ClipboardCheck} tone="green" title="ไม่มีคำร้องที่รอตรวจสอบ" description="คำร้องแก้ไขข้อมูลจากนักเรียนและคำขอเปิดรายวิชาจากครูจะมาที่นี่" />
               )}
             </div>
         </div>

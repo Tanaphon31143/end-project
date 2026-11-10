@@ -897,3 +897,19 @@
   .teacher-course-roster-table { overflow-x: auto; }
   .teacher-course-roster-table table { min-width: 540px; }
 }
+
+/* School announcements, shared with the student dashboard. */
+.teacher-school-news { min-height: 0; margin-top: 16px; scroll-margin-top: 90px; }
+.teacher-school-news:focus { outline: none; }
+.teacher-school-news:target { animation: teacher-news-flash 1.6s ease-out; }
+.teacher-school-news .dashboard-panel-head h3 { display: inline-flex; align-items: center; gap: 10px; }
+.teacher-school-news-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #e7f0ff; color: #0b5fff; }
+.teacher-school-news-note { color: #6b7f99; font-size: 13px; }
+.teacher-school-news-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.teacher-school-news-list article { padding: 16px; border: 1px solid #e3ebf6; border-radius: 12px; background: #fbfdff; overflow-wrap: anywhere; transition: border-color 160ms ease-out, transform 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+.teacher-school-news-list h3 { color: #17335a; font-size: 16px; }
+.teacher-school-news-list time { color: #6b7f99; font-size: 12px; }
+@media (hover: hover) { .teacher-school-news-list article:hover { border-color: #b9d1f3; transform: translateY(-2px); } }
+@keyframes teacher-news-flash { 0% { box-shadow: 0 0 0 0 rgb(11 95 255 / 35%); } 100% { box-shadow: 0 0 0 14px rgb(11 95 255 / 0%); } }
+@media (max-width: 639px) { .teacher-school-news-note { display: none; } }
+@media (prefers-reduced-motion: reduce) { .teacher-school-news:target, .teacher-school-news-list article { animation: none; transition: none; } }
