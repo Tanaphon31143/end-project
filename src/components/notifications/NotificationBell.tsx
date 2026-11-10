@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Bell, CheckCircle2, ExternalLink, Info, XCircle } from "lucide-react";
+import { usePresence } from "@/components/portal/usePresence";
 
 export type NotificationItem = {
   id: string;
@@ -34,6 +35,7 @@ export default function NotificationBell({
   onReadAll?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const presence = usePresence(open);
   const [onlyUnread, setOnlyUnread] = useState(false);
   const [ring, setRing] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -84,8 +86,8 @@ export default function NotificationBell({
         <Bell size={20} aria-hidden="true" />
         {unread > 0 && <span className={`shared-notif-dot ${ring ? "is-pinging" : ""}`} aria-hidden="true" />}
       </button>
-      {open && (
-        <div ref={panelRef} className="shared-notif-panel" role="dialog" aria-label="การแจ้งเตือน">
+      {presence.present && (
+        <div ref={panelRef} className="shared-notif-panel" role="dialog" aria-label="การแจ้งเตือน" {...presence.presenceProps}>
           <header className="shared-notif-header">
             <strong>การแจ้งเตือน</strong>
             <button type="button" className="shared-notif-action" onClick={onReadAll} disabled={!unread}>อ่านทั้งหมด</button>

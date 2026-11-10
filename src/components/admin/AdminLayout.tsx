@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { useResponsiveOverlay } from "@/components/portal/useResponsiveOverlay";
+import { usePortalMotion } from "@/components/portal/usePortalMotion";
 import { usePathname, useRouter } from "next/navigation";
 import "./AdminAnnouncementShell.css";
 import "./AdminUserManagementShell.css";
@@ -23,6 +24,8 @@ export function AdminLayout({ children, adminName }: { children: React.ReactNode
         ? "students"
         : null;
   const sidebarRef = useRef<HTMLElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePortalMotion(rootRef);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   useResponsiveOverlay({
     open,
@@ -40,8 +43,10 @@ export function AdminLayout({ children, adminName }: { children: React.ReactNode
 
   return (
     <div
+      ref={rootRef}
       className={[
         "admin-shell",
+        "portal-motion",
         announcementMode && "admin-announcement-shell",
         userManagementKind && "admin-user-management-shell",
         userManagementKind && `admin-user-management-${userManagementKind}`,

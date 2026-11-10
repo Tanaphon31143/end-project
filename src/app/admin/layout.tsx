@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import "./dashboard/admin.css";
 import "../portal-ui.css";
 import "../responsive.css";
+import "../portal-motion.css";
 
 export const metadata: Metadata = {
   title: "แดชบอร์ดผู้ดูแลระบบ | โรงเรียนขุขันธ์",

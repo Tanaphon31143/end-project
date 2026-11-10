@@ -9,6 +9,7 @@ import "./student.css";
 import "../profile.css";
 import "../portal-ui.css";
 import "../responsive.css";
+import "../portal-motion.css";
 
 export const metadata: Metadata = {
   title: "ระบบสำหรับนักเรียน | School OS",

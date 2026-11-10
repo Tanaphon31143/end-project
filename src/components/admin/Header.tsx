@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useResponsiveOverlay } from "@/components/portal/useResponsiveOverlay";
+import { usePresence } from "@/components/portal/usePresence";
 import {
   Bell,
   Check,
@@ -70,7 +71,11 @@ export function Header({
 }) {
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
+  const profilePresence = usePresence(profileOpen);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationPresence = usePresence(notificationsOpen);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [bellPulse, setBellPulse] = useState(0);
@@ -128,12 +133,14 @@ export function Header({
       if (!notificationRef.current?.contains(event.target as Node)) {
         setNotificationsOpen(false);
       }
+      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setNotificationsOpen(false);
         setProfileOpen(false);
-        notificationTriggerRef.current?.focus();
+        if (profileRef.current?.contains(document.activeElement)) profileTriggerRef.current?.focus();
+        else if (notificationRef.current?.contains(document.activeElement)) notificationTriggerRef.current?.focus();
       }
     }
     document.addEventListener("mousedown", closeOnOutsideClick);
@@ -246,12 +253,12 @@ export function Header({
           />
             <div
               ref={notificationPanelRef}
-              className={`admin-notification-panel notification-surface ${notificationsOpen ? "is-open" : ""}`}
+              className={`admin-notification-panel notification-surface ${notificationPresence.present ? "is-open" : ""}`}
               id="admin-notification-panel"
               role="dialog"
               aria-modal={notificationsOpen ? "true" : undefined}
               aria-label="การแจ้งเตือนของผู้ดูแลระบบ"
-              inert={!notificationsOpen}
+              {...notificationPresence.presenceProps}
             >
               <span className="notification-sheet-handle" aria-hidden="true" />
               <div className="admin-notification-heading">
@@ -385,8 +392,9 @@ export function Header({
         <button type="button" className="fullscreen-control" aria-label="แสดงผลเต็มหน้าจอ" onClick={() => void toggleFullscreen()}>
           <Maximize2 size={19} />
         </button>
-        <div className="admin-profile-wrap">
+        <div className="admin-profile-wrap" ref={profileRef}>
           <button
+            ref={profileTriggerRef}
             className="profile"
             onClick={() => { setProfileOpen((value) => !value); setNotificationsOpen(false); }}
             aria-expanded={profileOpen}
@@ -399,8 +407,8 @@ export function Header({
             </span>
             <ChevronDown className={profileOpen ? "rotated" : ""} size={17} />
           </button>
-          {profileOpen && (
-            <div className="admin-profile-menu" role="menu">
+          {profilePresence.present && (
+            <div className="admin-profile-menu" role="menu" {...profilePresence.presenceProps}>
               <Link
                 href="/admin/settings"
                 onClick={() => setProfileOpen(false)}

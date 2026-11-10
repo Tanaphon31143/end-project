@@ -1,0 +1,205 @@
+/* Shared interaction timing for every authenticated workspace. */
+.portal-motion {
+  --portal-motion-fast: 140ms;
+  --portal-motion-normal: 220ms;
+  --portal-motion-panel: 180ms;
+  --portal-motion-exit: 140ms;
+  --portal-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.portal-motion :where(button, a[role="button"], input, select, textarea, tbody td, tbody th) {
+  transition: background-color var(--portal-motion-fast) ease-out,
+    border-color var(--portal-motion-fast) ease-out,
+    color var(--portal-motion-fast) ease-out,
+    box-shadow var(--portal-motion-normal) var(--portal-motion-ease);
+}
+
+.portal-motion :is(.portal-sidebar-item, .portal-sidebar-logout, .portal-sidebar-icon) {
+  transition: transform var(--portal-motion-normal) var(--portal-motion-ease),
+    background-color var(--portal-motion-fast) ease-out,
+    color var(--portal-motion-fast) ease-out,
+    box-shadow var(--portal-motion-normal) var(--portal-motion-ease);
+}
+
+.portal-motion .portal-sidebar-item[aria-current="page"] .portal-sidebar-icon {
+  animation: portal-nav-selected 220ms var(--portal-motion-ease);
+}
+
+.portal-motion:is(.admin-shell, .teacher-app, .student-shell) :is(.admin-sidebar, .student-sidebar, .sidebar) {
+  transition: width 280ms var(--portal-motion-ease),
+    transform 280ms var(--portal-motion-ease), visibility 0s 280ms;
+}
+
+.portal-motion:is(.admin-shell, .teacher-app, .student-shell) :is(.admin-sidebar.open, .sidebar.open, .student-sidebar.is-open) {
+  transition-delay: 0s;
+}
+
+.portal-motion :is(.admin-main, .teacher-main, .student-workspace) {
+  transition: margin-left 280ms var(--portal-motion-ease), width 280ms var(--portal-motion-ease);
+}
+
+.portal-motion :is(.admin-button, .button, .account-profile-button, .um-primary, .um-btn) {
+  transition: transform var(--portal-motion-normal) var(--portal-motion-ease),
+    translate var(--portal-motion-normal) var(--portal-motion-ease),
+    scale var(--portal-motion-fast) var(--portal-motion-ease),
+    background-color var(--portal-motion-fast) ease-out,
+    border-color var(--portal-motion-fast) ease-out,
+    color var(--portal-motion-fast) ease-out,
+    box-shadow var(--portal-motion-normal) var(--portal-motion-ease);
+}
+
+.portal-motion :is(.admin-button, .button, .account-profile-button, .um-primary, .um-btn):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.portal-motion :is(.table-actions, .student-icon-actions) button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.portal-motion button > .lucide-chevron-down {
+  transition: transform var(--portal-motion-normal) var(--portal-motion-ease);
+}
+
+.portal-motion button[aria-expanded="true"] > .lucide-chevron-down {
+  transform: rotate(180deg);
+}
+
+.portal-motion :is(.admin-stat-card, .dashboard-stats > .stat-card, .dashboard-stats-grid > .stat-card) {
+  animation-duration: 300ms;
+  animation-fill-mode: backwards;
+  transition: transform var(--portal-motion-normal) var(--portal-motion-ease),
+    box-shadow var(--portal-motion-normal) var(--portal-motion-ease);
+}
+
+.portal-motion :is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(2) { animation-delay: 40ms; }
+.portal-motion :is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(3) { animation-delay: 80ms; }
+.portal-motion :is(.stats-row, .dashboard-stats, .dashboard-stats-grid) > :nth-child(n + 4) { animation-delay: 120ms; }
+
+.portal-motion:is(.admin-shell, .teacher-app, .student-shell) [data-portal-presence="open"] {
+  transform-origin: top right;
+  animation: portal-panel-in var(--portal-motion-panel) var(--portal-motion-ease);
+}
+
+.portal-motion:is(.admin-shell, .teacher-app, .student-shell) [data-portal-presence="closed"] {
+  pointer-events: none;
+  animation: portal-panel-out var(--portal-motion-exit) ease-in forwards;
+}
+
+.portal-motion :is(.subject-modal, .modal, .student-modal, .student-native-modal[open]) {
+  animation: portal-dialog-in 240ms var(--portal-motion-ease);
+}
+
+.portal-motion .student-native-modal :is(.subject-modal, .modal, .student-modal) {
+  animation: none;
+}
+
+.portal-motion :is(.subject-modal-layer, .modal-backdrop)::backdrop,
+.portal-motion .student-native-modal[open]::backdrop {
+  animation: portal-backdrop-in var(--portal-motion-panel) ease-out;
+}
+
+.portal-motion :is(.student-toast, .teacher-toast, .admin-toast) {
+  animation: portal-panel-in var(--portal-motion-panel) var(--portal-motion-ease);
+}
+
+.portal-motion .account-profile-password-wrap button svg {
+  transform-origin: center;
+}
+
+.portal-motion .account-profile-password-wrap button:is(:hover, :focus-visible) svg {
+  animation: portal-eye-blink 380ms var(--portal-motion-ease);
+}
+
+.portal-motion [aria-busy="true"] { cursor: progress; }
+
+@media (hover: hover) and (pointer: fine) {
+  .portal-motion .portal-sidebar-item:hover,
+  .portal-motion .portal-sidebar-logout:hover {
+    transform: translateX(3px);
+  }
+
+  .portal-motion .portal-sidebar-item:hover .portal-sidebar-icon {
+    transform: rotate(6deg) scale(1.06);
+  }
+
+  .portal-motion :is(.admin-button, .button, .account-profile-button, .um-primary, .um-btn):hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .portal-motion :is(.admin-button, .button, .account-profile-button, .um-primary, .um-btn):active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+@media (max-width: 1023px) {
+  .portal-motion:is(.admin-shell, .teacher-app, .student-shell) :is(.admin-backdrop, .sidebar-backdrop, .student-overlay) {
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    display: block;
+    border: 0;
+    background: rgb(7 21 43 / 40%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 200ms ease-out, visibility 0s 200ms;
+  }
+
+  .portal-motion:is(.admin-shell, .teacher-app, .student-shell) :is(.admin-backdrop.show, .sidebar-backdrop.show, .student-overlay.is-open) {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+}
+
+@keyframes portal-nav-selected {
+  from { opacity: 0.6; scale: 0.9; }
+  to { opacity: 1; scale: 1; }
+}
+
+@keyframes portal-panel-in {
+  from { opacity: 0.3; translate: 0 -4px; scale: 0.98; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+@keyframes portal-panel-out {
+  from { opacity: 1; translate: 0 0; scale: 1; }
+  to { opacity: 0; translate: 0 -3px; scale: 0.99; }
+}
+
+@keyframes portal-dialog-in {
+  from { opacity: 0.3; translate: 0 6px; scale: 0.98; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+@keyframes portal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes portal-eye-blink {
+  0%, 65%, 100% { transform: scaleY(1); }
+  30% { transform: scaleY(0.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-motion,
+  .portal-motion *,
+  .portal-motion *::before,
+  .portal-motion *::after,
+  .portal-motion *::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .portal-motion :is(.portal-sidebar-item, .portal-sidebar-logout):is(:hover, :active),
+  .portal-motion .portal-sidebar-item:hover .portal-sidebar-icon,
+  .portal-motion :is(.admin-button, .button, .account-profile-button, .um-primary, .um-btn):is(:hover, :active):not(:disabled) {
+    transform: none;
+  }
+}

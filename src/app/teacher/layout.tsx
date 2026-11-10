@@ -10,6 +10,7 @@ import "./teacher.css";
 import "./teacher-dashboard.css";
 import "../portal-ui.css";
 import "../responsive.css";
+import "../portal-motion.css";
 export const metadata: Metadata = {
   title: "ระบบสำหรับครู | School OS",
   description: "ระบบเช็คชื่อด้วยการสแกนใบหน้าสำหรับครูผู้สอน",

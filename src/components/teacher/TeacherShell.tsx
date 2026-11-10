@@ -9,6 +9,8 @@ import { Sidebar } from "./Sidebar";
 import NotificationBell, { type NotificationItem } from "@/components/notifications/NotificationBell";
 import type { TeacherIdentity } from "@/lib/teacher-data";
 import { useResponsiveOverlay } from "@/components/portal/useResponsiveOverlay";
+import { usePortalMotion } from "@/components/portal/usePortalMotion";
+import { usePresence } from "@/components/portal/usePresence";
 const searchableRoutes = [
   ["แดชบอร์ด", "/teacher/dashboard"],
   ["รายวิชาของฉัน", "/teacher/courses"],
@@ -37,7 +39,11 @@ export function TeacherShell({
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const profilePresence = usePresence(profileOpen);
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePortalMotion(rootRef);
   const profileRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -58,7 +64,9 @@ export function TeacherShell({
     }
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setProfileOpen(false);      }
+        setProfileOpen(false);
+        if (profileRef.current?.contains(document.activeElement)) profileTriggerRef.current?.focus();
+      }
     }
     document.addEventListener("pointerdown", dismiss);
     document.addEventListener("keydown", escape);
@@ -92,7 +100,7 @@ export function TeacherShell({
     trapFocus: true,
   });
   return (
-    <div className={`teacher-app ${collapsed ? "sidebar-is-collapsed" : ""}`}>
+    <div ref={rootRef} className={`teacher-app portal-motion ${collapsed ? "sidebar-is-collapsed" : ""}`}>
       <a className="teacher-skip-link" href="#teacher-content">
         ข้ามไปยังเนื้อหา
       </a>
@@ -131,6 +139,7 @@ export function TeacherShell({
             <NotificationBell role="teacher" items={notificationItems} onRead={(id) => void markNotification(id)} onReadAll={() => void markNotification()} />
             <div className="teacher-profile-menu-wrap" ref={profileRef}>
               <button
+                ref={profileTriggerRef}
                 className="teacher-profile-trigger"
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
@@ -161,8 +170,8 @@ export function TeacherShell({
                   aria-hidden="true"
                 />
               </button>
-              {profileOpen && (
-                <div className="teacher-profile-dropdown" role="menu">
+              {profilePresence.present && (
+                <div className="teacher-profile-dropdown" role="menu" {...profilePresence.presenceProps}>
                   <div className="teacher-profile-dropdown-heading">
                     <strong>{identity.name}</strong>
                     <span>ครูผู้สอน · {identity.position}</span>

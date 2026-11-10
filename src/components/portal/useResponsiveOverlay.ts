@@ -2,6 +2,27 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 
+let scrollLocks = 0;
+let previousBodyOverflow = "";
+let previousRootOverflow = "";
+
+export function lockDocumentScroll() {
+  if (scrollLocks === 0) {
+    previousBodyOverflow = document.body.style.overflow;
+    previousRootOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+  }
+  scrollLocks += 1;
+  return () => {
+    scrollLocks -= 1;
+    if (scrollLocks === 0) {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousRootOverflow;
+    }
+  };
+}
+
 export function useResponsiveOverlay({
   open,
   onClose,
@@ -27,14 +48,13 @@ export function useResponsiveOverlay({
     const media = window.matchMedia(mediaQuery);
     if (!media.matches) return;
 
-    const body = document.body;
     const trigger = triggerRef.current;
-    const previousOverflow = body.style.overflow;
-    body.style.overflow = "hidden";
+    const container = containerRef.current;
+    const unlockScroll = lockDocumentScroll();
 
     const focusable = () =>
       Array.from(
-        containerRef.current?.querySelectorAll<HTMLElement>(
+        container?.querySelectorAll<HTMLElement>(
           'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
         ) || [],
       ).filter((item) => item.getClientRects().length > 0);
@@ -68,10 +88,12 @@ export function useResponsiveOverlay({
     document.addEventListener("keydown", handleKeyDown);
     media.addEventListener("change", handleBreakpointChange);
     return () => {
-      body.style.overflow = previousOverflow;
+      unlockScroll();
       document.removeEventListener("keydown", handleKeyDown);
       media.removeEventListener("change", handleBreakpointChange);
-      trigger?.focus();
+      if (container?.contains(document.activeElement) || document.activeElement === document.body) {
+        trigger?.focus();
+      }
     };
   }, [containerRef, mediaQuery, open, trapFocus, triggerRef]);
 }

@@ -8,6 +8,8 @@ import NotificationBell from "./NotificationBell";
 import { useStudentToast } from "./StudentToast";
 import { SidebarItem } from "@/components/portal/SidebarItem";
 import { useResponsiveOverlay } from "@/components/portal/useResponsiveOverlay";
+import { usePortalMotion } from "@/components/portal/usePortalMotion";
+import { usePresence } from "@/components/portal/usePresence";
 import {
   Bell,
   BookOpen,
@@ -53,6 +55,9 @@ export default function StudentShell({
     [profile, setProfile] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
+  const profilePresence = usePresence(profile);
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePortalMotion(rootRef);
   const profileTriggerRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -128,17 +133,18 @@ export default function StudentShell({
   }, [profile]);
 
   return (
-    <div className={`student-shell ${collapsed ? "is-collapsed" : ""}`}>
+    <div ref={rootRef} className={`student-shell portal-motion ${collapsed ? "is-collapsed" : ""}`}>
       <a className="student-skip-link" href="#student-main">
         ข้ามไปยังเนื้อหา
       </a>
-      {drawer && (
-        <button
-          className="student-overlay"
-          aria-label="ปิดเมนู"
-          onClick={() => setDrawer(false)}
-        />
-      )}
+      <button
+        className={`student-overlay ${drawer ? "is-open" : ""}`}
+        aria-label="ปิดเมนู"
+        aria-hidden={!drawer}
+        tabIndex={-1}
+        inert={!drawer}
+        onClick={() => setDrawer(false)}
+      />
       <aside
         ref={sidebarRef}
         id="student-navigation"
@@ -255,8 +261,8 @@ export default function StudentShell({
                 </span>
                 <ChevronDown size={16} />
               </button>
-              {profile && (
-                <div className="profile-menu" aria-label="เมนูโปรไฟล์">
+              {profilePresence.present && (
+                <div className="profile-menu" aria-label="เมนูโปรไฟล์" {...profilePresence.presenceProps}>
                   <Link
                     href="/student/profile"
                     onClick={() => setProfile(false)}
