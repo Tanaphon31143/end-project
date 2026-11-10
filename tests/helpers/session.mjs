@@ -28,3 +28,26 @@ export async function createTestSession(connection, account, { maxAgeMs = 5 * 60
     revoke: () => connection.execute("DELETE FROM auth_sessions WHERE session_hash=?", [sessionHash]),
   };
 }
+
+/** Connection to the integration database (TEST_DATABASE_URL first, then DATABASE_URL). */
+export async function connectTestDatabase() {
+  const { default: mysql } = await import("mysql2/promise");
+  const parsed = new URL(process.env.TEST_DATABASE_URL || process.env.DATABASE_URL);
+  return mysql.createConnection({
+    host: parsed.hostname,
+    port: Number(parsed.port || 3306),
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: parsed.pathname.slice(1),
+    ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" },
+  });
+}
+
+/** First ACTIVE account of a role; `where` adds conditions on alias `a`. */
+export async function firstActiveAccount(connection, role, where = "") {
+  const table = role === "admin" ? "admins" : role === "teacher" ? "teachers" : "students";
+  const [[account]] = await connection.query(
+    `SELECT a.id,a.full_name name,a.email FROM ${table} a WHERE a.status='ACTIVE' ${where ? `AND ${where}` : ""} ORDER BY a.id LIMIT 1`,
+  );
+  return account ? { ...account, role } : null;
+}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
 import test from "node:test";
 import mysql from "mysql2/promise";
+import { createTestSession } from "./helpers/session.mjs";
 
 const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
 const enabled = process.env.RUN_STUDENT_INTEGRATION === "1"
@@ -9,35 +9,14 @@ const enabled = process.env.RUN_STUDENT_INTEGRATION === "1"
   && Boolean(process.env.AUTH_SECRET);
 const baseUrl = process.env.TEST_BASE_URL || "http://localhost:3000";
 
-async function studentCookie() {
-  const parsed = new URL(databaseUrl);
-  const connection = await mysql.createConnection({
-    host: parsed.hostname,
-    port: Number(parsed.port || 3306),
-    user: decodeURIComponent(parsed.username),
-    password: decodeURIComponent(parsed.password),
-    database: parsed.pathname.slice(1),
-    ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" },
-  });
-  try {
-    const [[student]] = await connection.query(
-      "SELECT id,full_name name,email FROM students WHERE status='ACTIVE' ORDER BY id LIMIT 1",
-    );
-    assert.ok(student, "ฐานทดสอบต้องมีนักเรียน ACTIVE อย่างน้อยหนึ่งคน");
-    const payload = Buffer.from(JSON.stringify({
-      id: student.id,
-      role: "student",
-      name: student.name,
-      email: student.email,
-      exp: Date.now() + 60_000,
-    })).toString("base64url");
-    const signature = createHmac("sha256", process.env.AUTH_SECRET)
-      .update(payload)
-      .digest("base64url");
-    return { cookie: `school_os_session=${payload}.${signature}`, studentId: Number(student.id) };
-  } finally {
-    await connection.end();
-  }
+/** A live session for an ACTIVE student who is not stuck on the forced password change. */
+async function studentSession(connection) {
+  const [[student]] = await connection.query(
+    "SELECT id,full_name name,email FROM students WHERE status='ACTIVE' AND must_change_password=0 ORDER BY id LIMIT 1",
+  );
+  assert.ok(student, "ฐานทดสอบต้องมีนักเรียน ACTIVE ที่ตั้งรหัสผ่านเองแล้วอย่างน้อยหนึ่งคน");
+  const session = await createTestSession(connection, { ...student, role: "student" });
+  return { ...session, studentId: Number(student.id) };
 }
 
 const gestureFor = {
@@ -58,8 +37,9 @@ test("student check-in: challenge is one-time and its audit evidence is persiste
     ssl: { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" },
   });
   let sessionId;
+  let auth;
   try {
-    const auth = await studentCookie();
+    auth = await studentSession(connection);
     const [[subject]] = await connection.query(
       `SELECT sb.id subjectId, sb.classroom_id classroomId
        FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id
@@ -122,6 +102,7 @@ test("student check-in: challenge is one-time and its audit evidence is persiste
       await connection.execute("DELETE FROM attendance_records WHERE check_in_session_id=?", [sessionId]);
       await connection.execute("DELETE FROM check_in_sessions WHERE id=?", [sessionId]);
     }
+    await auth?.revoke();
     await connection.end();
   }
 });
