@@ -8,18 +8,42 @@ export function usePortalMotion(rootRef: RefObject<HTMLElement | null>) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const content = rootRef.current?.querySelector("main");
+    const root = rootRef.current;
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (!content || !content.animate || preference.matches) return;
+    if (!root || preference.matches) return;
 
-    const animation = content.animate([{ opacity: 0.55 }, { opacity: 1 }], {
-      duration: 200,
-      easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+    const animations: Animation[] = [];
+    const fade = (content: Element | null) => {
+      if (!content?.animate) return;
+      animations.push(content.animate([{ opacity: 0.55 }, { opacity: 1 }], {
+        duration: 200,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+      }));
+    };
+
+    let current = root.querySelector("main");
+    fade(current);
+
+    // A segment with loading.tsx renders its skeleton's <main> first and swaps in the page's
+    // own <main> when data arrives; fade that one as well, then stop watching.
+    const observer = new MutationObserver(() => {
+      const next = root.querySelector("main");
+      if (!next || next === current) return;
+      current = next;
+      fade(next);
+      observer.disconnect();
     });
-    const stop = () => { if (preference.matches) animation.cancel(); };
+    observer.observe(root, { childList: true, subtree: true });
+    const stopWatching = window.setTimeout(() => observer.disconnect(), 10_000);
+
+    const stop = () => {
+      if (preference.matches) animations.forEach((animation) => animation.cancel());
+    };
     preference.addEventListener("change", stop);
     return () => {
-      animation.cancel();
+      observer.disconnect();
+      window.clearTimeout(stopWatching);
+      animations.forEach((animation) => animation.cancel());
       preference.removeEventListener("change", stop);
     };
   }, [pathname, rootRef]);
