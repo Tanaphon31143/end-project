@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { usePresence } from "@/components/portal/usePresence";
 
 export default function StatisticsDropdown({ name, label, value, options, icon, onChange }: {
   name: string;
@@ -12,6 +13,7 @@ export default function StatisticsDropdown({ name, label, value, options, icon, 
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const presence = usePresence(open);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const selected = options.find((option) => option.value === value);
@@ -36,6 +38,6 @@ export default function StatisticsDropdown({ name, label, value, options, icon, 
     <small id={`${name}-filter-label`}>{label}</small>
     <input type="hidden" name={name} value={value} />
     <button ref={trigger} type="button" className="statistics-dropdown-trigger" aria-labelledby={`${name}-filter-label ${name}-filter-value`} aria-expanded={open} aria-controls={`${name}-filter-options`} onClick={() => setOpen(!open)}>{icon}<span id={`${name}-filter-value`}>{selected?.label || "ไม่มีข้อมูล"}</span><ChevronDown size={16} aria-hidden="true" /></button>
-    {open && <div className="statistics-dropdown-options" id={`${name}-filter-options`} role="group" aria-label={label}>{options.map((option) => <button type="button" key={option.value} className="statistics-dropdown-option" aria-pressed={option.value === value} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}><span>{option.label}</span>{option.value === value && <Check size={16} aria-hidden="true" />}</button>)}</div>}
+    {presence.present && <div className="statistics-dropdown-options" id={`${name}-filter-options`} role="group" aria-label={label} {...presence.presenceProps}>{options.map((option) => <button type="button" key={option.value} className="statistics-dropdown-option" aria-pressed={option.value === value} onClick={() => { onChange(option.value); setOpen(false); trigger.current?.focus(); }}><span>{option.label}</span>{option.value === value && <Check size={16} aria-hidden="true" />}</button>)}</div>}
   </div>;
 }

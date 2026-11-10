@@ -1,21 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createHmac } from 'node:crypto';
 import mysql from 'mysql2/promise';
+import { createTestSession, firstActiveAccount } from './helpers/session.mjs';
 const enabled = process.env.RUN_STUDENT_INTEGRATION === '1';
 const base = process.env.TEST_BASE_URL || 'http://localhost:3000';
-function cookie(id, role = 'student') {
-  const payload = Buffer.from(JSON.stringify({ id, role, name: 'Integration', exp: Date.now()+120000 })).toString('base64url');
-  return `school_os_session=${payload}.${createHmac('sha256',process.env.AUTH_SECRET).update(payload).digest('base64url')}`;
-}
 test('multiple attachment upload, ownership, download, legacy and notification validation', { skip: !enabled }, async () => {
   const url = new URL(process.env.TEST_DATABASE_URL || process.env.DATABASE_URL);
   const db = await mysql.createConnection({host:url.hostname,port:Number(url.port||3306),user:decodeURIComponent(url.username),password:decodeURIComponent(url.password),database:url.pathname.slice(1),ssl:{rejectUnauthorized:true}});
   let reportId;
+  const sessions = [];
+  const sessionFor = async (account) => {
+    const session = await createTestSession(db, account);
+    sessions.push(session);
+    return session.cookie;
+  };
   try {
-    const [[student]] = await db.query("SELECT st.id,sb.id subjectId FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id WHERE st.status='ACTIVE' LIMIT 1");
+    const [[student]] = await db.query("SELECT st.id,sb.id subjectId FROM subjects sb JOIN student_term_enrollments ste ON ste.classroom_id=sb.classroom_id AND ste.academic_year=sb.academic_year AND ste.semester=sb.semester JOIN students st ON st.id=ste.student_id WHERE st.status='ACTIVE' AND st.must_change_password=0 LIMIT 1");
     assert.ok(student);
-    const headers = { cookie: cookie(student.id) };
+    const [[owner]] = await db.query("SELECT id,full_name name,email FROM students WHERE id=?",[student.id]);
+    const headers = { cookie: await sessionFor({ ...owner, role: 'student' }) };
+    const otherStudent = await firstActiveAccount(db, 'student', `a.id<>${Number(student.id)} AND a.must_change_password=0`);
+    const teacher = await firstActiveAccount(db, 'teacher');
+    assert.ok(otherStudent && teacher, 'ต้องมีนักเรียนอีกคนและครูหนึ่งคนสำหรับทดสอบสิทธิ์');
+    const otherCookie = await sessionFor(otherStudent);
+    const teacherCookie = await sessionFor(teacher);
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZQAAAABJRU5ErkJggg==','base64');
     const form = new FormData();
     for (const [key,value] of Object.entries({subjectId:String(student.subjectId),incidentDate:'2026-09-10',classTime:'08:30',room:'Test',issueType:'อื่น ๆ',details:'Integration test temporary report'})) form.set(key,value);
@@ -31,9 +39,10 @@ test('multiple attachment upload, ownership, download, legacy and notification v
     assert.equal(download.status,200); assert.match(download.headers.get('content-disposition'),/^attachment/);
     assert.deepEqual(Buffer.from(await download.arrayBuffer()),png);
     assert.equal((await fetch(path)).status,401);
-    assert.equal((await fetch(path,{headers:{cookie:cookie(student.id+1000000)}})).status,404);
-    assert.equal((await fetch(`${path}?id=${items[0].id}`,{headers:{cookie:cookie(student.id+1000000)}})).status,404);
-    assert.equal((await fetch(path,{headers:{cookie:cookie(student.id,'teacher')}})).status,401);
+    // Another student must not learn that the report exists; a teacher session is the wrong role.
+    assert.equal((await fetch(path,{headers:{cookie:otherCookie}})).status,404);
+    assert.equal((await fetch(`${path}?id=${items[0].id}`,{headers:{cookie:otherCookie}})).status,404);
+    assert.equal((await fetch(path,{headers:{cookie:teacherCookie}})).status,401);
     await db.execute('UPDATE attendance_issue_reports SET attachment_data=?,attachment_mime=? WHERE id=?',[png,'image/png',reportId]);
     assert.equal((await fetch(`${path}?id=legacy`,{headers})).status,200);
     const bad=await fetch(`${base}/api/student/notifications`,{method:'PATCH',headers:{...headers,'Content-Type':'application/json'},body:'{}'});
@@ -53,6 +62,7 @@ test('multiple attachment upload, ownership, download, legacy and notification v
       await db.execute('DELETE FROM attendance_issue_attachments WHERE report_id=?',[reportId]);
       await db.execute('DELETE FROM attendance_issue_reports WHERE id=?',[reportId]);
     }
+    for (const session of sessions) await session.revoke();
     await db.end();
   }
 });

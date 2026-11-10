@@ -531,6 +531,12 @@
     transition-delay: 0s;
   }
 
+  /* backdrop-filter makes the header the containing block for fixed children,
+     which would pin the sheet to the header instead of the bottom of the screen. */
+  header:has(.notification-surface.is-open) {
+    backdrop-filter: none;
+  }
+
   :is(.notif-panel, .teacher-notification-menu, .admin-notification-panel).notification-surface {
     position: fixed;
     inset: auto 0 0;

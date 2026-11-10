@@ -1,7 +1,7 @@
 import { Download, Paperclip } from "lucide-react";
 import type { Announcement, AnnouncementAttachment } from "@/lib/announcements";
 import AnnouncementContent from "@/components/announcements/AnnouncementContent";
-import styles from "./StudentAnnouncementCard.module.css";
+import styles from "./AnnouncementCard.module.css";
 
 function formatFileSize(size: number) {
   if (size < 1024) return `${size} ไบต์`;
@@ -29,7 +29,7 @@ function attachmentLabel(file: AnnouncementAttachment) {
   return "รูปภาพ";
 }
 
-export default function StudentAnnouncementCard({
+export default function AnnouncementCard({
   announcement,
 }: {
   announcement: Announcement;

@@ -1,0 +1,198 @@
+.announcement-ticker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin-block: 0 18px;
+  padding: 10px 12px 10px 10px;
+  overflow: hidden;
+  border: 1px solid #d8e5f6;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #f3f8ff, #ffffff 55%);
+  animation: announcement-ticker-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.announcement-ticker-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 999px;
+  background: #0b5fff;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.announcement-ticker-icon {
+  position: relative;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 18%);
+}
+
+.announcement-ticker-icon svg {
+  transform-origin: 30% 60%;
+  animation: announcement-ticker-shout 3.2s ease-in-out infinite;
+}
+
+/* A ripple that goes out from the megaphone. */
+.announcement-ticker-icon::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgb(255 255 255 / 55%);
+  content: "";
+  animation: announcement-ticker-ping 3.2s ease-out infinite;
+}
+
+.announcement-ticker-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.announcement-ticker-item {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  animation: announcement-ticker-swap 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.announcement-ticker-item strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #10284a;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.announcement-ticker-item time {
+  flex: 0 0 auto;
+  color: #6b7f99;
+  font-size: 12px;
+}
+
+.announcement-ticker-note {
+  display: block;
+  margin-top: 1px;
+  color: #6b7f99;
+  font-size: 12px;
+}
+
+.announcement-ticker-dots {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.announcement-ticker-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #c4d5ec;
+  cursor: pointer;
+  transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms ease-out;
+}
+
+.announcement-ticker-dots button[aria-pressed="true"] {
+  width: 20px;
+  background: #0b5fff;
+}
+
+.announcement-ticker-dots button:focus-visible,
+.announcement-ticker-link:focus-visible {
+  outline: 2px solid #0b5fff;
+  outline-offset: 2px;
+}
+
+.announcement-ticker-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  color: #0b5fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: gap 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.announcement-ticker-link:hover {
+  gap: 6px;
+}
+
+@media (max-width: 639px) {
+  .announcement-ticker {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .announcement-ticker-body {
+    flex-basis: calc(100% - 110px);
+  }
+
+  .announcement-ticker-dots {
+    order: 3;
+  }
+
+  .announcement-ticker-link {
+    order: 4;
+    margin-inline-start: auto;
+  }
+}
+
+@keyframes announcement-ticker-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes announcement-ticker-swap {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes announcement-ticker-shout {
+  0%, 70%, 100% { transform: rotate(0); }
+  76% { transform: rotate(-14deg) scale(1.08); }
+  84% { transform: rotate(10deg) scale(1.08); }
+  92% { transform: rotate(-6deg); }
+}
+
+@keyframes announcement-ticker-ping {
+  0%, 68% { box-shadow: 0 0 0 0 rgb(255 255 255 / 55%); }
+  100% { box-shadow: 0 0 0 10px rgb(255 255 255 / 0%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-ticker,
+  .announcement-ticker-item,
+  .announcement-ticker-icon svg,
+  .announcement-ticker-icon::after {
+    animation: none;
+  }
+}
+
+.announcement-ticker.is-empty {
+  background: #f8fafc;
+}
+
+.announcement-ticker.is-empty .announcement-ticker-badge {
+  background: #64748b;
+}
+
+.announcement-ticker-empty {
+  margin: 0;
+  color: #52657e;
+  font-size: 14px;
+}

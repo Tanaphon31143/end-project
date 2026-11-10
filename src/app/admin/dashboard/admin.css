@@ -681,7 +681,7 @@
   line-height: 1;
   letter-spacing: -0.025em;
 }
-.stat-card-value span {
+.stat-card-value > span {
   color: #64748b;
   font-size: 14px;
 }

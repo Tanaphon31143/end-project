@@ -339,19 +339,54 @@
 .passwordToggle {
   position: absolute;
   top: 50%;
-  right: 12px;
-  padding: 4px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 0;
+  border-radius: 10px;
   background: transparent;
   color: var(--muted-ink);
   font: inherit;
-  font-size: 12px;
-  font-weight: 650;
   transform: translateY(-50%);
-  transition:
-    color 160ms ease,
-    transform 160ms ease;
+  transition: color 160ms ease;
   cursor: pointer;
+}
+
+.passwordToggleIcon {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  animation: passwordEyeSwitch 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.passwordToggleIcon svg {
+  display: block;
+  transform-origin: center;
+}
+
+.passwordToggle:is(:hover, :focus-visible) .passwordToggleIcon svg {
+  animation: passwordEyeBlink 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.passwordToggle:is(:hover, :focus-visible, [aria-pressed="true"]) {
+  color: var(--ink);
+}
+
+.passwordToggle:active .passwordToggleIcon {
+  transform: scale(0.9);
+}
+
+@keyframes passwordEyeBlink {
+  0%, 65%, 100% { transform: scaleY(1); }
+  30% { transform: scaleY(0.12); }
+}
+
+@keyframes passwordEyeSwitch {
+  from { opacity: 0.35; transform: scale(0.75) rotate(-12deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
 }
 
 .passwordToggle:hover,
@@ -463,13 +498,8 @@
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
 }
 
-.forgotLink:hover,
-.passwordToggle:hover {
+.forgotLink:hover {
   transform: translateY(-1px);
-}
-
-.passwordToggle:hover {
-  transform: translateY(calc(-50% - 1px));
 }
 
 .primaryButton:disabled {
@@ -482,10 +512,20 @@
 @media (prefers-reduced-motion: reduce) {
   .primaryButton,
   .googleButton,
-  .forgotLink,
-  .passwordToggle {
+  .forgotLink {
     transition: none;
     transform: none !important;
+  }
+
+  .passwordToggle {
+    transition: none;
+  }
+
+  .passwordToggleIcon,
+  .passwordToggle:is(:hover, :focus-visible, :active) .passwordToggleIcon,
+  .passwordToggle:is(:hover, :focus-visible) .passwordToggleIcon svg {
+    animation: none;
+    transform: none;
   }
 }
 

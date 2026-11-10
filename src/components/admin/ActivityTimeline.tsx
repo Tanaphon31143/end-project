@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { EmptyState } from "@/components/portal/EmptyState";
 import {
   CalendarPlus,
+  History,
   ClipboardCheck,
   KeyRound,
   Pencil,
@@ -60,7 +62,7 @@ export function ActivityTimeline({ rows }: { rows: Activity[] }) {
           })}
         </div>
       ) : (
-        <div className="dashboard-empty-state">ยังไม่มีกิจกรรมล่าสุด</div>
+        <EmptyState compact icon={History} tone="slate" title="ยังไม่มีกิจกรรมล่าสุด" description="การเพิ่ม แก้ไข และการเช็คชื่อในระบบจะแสดงเป็นไทม์ไลน์ที่นี่" />
       )}
     </section>
   );

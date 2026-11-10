@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Bell, CheckCircle2, ExternalLink, Info, XCircle } from "lucide-react";
+import { usePresence } from "@/components/portal/usePresence";
+import { EmptyState } from "@/components/portal/EmptyState";
 
 export type NotificationItem = {
   id: string;
@@ -34,6 +36,7 @@ export default function NotificationBell({
   onReadAll?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const presence = usePresence(open);
   const [onlyUnread, setOnlyUnread] = useState(false);
   const [ring, setRing] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -84,8 +87,8 @@ export default function NotificationBell({
         <Bell size={20} aria-hidden="true" />
         {unread > 0 && <span className={`shared-notif-dot ${ring ? "is-pinging" : ""}`} aria-hidden="true" />}
       </button>
-      {open && (
-        <div ref={panelRef} className="shared-notif-panel" role="dialog" aria-label="การแจ้งเตือน">
+      {presence.present && (
+        <div ref={panelRef} className="shared-notif-panel" role="dialog" aria-label="การแจ้งเตือน" {...presence.presenceProps}>
           <header className="shared-notif-header">
             <strong>การแจ้งเตือน</strong>
             <button type="button" className="shared-notif-action" onClick={onReadAll} disabled={!unread}>อ่านทั้งหมด</button>
@@ -95,7 +98,7 @@ export default function NotificationBell({
             <button type="button" role="tab" aria-selected={onlyUnread} className={onlyUnread ? "active" : ""} onClick={() => setOnlyUnread(true)}>ยังไม่อ่าน ({unread})</button>
           </div>
           <div className="shared-notif-list">
-            {!list.length ? <p className="shared-notif-empty">ไม่มีการแจ้งเตือนใหม่</p> : list.map((item, index) => {
+            {!list.length ? <EmptyState compact icon={onlyUnread ? CheckCircle2 : Bell} tone={onlyUnread ? "green" : "blue"} title={onlyUnread ? "อ่านครบทุกรายการแล้ว" : "ยังไม่มีการแจ้งเตือน"} description={onlyUnread ? "ไม่มีการแจ้งเตือนที่ยังไม่ได้อ่าน" : "เมื่อมีความเคลื่อนไหวเกี่ยวกับคุณ จะแจ้งไว้ที่นี่"} /> : list.map((item, index) => {
               const { box, Icon } = appearance[item.type];
               const content = (
                 <>

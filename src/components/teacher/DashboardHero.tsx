@@ -1,15 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, Pencil, UserRound } from "lucide-react";
+import { LiveDateTime, LiveGreeting } from "@/components/portal/LiveGreeting";
 import type { TeacherIdentity } from "@/lib/teacher-data";
 
-export function DashboardHero({
-  identity,
-  date,
-}: {
-  identity: TeacherIdentity;
-  date: string;
-}) {
+export function DashboardHero({ identity }: { identity: TeacherIdentity }) {
   const name = identity.name.trim() || "คุณครู";
   const greetingBase = name.replace(/^(นาย|นางสาว|นาง)/, "").trim();
   const greetingName = greetingBase.startsWith("คุณครู")
@@ -31,14 +26,14 @@ export function DashboardHero({
       />
       <div className="dashboard-hero-copy">
         <h2 id="dashboard-greeting">
-          สวัสดีครับ {greetingName} <span aria-hidden="true">👋</span>
+          <LiveGreeting name={greetingName} polite />
         </h2>
         <p className="dashboard-hero-lead">
           ยินดีต้อนรับเข้าสู่ระบบเช็คชื่อด้วยการสแกนใบหน้า
         </p>
         <p className="dashboard-hero-date">
           <CalendarDays size={21} aria-hidden="true" />
-          <span>{date}</span>
+          <span><LiveDateTime /></span>
         </p>
         <blockquote>
           “การเรียนรู้วันนี้ สร้างอนาคตที่ดีกว่าให้กับนักเรียน”

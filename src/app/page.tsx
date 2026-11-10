@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import styles from "./page.module.css";
 import { AuthBrand } from "@/components/AuthBrand";
 import { RippleButton } from "@/components/portal/RippleButton";
@@ -271,8 +272,16 @@ export default function Home() {
                   className={styles.passwordToggle}
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  aria-pressed={showPassword}
+                  aria-controls="password"
                 >
-                  {showPassword ? "ซ่อน" : "แสดง"}
+                  <span
+                    key={showPassword ? "visible" : "hidden"}
+                    className={styles.passwordToggleIcon}
+                    aria-hidden="true"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </span>
                 </button>
               </div>
               {errors.password && (

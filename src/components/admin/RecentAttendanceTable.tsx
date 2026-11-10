@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { UsersRound } from "lucide-react";
+import { ClipboardList, UsersRound } from "lucide-react";
+import { EmptyState } from "@/components/portal/EmptyState";
 import { nameInitials } from "@/lib/name-initials";
 type Row = {
   id: string;
@@ -57,7 +58,9 @@ export function RecentAttendanceTable({ rows }: { rows: Row[] }) {
             ))}
             {!rows.length && (
               <tr>
-                <td colSpan={5}>ยังไม่มีข้อมูลการเข้าเรียน</td>
+                <td colSpan={5}>
+                  <EmptyState compact icon={ClipboardList} title="ยังไม่มีข้อมูลการเข้าเรียน" description="รายการจะขึ้นที่นี่ทันทีที่ครูเริ่มเช็คชื่อ" action={{ href: "/admin/attendance/check-in", label: "ไปหน้าเช็คชื่อ" }} />
+                </td>
               </tr>
             )}
           </tbody>

@@ -9,10 +9,14 @@ test("live portal schema and search queries work without changing school data", 
   const url = new URL(process.env.DATABASE_URL);
   const connection = await mysql.createConnection({ host: url.hostname, port: Number(url.port || 3306), user: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: url.pathname.slice(1), ssl: { minVersion: "TLSv1.2", rejectUnauthorized: true } });
   try {
+    const getSchoolTerm = async () => {
+      const [[term]] = await connection.execute("SELECT academic_year academicYear,semester FROM school_settings ORDER BY id LIMIT 1");
+      return term;
+    };
     function load(path) {
       const exports = {};
       const code = ts.transpileModule(fs.readFileSync(new URL(path, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-      vm.runInNewContext(code, { exports, require(name) { if (name === "server-only") return {}; if (name === "./db") return { db: connection }; throw Error(name); } });
+      vm.runInNewContext(code, { exports, require(name) { if (name === "server-only") return {}; if (name === "./db") return { db: connection }; if (name === "./academic-term") return { getSchoolTerm }; throw Error(name); } });
       return exports;
     }
     const search = load("../src/lib/portal-search.ts");

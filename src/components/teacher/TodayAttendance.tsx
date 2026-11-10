@@ -47,7 +47,7 @@ export function TodayAttendance({ sessions }: { sessions?: DashboardSession[] | 
           </table>
         </div>
       ) : (
-        <EmptyState icon={CalendarDays} title="วันนี้ยังไม่มีตารางสอน" description="ตารางเรียนของวันนี้จะแสดงที่นี่" />
+        <EmptyState icon={CalendarDays} title="วันนี้ยังไม่มีตารางสอน" description="วันไหนมีคาบสอน รายการจะแสดงที่นี่พร้อมปุ่มเปิดรอบเช็คชื่อ" action={{ href: "/teacher/courses", label: "ดูตารางสอนทั้งสัปดาห์" }} />
       )}
     </section>
   );

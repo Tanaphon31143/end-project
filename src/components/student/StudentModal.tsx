@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { lockDocumentScroll } from "@/components/portal/useResponsiveOverlay";
 
 /** Native modal makes the background inert, traps Tab and restores trigger focus. */
 export default function StudentModal({
@@ -17,8 +18,14 @@ export default function StudentModal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
-    return () => dialog?.close();
+    const unlockScroll = lockDocumentScroll();
+    return () => {
+      dialog?.close();
+      unlockScroll();
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    };
   }, []);
   return (
     <dialog

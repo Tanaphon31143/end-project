@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/portal/CountUp";
 import type { IconComponent } from "./types";
 
 type Props = { icon: IconComponent; title: string; value: string; unit: string; note: string; tone: "blue" | "green" | "purple" | "orange" };
@@ -9,7 +10,7 @@ export function StatCard({ icon: Icon, title, value, unit, note, tone }: Props) 
         <div className={`stat-icon stat-icon-${tone}`}><Icon size={22} strokeWidth={2.2} /></div>
         <div className="stat-card-copy">
           <p className="stat-card-title">{title}</p>
-          <p className="stat-card-value"><strong>{value}</strong><span>{unit}</span></p>
+          <p className="stat-card-value"><strong><CountUp value={value} /></strong><span>{unit}</span></p>
         </div>
       </div>
       <div className="stat-card-note"><span aria-hidden="true">→</span>{note}</div>

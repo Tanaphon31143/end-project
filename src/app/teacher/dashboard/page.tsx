@@ -12,6 +12,9 @@ import { TodayAttendance } from "@/components/teacher/TodayAttendance";
 import { WeeklyAttendanceChart } from "@/components/teacher/WeeklyAttendanceChart";
 import { getTeacherSession } from "@/lib/auth";
 import { getTeacherDashboard, getTeacherIdentity } from "@/lib/teacher-data";
+import { getAnnouncements } from "@/lib/announcements";
+import { AnnouncementTicker } from "@/components/announcements/AnnouncementTicker";
+import { SchoolNewsPanel } from "@/components/teacher/SchoolNewsPanel";
 
 const safeNumber = (value: number | undefined | null) =>
   Number.isFinite(value) ? String(value) : "0";
@@ -21,19 +24,21 @@ const attendanceDetail = (value?: string | null) =>
 export default async function TeacherDashboard() {
   const session = await getTeacherSession();
   if (!session) return null;
-  const [data, identity] = await Promise.all([
+  const [data, identity, announcements] = await Promise.all([
     getTeacherDashboard(session.id),
     getTeacherIdentity(session.id),
+    getAnnouncements(true, 3),
   ]);
   if (!identity) return null;
-  const date = new Intl.DateTimeFormat("th-TH", {
-    dateStyle: "full",
-    timeZone: "Asia/Bangkok",
-  }).format(new Date());
 
   return (
     <div className="dashboard-page">
-      <DashboardHero identity={identity} date={date} />
+      <DashboardHero identity={identity} />
+      <AnnouncementTicker
+        items={announcements.map(({ id, title, createdAt }) => ({ id, title, createdAt }))}
+        href="#school-news"
+        linkLabel="อ่านประกาศ"
+      />
       <section className="stats-grid dashboard-stats" aria-label="สรุปการเข้าเรียนวันนี้">
         <StatCard label="รายวิชาที่สอน" value={safeNumber(data.courses)} detail="รายวิชาที่เปิดสอนในภาคเรียนนี้" tone="blue" icon={BookOpen} />
         <StatCard label="นักเรียนทั้งหมด" value={safeNumber(data.students)} detail="นักเรียนในรายวิชาที่สอน" tone="blue" icon={UsersRound} />
@@ -46,6 +51,7 @@ export default async function TeacherDashboard() {
         <TodayAttendance sessions={data.sessions} />
         <WeeklyAttendanceChart data={data.chart} students={data.students} summary={data.weeklySummary} />
       </div>
+      <SchoolNewsPanel announcements={announcements} />
     </div>
   );
 }

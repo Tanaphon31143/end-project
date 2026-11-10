@@ -277,7 +277,7 @@
   font-size: 31px;
 }
 
-.admin-dashboard .stat-card-value span {
+.admin-dashboard .stat-card-value > span {
   color: #526d8b;
   font-size: 14px;
   font-weight: 600;
@@ -898,3 +898,8 @@
 .calendar-days button.selected { box-shadow: inset 0 0 0 2px #176ff0; font-weight: 700; }
 .calendar-days button:focus-visible { outline: 2px solid #176ff0; outline-offset: 2px; }
 .calendar-selection { margin-top: 12px; padding-top: 12px; border-top: 1px solid #dce7f3; color: #314f70; font-size: 12px; }
+
+/* Shared announcement strip sits between the stat cards and the charts. */
+.admin-dashboard .announcement-ticker {
+  margin: 14px 0 0;
+}
